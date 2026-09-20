@@ -1,0 +1,15 @@
+Options -Indexes
+Options +FollowSymLinks
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Handle Authorization header
+    RewriteCond %{HTTP:Authorization} ^(.+)$
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Redirect to api/web if no file/dir found
+    RewriteCond %{REQUEST_URI} !^/api/web/
+    RewriteCond %{REQUEST_URI} ^/api/
+    RewriteRule ^api/(.*)$ /api/web/$1 [L]
+</IfModule>

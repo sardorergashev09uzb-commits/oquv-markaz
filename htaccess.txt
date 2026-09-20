@@ -1,0 +1,3 @@
+RewriteEngine on
+RewriteCond %{REQUEST_URI} !^/api/web/
+RewriteRule ^(.*)$ /api/web/$1 [L]

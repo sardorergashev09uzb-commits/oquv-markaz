@@ -1,0 +1,15 @@
+Options -Indexes
+
+RewriteEngine on
+
+# The following rule tells Apache that if the requested filename
+# exists, simply serve it.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Otherwise forward the request to index.php
+RewriteRule . index.php [L]
+
+# Handle Authorization header
+RewriteCond %{HTTP:Authorization} ^(.+)$
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
