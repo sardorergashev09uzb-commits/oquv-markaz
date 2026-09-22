@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">O\'quv Markaz</string>
+    <string name="title_activity_main">O\'quv Markaz</string>
+    <string name="package_name">uz.oquvmarkaz.app</string>
+    <string name="custom_url_scheme">uz.oquvmarkaz.app</string>
+</resources>

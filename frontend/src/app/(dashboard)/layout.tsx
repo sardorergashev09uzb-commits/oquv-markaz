@@ -55,6 +55,8 @@ function getPageTitle(pathname: string): string {
   return titleMap[base] || 'Dashboard';
 }
 
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -72,10 +74,13 @@ export default async function DashboardLayout({
       {/* Main content */}
       <div className="flex flex-col flex-1 overflow-hidden">
         <Topbar title="Dashboard" />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 md:pb-6">
           {children}
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation for Smartphones */}
+      <MobileBottomNav role={role} />
     </div>
   );
 }
