@@ -62,6 +62,51 @@ class AttendanceController extends Controller
     }
 
     /**
+     * GET /api/attendance/my — O'quvchining o'z shaxsiy davomat tarixi (DB dan)
+     */
+     public function actionMy(): array
+     {
+         $user = Yii::$app->user->identity;
+         if (!$user) {
+             throw new NotFoundHttpException("Foydalanuvchi topilmadi.");
+         }
+
+         $records = Attendance::find()
+             ->with(['lesson.group'])
+             ->where(['student_id' => $user->id])
+             ->orderBy(['id' => SORT_DESC])
+             ->limit(50)
+             ->all();
+
+         $total = count($records);
+         $present = 0;
+         $items = [];
+         foreach ($records as $r) {
+             if ($r->status === Attendance::STATUS_PRESENT) {
+                 $present++;
+             }
+             $items[] = [
+                 'id' => $r->id,
+                 'lesson_id' => $r->lesson_id,
+                 'topic' => $r->lesson->topic ?? 'Mavzu belgilanmagan',
+                 'group_name' => $r->lesson->group->name ?? 'Guruh',
+                 'date' => $r->lesson->started_at ?? date('Y-m-d'),
+                 'status' => $r->status,
+                 'note' => $r->note,
+             ];
+         }
+
+         $rate = $total > 0 ? (int) round(($present / $total) * 100) : 100;
+
+         return [
+             'rate' => $rate,
+             'total' => $total,
+             'present' => $present,
+             'items' => $items,
+         ];
+     }
+
+    /**
      * GET /api/attendance/lesson/<lid:\d+>
      * Darsdagi barcha o'quvchilar ro'yxati va ularning davomati
      */

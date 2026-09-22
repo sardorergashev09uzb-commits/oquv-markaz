@@ -42,36 +42,20 @@ function StatCard({
 
 // ─── STUDENT DASHBOARD ─────────────────────────────────────────────────────
 function StudentDashboard({ userName }: { userName: string }) {
-  // Guruhlar ro'yxati
-  const { data: groupsData, isLoading: isGroupsLoading } = useQuery({
-    queryKey: ['student-groups-dashboard'],
+  // DB dan student ma'lumotlarini yuklash
+  const { data: studentData, isLoading: isStudentLoading } = useQuery({
+    queryKey: ['dashboard-student'],
     queryFn: async () => {
-      const resp = await api.get('/api/groups');
-      return resp.data?.items || [];
+      const resp = await api.get('/api/dashboard/student');
+      return resp.data;
     },
   });
 
-  // E'lonlar
-  const { data: announcementsData } = useQuery({
-    queryKey: ['student-announcements-dashboard'],
-    queryFn: async () => {
-      const resp = await api.get('/api/announcements');
-      return resp.data?.items || [];
-    },
-  });
-
-  // To'lovlar
-  const { data: paymentsData } = useQuery({
-    queryKey: ['student-payments-dashboard'],
-    queryFn: async () => {
-      const resp = await api.get('/api/payments');
-      return resp.data?.items || [];
-    },
-  });
-
-  const groups = groupsData || [];
-  const announcements = (announcementsData || []).slice(0, 3);
-  const paymentPlans = paymentsData || [];
+  const groups = studentData?.groups || [];
+  const announcements = studentData?.announcements || [];
+  const attendanceRate = studentData?.attendance_rate ?? 100;
+  const hasUnpaid = studentData?.has_unpaid ?? false;
+  const paymentStatus = hasUnpaid ? "Qarzdorlik mavjud" : "To'langan";
 
   return (
     <div className="space-y-6">
@@ -110,8 +94,8 @@ function StudentDashboard({ userName }: { userName: string }) {
             <StatCard
               icon={ClipboardCheck}
               label="Davomatim"
-              value="96%"
-              sub="A'lo ko'rsatkich"
+              value={`${attendanceRate}%`}
+              sub={attendanceRate >= 85 ? "A'lo ko'rsatkich" : "Nazorat zarur"}
               color="bg-emerald-500"
             />
           </Link>
@@ -119,9 +103,9 @@ function StudentDashboard({ userName }: { userName: string }) {
             <StatCard
               icon={CreditCard}
               label="To'lov holatim"
-              value="To'langan"
-              sub="Joriy oy uchun to'lov qilingan"
-              color="bg-purple-500"
+              value={paymentStatus}
+              sub={hasUnpaid ? "To'lov muddati yaqinlashmoqda" : "To'lovlar to'liq amalga oshirilgan"}
+              color={hasUnpaid ? "bg-rose-500" : "bg-purple-500"}
             />
           </Link>
           <Link href="/announcements" className="block hover:scale-[1.01] transition-transform">
@@ -262,16 +246,17 @@ function StudentDashboard({ userName }: { userName: string }) {
 
 // ─── TEACHER DASHBOARD ─────────────────────────────────────────────────────
 function TeacherDashboard({ userName }: { userName: string }) {
-  const { data: groupsData, isLoading } = useQuery({
-    queryKey: ['teacher-groups-dashboard'],
+  const { data: teacherData, isLoading } = useQuery({
+    queryKey: ['dashboard-teacher'],
     queryFn: async () => {
-      const resp = await api.get('/api/groups');
-      return resp.data?.items || [];
+      const resp = await api.get('/api/dashboard/teacher');
+      return resp.data;
     },
   });
 
-  const groups = groupsData || [];
-  const totalStudents = groups.reduce((acc: number, g: any) => acc + (g.students_count || 0), 0);
+  const groups = teacherData?.groups || [];
+  const totalStudents = teacherData?.students_count || 0;
+  const todayLessons = teacherData?.today_lessons || 0;
 
   return (
     <div className="space-y-6">
@@ -314,7 +299,7 @@ function TeacherDashboard({ userName }: { userName: string }) {
             <StatCard
               icon={Calendar}
               label="Bugungi darslar"
-              value={`${Math.min(groups.length, 3)} ta`}
+              value={`${todayLessons} ta`}
               sub="Dars jadvali bo'yicha"
               color="bg-emerald-500"
             />
@@ -323,8 +308,8 @@ function TeacherDashboard({ userName }: { userName: string }) {
             <StatCard
               icon={ClipboardCheck}
               label="Davomat nazorati"
-              value="94%"
-              sub="O'rtacha ishtirok"
+              value="Faol"
+              sub="Darslar bo'yicha"
               color="bg-amber-500"
             />
           </Link>

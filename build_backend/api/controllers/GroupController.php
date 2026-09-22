@@ -41,9 +41,15 @@ class GroupController extends Controller
         $search = $request->get('search');
         $courseId = $request->get('course_id');
         $teacherId = $request->get('teacher_id');
-        $status = $request->get('status');
-
         $query = Group::find()->with(['course', 'teacher', 'room']);
+
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
+            $query->innerJoin('{{%group_students}} gs', 'gs.group_id = {{%groups}}.id')
+                  ->andWhere(['gs.student_id' => $currentUser->id, 'gs.status' => GroupStudent::STATUS_ACTIVE]);
+        } elseif ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
+            $query->andWhere(['{{%groups}}.teacher_id' => $currentUser->id]);
+        }
 
         if ($search) {
             $query->andWhere(['like', 'name', $search]);

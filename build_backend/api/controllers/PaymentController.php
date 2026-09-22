@@ -42,6 +42,11 @@ class PaymentController extends Controller
 
         $query = PaymentPlan::find()->with(['student', 'group']);
 
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
+            $query->andWhere(['{{%payment_plans}}.student_id' => $currentUser->id]);
+        }
+
         if ($status) {
             $query->andWhere(['status' => $status]);
         }
@@ -78,6 +83,12 @@ class PaymentController extends Controller
             ->with(['plan', 'plan.student', 'plan.group', 'receivedBy'])
             ->orderBy(['paid_at' => SORT_DESC, 'id' => SORT_DESC])
             ->limit(50);
+
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
+            $query->innerJoin('{{%payment_plans}} pp', 'pp.id = {{%payments}}.plan_id')
+                  ->andWhere(['pp.student_id' => $currentUser->id]);
+        }
 
         return [
             'items' => $query->all(),
