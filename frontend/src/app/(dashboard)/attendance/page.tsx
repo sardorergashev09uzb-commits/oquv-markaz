@@ -43,6 +43,16 @@ export default function AttendancePage() {
   const [students, setStudents] = useState<StudentAttendance[]>([]);
   const [saveMessage, setSaveMessage] = useState<string>('');
 
+  // Student shaxsiy davomat statistikasi
+  const { data: myAttendance } = useQuery({
+    queryKey: ['my-attendance'],
+    queryFn: async () => {
+      const resp = await api.get('/api/attendance/my');
+      return resp.data;
+    },
+    enabled: isUserStudent,
+  });
+
   // Yangi dars modali
   const [isNewLessonModalOpen, setIsNewLessonModalOpen] = useState(false);
   const [newLessonTopic, setNewLessonTopic] = useState('');
@@ -220,6 +230,27 @@ export default function AttendancePage() {
           )}
         </div>
       </div>
+
+      {/* Student Personal Stats Banner */}
+      {isUserStudent && myAttendance && (
+        <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
+              {myAttendance.rate}%
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Sizning umumiy davomatingiz</h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Jami {myAttendance.total} ta darsdan {myAttendance.present} tasida ishtirok etgansiz
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-100/80 text-emerald-800 text-xs font-semibold">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            {myAttendance.rate >= 80 ? "A'lo davomat" : "Nazorat zarur"}
+          </span>
+        </div>
+      )}
 
       {/* Save Success Alert */}
       {saveMessage && (

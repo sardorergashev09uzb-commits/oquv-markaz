@@ -135,7 +135,7 @@ function StudentDashboard({ userName }: { userName: string }) {
             </Link>
           </div>
 
-          {isGroupsLoading ? (
+          {isStudentLoading ? (
             <div className="py-12 flex items-center justify-center">
               <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
             </div>

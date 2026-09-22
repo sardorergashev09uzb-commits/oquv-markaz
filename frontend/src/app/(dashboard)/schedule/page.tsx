@@ -60,18 +60,20 @@ export default function SchedulePage() {
     const dayItems: Array<{ group: any; time: string }> = [];
 
     filteredGroups.forEach((g: any) => {
-      if (!g.schedule_json) return;
-      try {
-        const schedule = typeof g.schedule_json === 'string' ? JSON.parse(g.schedule_json) : g.schedule_json;
-        if (Array.isArray(schedule)) {
-          schedule.forEach((slot: any) => {
-            if (slot.day === dayKey) {
-              dayItems.push({ group: g, time: slot.time });
-            }
-          });
+      let schedule = g.schedule;
+      if (!schedule && g.schedule_json) {
+        try {
+          schedule = typeof g.schedule_json === 'string' ? JSON.parse(g.schedule_json) : g.schedule_json;
+        } catch {
+          schedule = [];
         }
-      } catch {
-        // ignore parse error
+      }
+      if (Array.isArray(schedule)) {
+        schedule.forEach((slot: any) => {
+          if (slot.day === dayKey) {
+            dayItems.push({ group: g, time: slot.time });
+          }
+        });
       }
     });
 
@@ -192,18 +194,18 @@ export default function SchedulePage() {
                         {/* Course Name */}
                         <div className="text-xs text-gray-600 flex items-center gap-1">
                           <BookOpen className="w-3 h-3 text-gray-400 shrink-0" />
-                          <span className="truncate">{item.group.course?.name || 'Kurs'}</span>
+                          <span className="truncate">{item.group.course_name || item.group.course?.name || 'Kurs'}</span>
                         </div>
 
                         {/* Teacher & Room */}
                         <div className="pt-1.5 border-t border-blue-100/80 flex items-center justify-between text-[11px] text-gray-500">
                           <div className="flex items-center gap-1 truncate">
                             <GraduationCap className="w-3 h-3 text-gray-400 shrink-0" />
-                            <span className="truncate">{item.group.teacher?.name || 'Ustoz'}</span>
+                            <span className="truncate">{item.group.teacher_name || item.group.teacher?.name || 'Ustoz'}</span>
                           </div>
-                          {item.group.room && (
+                          {(item.group.room_name || item.group.room?.name) && (
                             <span className="bg-white px-1.5 py-0.5 rounded border border-gray-200 font-medium text-gray-700 shrink-0">
-                              {item.group.room.name}
+                              {item.group.room_name || item.group.room?.name}
                             </span>
                           )}
                         </div>

@@ -116,6 +116,9 @@ class PaymentController extends Controller
         }
 
         $user = Yii::$app->user->identity;
+        if ($user && $user->role === User::ROLE_STUDENT) {
+            throw new \yii\web\ForbiddenHttpException("O'quvchilar to'lov qabul qila olmaydi.");
+        }
 
         $payment = new Payment();
         $payment->plan_id = $planId;

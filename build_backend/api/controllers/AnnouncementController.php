@@ -33,10 +33,18 @@ class AnnouncementController extends Controller
      */
     public function actionIndex(): array
     {
-        $announcements = Announcement::find()
-            ->with('author')
-            ->orderBy(['published_at' => SORT_DESC, 'id' => SORT_DESC])
-            ->all();
+        $query = Announcement::find()->with('author');
+
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
+            $query->andWhere([
+                'or',
+                ['target_type' => Announcement::TARGET_ALL],
+                ['and', ['target_type' => Announcement::TARGET_STUDENT], ['or', ['target_id' => null], ['target_id' => $currentUser->id]]],
+            ]);
+        }
+
+        $announcements = $query->orderBy(['published_at' => SORT_DESC, 'id' => SORT_DESC])->all();
 
         return [
             'items' => $announcements,
