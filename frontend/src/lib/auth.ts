@@ -79,8 +79,10 @@ export const getNavItems = (role: string): NavItem[] => {
     { label: 'O\'qituvchilar',href: '/teachers',       icon: 'GraduationCap' },
     { label: 'Guruhlar',      href: '/groups',         icon: 'BookOpen' },
     { label: 'Davomat',       href: '/attendance',     icon: 'ClipboardCheck' },
+    { label: 'To\'lovlar',    href: '/payments',       icon: 'CreditCard' },
     { label: 'Moliya',        href: '/finance',        icon: 'BarChart3' },
     { label: 'Jadval',        href: '/schedule',       icon: 'Calendar' },
+    { label: 'Imtihonlar',    href: '/exams',          icon: 'Award' },
     { label: 'Hisobotlar',    href: '/reports',        icon: 'PieChart' },
     { label: 'E\'lonlar',     href: '/announcements',  icon: 'Megaphone' },
     { label: 'Profil',        href: '/profile',        icon: 'User' },
@@ -93,6 +95,8 @@ export const getNavItems = (role: string): NavItem[] => {
     { label: 'O\'quvchilar',  href: '/students',       icon: 'Users' },
     { label: 'Davomat',       href: '/attendance',     icon: 'ClipboardCheck' },
     { label: 'Dars jadvali',  href: '/schedule',       icon: 'Calendar' },
+    { label: 'Imtihonlar',    href: '/exams',          icon: 'Award' },
+    { label: 'Uy vazifalari', href: '/homework',       icon: 'FileText' },
     { label: 'E\'lonlar',     href: '/announcements',  icon: 'Megaphone' },
     { label: 'Profil',        href: '/profile',        icon: 'User' },
   ];
@@ -103,6 +107,8 @@ export const getNavItems = (role: string): NavItem[] => {
     { label: 'Dars jadvali',  href: '/schedule',       icon: 'Calendar' },
     { label: 'Davomatim',     href: '/attendance',     icon: 'ClipboardCheck' },
     { label: 'To\'lovlarim',  href: '/payments',       icon: 'CreditCard' },
+    { label: 'Imtihonlarim',  href: '/exams',          icon: 'Award' },
+    { label: 'Uy vazifalari', href: '/homework',       icon: 'FileText' },
     { label: 'E\'lonlar',     href: '/announcements',  icon: 'Megaphone' },
     { label: 'Profil',        href: '/profile',        icon: 'User' },
   ];

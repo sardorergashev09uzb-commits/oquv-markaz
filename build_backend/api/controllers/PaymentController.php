@@ -40,9 +40,13 @@ class PaymentController extends Controller
         $month = $request->get('month');
         $search = $request->get('search');
 
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
+            throw new \yii\web\ForbiddenHttpException("O'qituvchilarga to'lovlar bo'limiga kirish taqiqlangan.");
+        }
+
         $query = PaymentPlan::find()->with(['student', 'group']);
 
-        $currentUser = Yii::$app->user->identity;
         if ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
             $query->andWhere(['{{%payment_plans}}.student_id' => $currentUser->id]);
         }
@@ -55,7 +59,7 @@ class PaymentController extends Controller
             $query->andWhere(['month' => $month]);
         }
 
-        if ($search) {
+        if ($search && (!$currentUser || $currentUser->role !== User::ROLE_STUDENT)) {
             $query->innerJoin('{{%users}} u', 'u.id = {{%payment_plans}}.student_id')
                   ->andWhere(['or', ['like', 'u.name', $search], ['like', 'u.phone', $search]]);
         }
@@ -79,12 +83,16 @@ class PaymentController extends Controller
      */
     public function actionHistory(): array
     {
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
+            throw new \yii\web\ForbiddenHttpException("O'qituvchilarga to'lovlar bo'limiga kirish taqiqlangan.");
+        }
+
         $query = Payment::find()
             ->with(['plan', 'plan.student', 'plan.group', 'receivedBy'])
             ->orderBy(['paid_at' => SORT_DESC, 'id' => SORT_DESC])
             ->limit(50);
 
-        $currentUser = Yii::$app->user->identity;
         if ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
             $query->innerJoin('{{%payment_plans}} pp', 'pp.id = {{%payments}}.plan_id')
                   ->andWhere(['pp.student_id' => $currentUser->id]);

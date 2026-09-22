@@ -118,6 +118,7 @@ return [
                 'GET    api/attendance'                         => 'attendance/index',
 
                 // Assessments & Exams
+                'GET    api/assessments/my-scores'              => 'assessment/my-scores',
                 'POST   api/assessments/<id:\d+>/save-scores'   => 'assessment/save-scores',
                 'GET    api/assessments/<id:\d+>'               => 'assessment/view',
                 'GET    api/assessments'                        => 'assessment/index',

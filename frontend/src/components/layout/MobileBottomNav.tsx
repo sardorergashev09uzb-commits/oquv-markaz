@@ -1,12 +1,12 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Calendar, ClipboardCheck, CreditCard,
-  User, Users, BookOpen
+  User, Users, BookOpen, Award
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { isStudent, isTeacher } from '@/lib/auth';
+import { getCurrentUserFromToken, isStudent, isTeacher } from '@/lib/auth';
 
 interface MobileBottomNavProps {
   role: string;
@@ -16,16 +16,25 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
 
+  const [activeRole, setActiveRole] = useState(role);
+
+  useEffect(() => {
+    const user = getCurrentUserFromToken();
+    if (user?.role) {
+      setActiveRole(user.role);
+    }
+  }, [role]);
+
   // 5 Main Tabs for the bottom navigation (Role-based)
   let tabs = [
     { href: '/dashboard', label: 'Asosiy', icon: LayoutDashboard },
     { href: '/groups', label: 'Guruhlar', icon: BookOpen },
-    { href: '/schedule', label: 'Jadval', icon: Calendar },
+    { href: '/attendance', label: 'Davomat', icon: ClipboardCheck },
     { href: '/payments', label: "To'lovlar", icon: CreditCard },
     { href: '/profile', label: 'Profil', icon: User },
   ];
 
-  if (isStudent(role)) {
+  if (isStudent(activeRole)) {
     tabs = [
       { href: '/dashboard', label: 'Asosiy', icon: LayoutDashboard },
       { href: '/schedule', label: 'Jadval', icon: Calendar },
@@ -33,12 +42,12 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
       { href: '/payments', label: "To'lovlar", icon: CreditCard },
       { href: '/profile', label: 'Profil', icon: User },
     ];
-  } else if (isTeacher(role)) {
+  } else if (isTeacher(activeRole)) {
     tabs = [
       { href: '/dashboard', label: 'Asosiy', icon: LayoutDashboard },
-      { href: '/groups', label: 'Guruhlar', icon: Users },
+      { href: '/groups', label: 'Guruhlar', icon: BookOpen },
       { href: '/attendance', label: 'Davomat', icon: ClipboardCheck },
-      { href: '/schedule', label: 'Jadval', icon: Calendar },
+      { href: '/exams', label: 'Imtihonlar', icon: Award },
       { href: '/profile', label: 'Profil', icon: User },
     ];
   }

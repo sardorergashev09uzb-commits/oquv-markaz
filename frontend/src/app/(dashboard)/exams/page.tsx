@@ -5,8 +5,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
   Award, Plus, Calendar, Check, Users, FileText,
-  Loader2, CheckCircle2, AlertCircle, Sparkles, X, TrendingUp
+  Loader2, CheckCircle2, AlertCircle, Sparkles, X, TrendingUp,
+  Star, BookOpen, Clock, HelpCircle
 } from 'lucide-react';
+import { getCurrentUserFromToken, isStudent } from '@/lib/auth';
 
 interface AssessmentItem {
   id: number;
@@ -27,9 +29,46 @@ interface StudentScore {
   feedback: string;
 }
 
+interface MyScoreItem {
+  id: number;
+  title: string;
+  type: string;
+  max_score: number;
+  date: string;
+  group_name: string;
+  score: number | null;
+  feedback: string | null;
+  status: string;
+}
+
 export default function ExamsPage() {
   const queryClient = useQueryClient();
 
+  const [userRole, setUserRole] = useState<string>('');
+  const [isUserStudent, setIsUserStudent] = useState<boolean>(false);
+
+  useEffect(() => {
+    const user = getCurrentUserFromToken();
+    if (user) {
+      setUserRole(user.role);
+      setIsUserStudent(isStudent(user.role));
+    }
+  }, []);
+
+  // ─── Student Mode: O'quvchining shaxsiy imtihon va test natijalari ─────────
+  const { data: myScoresData, isLoading: isMyScoresLoading } = useQuery({
+    queryKey: ['my-scores'],
+    queryFn: async () => {
+      const resp = await api.get('/api/assessments/my-scores');
+      return resp.data as {
+        scores: MyScoreItem[];
+        stats: { total: number; average: number; highest: number };
+      };
+    },
+    enabled: isUserStudent,
+  });
+
+  // ─── Teacher / Admin Mode: Baholash va guruhlarni boshqarish ───────────────
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const [scores, setScores] = useState<StudentScore[]>([]);
@@ -52,13 +91,14 @@ export default function ExamsPage() {
       const resp = await api.get('/api/groups');
       return resp.data?.items || [];
     },
+    enabled: !isUserStudent,
   });
 
   useEffect(() => {
-    if (!selectedGroupId && groupsData && groupsData.length > 0) {
+    if (!isUserStudent && !selectedGroupId && groupsData && groupsData.length > 0) {
       setSelectedGroupId(String(groupsData[0].id));
     }
-  }, [groupsData, selectedGroupId]);
+  }, [groupsData, selectedGroupId, isUserStudent]);
 
   // 2. Fetch Exams for selected group
   const { data: examsData, isLoading: isExamsLoading } = useQuery({
@@ -68,21 +108,23 @@ export default function ExamsPage() {
       const resp = await api.get('/api/assessments', { params: { group_id: selectedGroupId } });
       return resp.data?.items || [];
     },
-    enabled: !!selectedGroupId,
+    enabled: !isUserStudent && !!selectedGroupId,
   });
 
   const exams: AssessmentItem[] = examsData || [];
 
   useEffect(() => {
-    if (exams.length > 0) {
-      if (!selectedExamId || !exams.some((e) => e.id === selectedExamId)) {
-        setSelectedExamId(exams[0].id);
+    if (!isUserStudent) {
+      if (exams.length > 0) {
+        if (!selectedExamId || !exams.some((e) => e.id === selectedExamId)) {
+          setSelectedExamId(exams[0].id);
+        }
+      } else {
+        setSelectedExamId(null);
+        setScores([]);
       }
-    } else {
-      setSelectedExamId(null);
-      setScores([]);
     }
-  }, [exams, selectedExamId]);
+  }, [exams, selectedExamId, isUserStudent]);
 
   // 3. Fetch Scores for selected exam
   const { data: examDetailsData, isLoading: isDetailsLoading } = useQuery({
@@ -92,7 +134,7 @@ export default function ExamsPage() {
       const resp = await api.get(`/api/assessments/${selectedExamId}`);
       return resp.data;
     },
-    enabled: !!selectedExamId,
+    enabled: !isUserStudent && !!selectedExamId,
   });
 
   useEffect(() => {
@@ -108,7 +150,7 @@ export default function ExamsPage() {
     }
   }, [examDetailsData]);
 
-  // 4. Create Exam Mutation
+  // 4. Create Exam Mutation (Teacher/Admin only)
   const createExamMutation = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -135,7 +177,7 @@ export default function ExamsPage() {
     },
   });
 
-  // 5. Save Scores Mutation
+  // 5. Save Scores Mutation (Teacher/Admin only)
   const saveScoresMutation = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -170,15 +212,182 @@ export default function ExamsPage() {
 
   const currentExam = exams.find((e) => e.id === selectedExamId);
 
+  // ─── O'quvchi UI qismi ───────────────────────────────────────────────────
+  if (isUserStudent) {
+    const myScores = myScoresData?.scores || [];
+    const stats = myScoresData?.stats || { total: 0, average: 0, highest: 0 };
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            Mening Imtihon va Test Natijalarim
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Darslar bo&apos;yicha topshirgan testlaringiz, imtihon ballari va o&apos;qituvchi izohlari
+          </p>
+        </div>
+
+        {/* Stats Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
+              <Award className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-400">Jami baholashlar</p>
+              <p className="text-xl font-bold text-gray-900 dark:text-white mt-0.5">{stats.total} ta</p>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-400">O&apos;rtacha natija</p>
+              <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                {stats.average > 0 ? `${stats.average} ball` : "Baholanmagan"}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+              <Star className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-400">Eng yuqori ball</p>
+              <p className="text-xl font-bold text-amber-600 dark:text-amber-400 mt-0.5">
+                {stats.highest > 0 ? `${stats.highest} ball` : "-"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Exams List Table */}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <h2 className="font-bold text-gray-900 dark:text-white text-base">Topshirilgan testlar va imtihonlar</h2>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-semibold">
+              {myScores.length} ta natija
+            </span>
+          </div>
+
+          {isMyScoresLoading ? (
+            <div className="py-20 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+          ) : myScores.length === 0 ? (
+            <div className="py-16 text-center text-gray-400 text-sm">
+              Sizda hali topshirilgan imtihon yoki test natijalari mavjud emas.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider border-b border-gray-100 dark:border-gray-800">
+                  <tr>
+                    <th className="px-6 py-3.5">Imtihon / Test</th>
+                    <th className="px-6 py-3.5">Guruh</th>
+                    <th className="px-6 py-3.5">Turi</th>
+                    <th className="px-6 py-3.5">Ball / Natija</th>
+                    <th className="px-6 py-3.5">Baho darajasi</th>
+                    <th className="px-6 py-3.5">O&apos;qituvchi fikri</th>
+                    <th className="px-6 py-3.5">Sana</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {myScores.map((item) => {
+                    const hasScore = item.score !== null;
+                    const percent = hasScore ? Math.round((Number(item.score) / item.max_score) * 100) : 0;
+
+                    let gradeBadge = (
+                      <span className="text-xs px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-500 font-medium">
+                        Kutilmoqda
+                      </span>
+                    );
+                    if (hasScore) {
+                      if (percent >= 86) {
+                        gradeBadge = (
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-bold">
+                            A&apos;lo ({percent}%)
+                          </span>
+                        );
+                      } else if (percent >= 71) {
+                        gradeBadge = (
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-bold">
+                            Yaxshi ({percent}%)
+                          </span>
+                        );
+                      } else if (percent >= 55) {
+                        gradeBadge = (
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 font-bold">
+                            Qoniqarli ({percent}%)
+                          </span>
+                        );
+                      } else {
+                        gradeBadge = (
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 font-bold">
+                            Qayta topshirish ({percent}%)
+                          </span>
+                        );
+                      }
+                    }
+
+                    return (
+                      <tr key={item.id} className="hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition">
+                        <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">
+                          {item.title}
+                        </td>
+                        <td className="px-6 py-4 text-xs text-gray-600 dark:text-gray-300">
+                          {item.group_name}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300">
+                            {item.type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {hasScore ? (
+                            <span className="text-base font-extrabold text-blue-600 dark:text-blue-400">
+                              {item.score} <span className="text-xs text-gray-400 font-normal">/ {item.max_score}</span>
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">Baholanmagan</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {gradeBadge}
+                        </td>
+                        <td className="px-6 py-4 text-xs text-gray-600 dark:text-gray-300 max-w-xs">
+                          {item.feedback || <span className="text-gray-400 italic">-</span>}
+                        </td>
+                        <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">
+                          {item.date}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── O'qituvchi / Admin UI qismi ──────────────────────────────────────────
   return (
     <div className="space-y-6">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Imtihonlar va Baholash</h1>
-          <p className="text-sm text-gray-500">
-            Guruhlar bo&apos;yicha testlar, imtihonlar va o&apos;quvchilar natijalarini kiritish
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Imtihonlar va Baholash Tizimi</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Guruhlar bo&apos;yicha testlar, imtihonlar o&apos;tkazish va o&apos;quvchilarni baholash
           </p>
         </div>
 
@@ -189,7 +398,7 @@ export default function ExamsPage() {
               setSelectedGroupId(e.target.value);
               setSelectedExamId(null);
             }}
-            className="px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3.5 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-800 dark:text-gray-200 shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {(groupsData || []).map((g: { id: number; name: string }) => (
               <option key={g.id} value={g.id}>
@@ -211,7 +420,7 @@ export default function ExamsPage() {
 
       {/* Success Alert */}
       {saveMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-2xl text-green-800 text-sm flex items-center gap-2 animate-fade-in">
+        <div className="p-4 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-2xl text-green-800 dark:text-green-300 text-sm flex items-center gap-2 animate-fade-in">
           <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
           <span className="font-semibold">{saveMessage}</span>
         </div>
@@ -221,10 +430,10 @@ export default function ExamsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
         {/* Left: Exams list */}
-        <div className="lg:col-span-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
-            <h2 className="font-bold text-gray-800 text-sm">Imtihonlar</h2>
-            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-semibold">
+        <div className="lg:col-span-1 bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col">
+          <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3 mb-3">
+            <h2 className="font-bold text-gray-800 dark:text-gray-200 text-sm">Imtihonlar</h2>
+            <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">
               {exams.length} ta
             </span>
           </div>
@@ -254,20 +463,20 @@ export default function ExamsPage() {
                     onClick={() => setSelectedExamId(exam.id)}
                     className={`w-full text-left p-3 rounded-xl transition text-xs flex flex-col gap-1 border ${
                       isSelected
-                        ? 'bg-blue-50 border-blue-200 text-blue-900 shadow-xs'
-                        : 'bg-white border-transparent hover:bg-gray-50 text-gray-700'
+                        ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 shadow-xs'
+                        : 'bg-white dark:bg-gray-900 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800/60 text-gray-700 dark:text-gray-300'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-bold truncate max-w-[140px]">{exam.title}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 uppercase font-semibold">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 uppercase font-semibold">
                         {exam.type}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-gray-400 mt-1">
                       <span>Max: {exam.max_score} ball</span>
                       {exam.average_score > 0 && (
-                        <span className="text-emerald-600 font-semibold">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
                           O&apos;rtacha: {exam.average_score}
                         </span>
                       )}
@@ -282,16 +491,16 @@ export default function ExamsPage() {
         {/* Right: Scores entry sheet */}
         <div className="lg:col-span-3 space-y-4">
           {selectedExamId && currentExam ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 space-y-6">
 
               {/* Exam Info Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-5">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-md text-xs font-bold uppercase">
+                    <span className="px-2 py-0.5 bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 rounded-md text-xs font-bold uppercase">
                       {currentExam.type}
                     </span>
-                    <h2 className="text-lg font-bold text-gray-900">{currentExam.title}</h2>
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">{currentExam.title}</h2>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
                     Sana: {currentExam.date} • Maksimal ball: {currentExam.max_score}
@@ -302,7 +511,7 @@ export default function ExamsPage() {
                   {currentExam.average_score > 0 && (
                     <div className="text-right">
                       <p className="text-xs text-gray-400">Guruh o&apos;rtacha bali</p>
-                      <p className="text-base font-bold text-emerald-600">{currentExam.average_score} ball</p>
+                      <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">{currentExam.average_score} ball</p>
                     </div>
                   )}
 
@@ -334,18 +543,18 @@ export default function ExamsPage() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
+                    <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider border-b border-gray-100 dark:border-gray-800">
                       <tr>
                         <th className="px-4 py-3">O&apos;quvchi</th>
-                        <th className="px-4 py-3 w-32">Ball (/{currentExam.max_score})</th>
+                        <th className="px-4 py-3 w-36">Ball (/{currentExam.max_score})</th>
                         <th className="px-4 py-3">Izoh / Fikr</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                       {scores.map((item) => (
-                        <tr key={item.student_id} className="hover:bg-gray-50/50 transition">
+                        <tr key={item.student_id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition">
                           <td className="px-4 py-3.5">
-                            <p className="font-semibold text-gray-900">{item.student_name}</p>
+                            <p className="font-semibold text-gray-900 dark:text-white">{item.student_name}</p>
                           </td>
 
                           {/* Score Input */}
@@ -358,7 +567,7 @@ export default function ExamsPage() {
                               value={item.score}
                               onChange={(e) => handleScoreChange(item.student_id, e.target.value)}
                               placeholder="0"
-                              className="w-24 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-center"
+                              className="w-28 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-bold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 text-center"
                             />
                           </td>
 
@@ -368,8 +577,8 @@ export default function ExamsPage() {
                               type="text"
                               value={item.feedback}
                               onChange={(e) => handleFeedbackChange(item.student_id, e.target.value)}
-                              placeholder="Masalan: Yaxshi, faqat Listening bo'limida xatolar bor"
-                              className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                              placeholder="Fikr yoki tavsiya yozing..."
+                              className="w-full px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 transition"
                             />
                           </td>
                         </tr>
@@ -380,7 +589,7 @@ export default function ExamsPage() {
               )}
 
               {/* Bottom save bar */}
-              <div className="pt-4 border-t border-gray-100 flex items-center justify-end">
+              <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end">
                 <button
                   type="button"
                   disabled={saveScoresMutation.isPending}
@@ -394,9 +603,9 @@ export default function ExamsPage() {
 
             </div>
           ) : (
-            <div className="bg-white rounded-2xl p-16 text-center border border-gray-100 shadow-sm">
-              <Award className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-700 font-semibold">Baholash tanlanmagan</p>
+            <div className="bg-white dark:bg-gray-900 rounded-2xl p-16 text-center border border-gray-100 dark:border-gray-800 shadow-sm">
+              <Award className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-700 dark:text-gray-300 font-semibold">Baholash tanlanmagan</p>
               <p className="text-xs text-gray-400 mt-1">
                 Chap tarafdan baholashni tanlang yoki yangi imtihon oching
               </p>
@@ -408,13 +617,13 @@ export default function ExamsPage() {
 
       {/* Modal: Yangi Baholash yaratish */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="font-bold text-gray-900">Yangi baholash/imtihon ochish</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100 dark:border-gray-800 animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+              <h3 className="font-bold text-gray-900 dark:text-white">Yangi baholash/imtihon ochish</h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -428,7 +637,7 @@ export default function ExamsPage() {
               className="p-6 space-y-4"
             >
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Baholash nomi *
                 </label>
                 <input
@@ -437,19 +646,19 @@ export default function ExamsPage() {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="Masalan: Monthly Mock Exam #1"
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                     Turi *
                   </label>
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   >
                     <option value="test">Test</option>
                     <option value="exam">Imtihon (Exam)</option>
@@ -460,7 +669,7 @@ export default function ExamsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                     Maksimal ball *
                   </label>
                   <input
@@ -470,13 +679,13 @@ export default function ExamsPage() {
                     required
                     value={formData.max_score}
                     onChange={(e) => setFormData({ ...formData, max_score: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Sana *
                 </label>
                 <input
@@ -484,12 +693,12 @@ export default function ExamsPage() {
                   required
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Tavsif (ixtiyoriy)
                 </label>
                 <textarea
@@ -497,7 +706,7 @@ export default function ExamsPage() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Imtihon bo'limlari yoki ko'rsatmalar..."
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
 
@@ -505,7 +714,7 @@ export default function ExamsPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition"
                 >
                   Bekor qilish
                 </button>

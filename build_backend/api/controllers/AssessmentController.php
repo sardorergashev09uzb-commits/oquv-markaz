@@ -50,6 +50,80 @@ class AssessmentController extends Controller
     }
 
     /**
+     * GET /api/assessments/my-scores — O'quvchining o'z imtihon va test natijalari
+     */
+    public function actionMyScores(): array
+    {
+        $user = Yii::$app->user->identity;
+        if (!$user) {
+            throw new NotFoundHttpException("Foydalanuvchi topilmadi.");
+        }
+
+        $groupIds = GroupStudent::find()
+            ->select('group_id')
+            ->where(['student_id' => $user->id, 'status' => GroupStudent::STATUS_ACTIVE])
+            ->column();
+
+        if (empty($groupIds)) {
+            return [
+                'scores' => [],
+                'stats' => ['total' => 0, 'average' => 0, 'highest' => 0],
+            ];
+        }
+
+        $assessments = Assessment::find()
+            ->with('group')
+            ->where(['group_id' => $groupIds])
+            ->orderBy(['date' => SORT_DESC, 'id' => SORT_DESC])
+            ->all();
+
+        $assessmentIds = array_column($assessments, 'id');
+        $myScores = empty($assessmentIds) ? [] : AssessmentScore::find()
+            ->where(['assessment_id' => $assessmentIds, 'student_id' => $user->id])
+            ->indexBy('assessment_id')
+            ->all();
+
+        $items = [];
+        $totalScores = 0;
+        $countGraded = 0;
+        $highest = 0;
+
+        foreach ($assessments as $a) {
+            $sc = $myScores[$a->id] ?? null;
+            $scoreVal = $sc && $sc->score !== null ? (float) $sc->score : null;
+            if ($scoreVal !== null) {
+                $totalScores += $scoreVal;
+                $countGraded++;
+                if ($scoreVal > $highest) {
+                    $highest = $scoreVal;
+                }
+            }
+            $items[] = [
+                'id'            => $a->id,
+                'title'         => $a->title,
+                'type'          => $a->type,
+                'max_score'     => $a->max_score,
+                'date'          => $a->date,
+                'group_name'    => $a->group ? $a->group->name : '',
+                'score'         => $scoreVal,
+                'feedback'      => $sc ? $sc->feedback : null,
+                'status'        => $sc ? $sc->status : 'pending',
+            ];
+        }
+
+        $avg = $countGraded > 0 ? round($totalScores / $countGraded, 1) : 0;
+
+        return [
+            'scores' => $items,
+            'stats' => [
+                'total' => count($items),
+                'average' => $avg,
+                'highest' => $highest,
+            ],
+        ];
+    }
+
+    /**
      * GET /api/assessments/{id}
      */
     public function actionView(int $id): array
@@ -57,6 +131,25 @@ class AssessmentController extends Controller
         $assessment = Assessment::find()->with('group')->where(['id' => $id])->one();
         if (!$assessment) {
             throw new NotFoundHttpException("Baholash topilmadi.");
+        }
+
+        $user = Yii::$app->user->identity;
+        if ($user && $user->role === User::ROLE_STUDENT) {
+            $sc = AssessmentScore::find()
+                ->where(['assessment_id' => $id, 'student_id' => $user->id])
+                ->one();
+            return [
+                'assessment' => $assessment,
+                'scores' => [
+                    [
+                        'student_id'   => $user->id,
+                        'student_name' => $user->name,
+                        'score'        => $sc ? $sc->score : null,
+                        'feedback'     => $sc ? $sc->feedback : '',
+                        'status'       => $sc ? $sc->status : 'pending',
+                    ]
+                ],
+            ];
         }
 
         // Guruh o'quvchilari
@@ -95,8 +188,12 @@ class AssessmentController extends Controller
      */
     public function actionCreate(): array
     {
-        $body = Yii::$app->request->bodyParams;
         $user = Yii::$app->user->identity;
+        if ($user && $user->role === User::ROLE_STUDENT) {
+            throw new \yii\web\ForbiddenHttpException("O'quvchilarga imtihon yoki baholash yaratish taqiqlangan.");
+        }
+
+        $body = Yii::$app->request->bodyParams;
 
         $assessment = new Assessment();
         $assessment->group_id = (int) ($body['group_id'] ?? 0);
@@ -126,6 +223,11 @@ class AssessmentController extends Controller
      */
     public function actionSaveScores(int $id): array
     {
+        $user = Yii::$app->user->identity;
+        if ($user && $user->role === User::ROLE_STUDENT) {
+            throw new \yii\web\ForbiddenHttpException("O'quvchilarga baho qo'yish taqiqlangan.");
+        }
+
         $assessment = Assessment::findOne($id);
         if (!$assessment) {
             throw new NotFoundHttpException("Baholash topilmadi.");
@@ -133,7 +235,6 @@ class AssessmentController extends Controller
 
         $body = Yii::$app->request->bodyParams;
         $scoresData = $body['scores'] ?? []; // [{student_id: 1, score: 85, feedback: ''}]
-        $user = Yii::$app->user->identity;
 
         $savedCount = 0;
         foreach ($scoresData as $item) {

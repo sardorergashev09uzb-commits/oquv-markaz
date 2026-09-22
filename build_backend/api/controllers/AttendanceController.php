@@ -112,6 +112,11 @@ class AttendanceController extends Controller
      */
     public function actionLesson(int $lid): array
     {
+        $user = Yii::$app->user->identity;
+        if ($user && $user->role === User::ROLE_STUDENT) {
+            throw new \yii\web\ForbiddenHttpException("O'quvchilarga guruh davomatini ko'rish taqiqlangan.");
+        }
+
         $lesson = Lesson::find()->with('group')->where(['id' => $lid])->one();
         if (!$lesson) {
             throw new NotFoundHttpException("Dars topilmadi.");
@@ -155,6 +160,11 @@ class AttendanceController extends Controller
      */
     public function actionCreateLesson(): array
     {
+        $user = Yii::$app->user->identity;
+        if ($user && $user->role === User::ROLE_STUDENT) {
+            throw new \yii\web\ForbiddenHttpException("O'quvchilarga dars ochish taqiqlangan.");
+        }
+
         $body = Yii::$app->request->bodyParams;
         $groupId = (int) ($body['group_id'] ?? 0);
         $group = Group::findOne($groupId);
@@ -181,10 +191,15 @@ class AttendanceController extends Controller
 
     /**
      * POST /api/attendance/bulk-save
-     * O'qituvchi barcha o'quvchilar davomatini bitta so'rovda saqlaydi
+     * Davomatni ommaviy saqlash
      */
     public function actionBulkSave(): array
     {
+        $user = Yii::$app->user->identity;
+        if ($user && $user->role === User::ROLE_STUDENT) {
+            throw new \yii\web\ForbiddenHttpException("O'quvchilarga davomat belgilash taqiqlangan.");
+        }
+
         $body = Yii::$app->request->bodyParams;
         $lessonId = (int) ($body['lesson_id'] ?? 0);
         $records = $body['attendance'] ?? []; // [{student_id: 1, status: 'present', note: ''}]

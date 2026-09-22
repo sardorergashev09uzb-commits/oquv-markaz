@@ -4,7 +4,7 @@ import {
   Bell, Search, Sun, Moon, CheckCheck, Megaphone, Award,
   CreditCard, AlertCircle, Info, X, LayoutGrid, Users,
   BookOpen, DoorOpen, UserPlus, TrendingUp, Shield, Settings,
-  GraduationCap, FileText, CheckCircle
+  GraduationCap, FileText, CheckCircle, Calendar, ClipboardCheck, Star
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -144,28 +144,40 @@ export function Topbar({ title }: { title?: string }) {
   let appModules = [
     { href: '/students', label: "O'quvchilar", icon: GraduationCap, color: 'bg-blue-500' },
     { href: '/teachers', label: "O'qituvchilar", icon: Users, color: 'bg-indigo-500' },
-    { href: '/courses', label: 'Kurslar', icon: BookOpen, color: 'bg-violet-500' },
-    { href: '/rooms', label: 'Auditoriyalar', icon: DoorOpen, color: 'bg-emerald-500' },
-    { href: '/announcements', label: "E'lonlar", icon: Megaphone, color: 'bg-amber-500' },
-    { href: '/leads', label: 'CRM Leadlar', icon: UserPlus, color: 'bg-rose-500' },
-    { href: '/finance', label: 'Moliya', icon: TrendingUp, color: 'bg-teal-500' },
-    { href: '/reports', label: 'Hisobotlar', icon: Shield, color: 'bg-cyan-500' },
-    { href: '/settings', label: 'Sozlamalar', icon: Settings, color: 'bg-slate-600' },
+    { href: '/groups', label: "Guruhlar", icon: BookOpen, color: 'bg-emerald-500' },
+    { href: '/attendance', label: "Davomat", icon: ClipboardCheck, color: 'bg-teal-500' },
+    { href: '/payments', label: "To'lovlar", icon: CreditCard, color: 'bg-rose-500' },
+    { href: '/finance', label: "Moliya", icon: TrendingUp, color: 'bg-emerald-600' },
+    { href: '/schedule', label: "Dars jadvali", icon: Calendar, color: 'bg-amber-500' },
+    { href: '/exams', label: "Imtihonlar", icon: Award, color: 'bg-purple-500' },
+    { href: '/courses', label: "Kurslar", icon: BookOpen, color: 'bg-violet-500' },
+    { href: '/rooms', label: "Auditoriyalar", icon: DoorOpen, color: 'bg-cyan-500' },
+    { href: '/leads', label: "CRM Leadlar", icon: UserPlus, color: 'bg-pink-500' },
+    { href: '/reports', label: "Hisobotlar", icon: Shield, color: 'bg-cyan-600' },
+    { href: '/announcements', label: "E'lonlar", icon: Megaphone, color: 'bg-orange-500' },
+    { href: '/settings', label: "Sozlamalar", icon: Settings, color: 'bg-slate-600' },
   ];
 
   if (isStudent(userRole)) {
     appModules = [
-      { href: '/announcements', label: "E'lonlar", icon: Megaphone, color: 'bg-amber-500' },
-      { href: '/certificates', label: 'Sertifikatlar', icon: Award, color: 'bg-emerald-500' },
-      { href: '/homework', label: 'Uy vazifalari', icon: FileText, color: 'bg-blue-500' },
-      { href: '/exams', label: 'Imtihonlar', icon: CheckCircle, color: 'bg-purple-500' },
+      { href: '/groups', label: "Guruhlarim", icon: BookOpen, color: 'bg-blue-500' },
+      { href: '/schedule', label: "Dars jadvali", icon: Calendar, color: 'bg-indigo-500' },
+      { href: '/attendance', label: "Davomatim", icon: ClipboardCheck, color: 'bg-teal-500' },
+      { href: '/payments', label: "To'lovlarim", icon: CreditCard, color: 'bg-emerald-500' },
+      { href: '/exams', label: "Imtihonlarim", icon: Award, color: 'bg-purple-500' },
+      { href: '/homework', label: "Uy vazifalari", icon: FileText, color: 'bg-amber-500' },
+      { href: '/announcements', label: "E'lonlar", icon: Megaphone, color: 'bg-rose-500' },
+      { href: '/certificates', label: "Sertifikatlar", icon: Star, color: 'bg-cyan-500' },
     ];
   } else if (isTeacher(userRole)) {
     appModules = [
-      { href: '/students', label: "O'quvchilarim", icon: GraduationCap, color: 'bg-blue-500' },
-      { href: '/announcements', label: "E'lonlar", icon: Megaphone, color: 'bg-amber-500' },
-      { href: '/homework', label: 'Uy vazifalari', icon: FileText, color: 'bg-emerald-500' },
-      { href: '/exams', label: 'Imtihonlar', icon: CheckCircle, color: 'bg-purple-500' },
+      { href: '/groups', label: "Guruhlarim", icon: BookOpen, color: 'bg-blue-500' },
+      { href: '/students', label: "O'quvchilarim", icon: GraduationCap, color: 'bg-indigo-500' },
+      { href: '/attendance', label: "Davomat olish", icon: ClipboardCheck, color: 'bg-teal-500' },
+      { href: '/schedule', label: "Dars jadvali", icon: Calendar, color: 'bg-emerald-500' },
+      { href: '/exams', label: "Imtihonlar", icon: Award, color: 'bg-purple-500' },
+      { href: '/homework', label: "Uy vazifalari", icon: FileText, color: 'bg-amber-500' },
+      { href: '/announcements', label: "E'lonlar", icon: Megaphone, color: 'bg-rose-500' },
     ];
   }
 
