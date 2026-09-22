@@ -133,6 +133,69 @@ class AuthController extends Controller
         return $user->toArray();
     }
 
+    /**
+     * POST /api/auth/update-profile
+     */
+    public function actionUpdateProfile(): array
+    {
+        /** @var User $user */
+        $user = Yii::$app->user->identity;
+        $body = Yii::$app->request->bodyParams;
+
+        if (!empty($body['name'])) {
+            $user->name = trim($body['name']);
+        }
+        if (!empty($body['email'])) {
+            $user->email = trim($body['email']);
+        }
+        if (!empty($body['phone'])) {
+            $user->phone = trim($body['phone']);
+        }
+
+        if (!$user->save()) {
+            Yii::$app->response->statusCode = 422;
+            return ['errors' => $user->getErrors()];
+        }
+
+        return [
+            'message' => 'Profil muvaffaqiyatli yangilandi',
+            'user' => $user->toArray(),
+        ];
+    }
+
+    /**
+     * POST /api/auth/change-password
+     */
+    public function actionChangePassword(): array
+    {
+        /** @var User $user */
+        $user = Yii::$app->user->identity;
+        $body = Yii::$app->request->bodyParams;
+        $currentPassword = $body['current_password'] ?? '';
+        $newPassword = $body['new_password'] ?? '';
+
+        if (!$currentPassword || !$newPassword) {
+            throw new BadRequestHttpException("Joriy va yangi parollar kiritilishi shart.");
+        }
+
+        if (!$user->validatePassword($currentPassword)) {
+            throw new BadRequestHttpException("Joriy parol noto'g'ri kiritildi.");
+        }
+
+        if (strlen($newPassword) < 6) {
+            throw new BadRequestHttpException("Yangi parol kamida 6 ta belgidan iborat bo'lishi kerak.");
+        }
+
+        $user->setPassword($newPassword);
+        if (!$user->save(false)) {
+            throw new ServerErrorHttpException("Parolni saqlashda xatolik yuz berdi.");
+        }
+
+        return [
+            'message' => 'Parol muvaffaqiyatli o\'zgartirildi',
+        ];
+    }
+
     // ─── Private helpers ──────────────────────────────────────────
 
     private function generateTokenPair(User $user): array

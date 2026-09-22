@@ -1,13 +1,34 @@
 'use client';
 
-import { Bell, Search, Sun, Moon, Check, CheckCheck, Megaphone, Award, CreditCard, AlertCircle, Info, X } from 'lucide-react';
+import {
+  Bell, Search, Sun, Moon, CheckCheck, Megaphone, Award,
+  CreditCard, AlertCircle, Info, X, Sparkles
+} from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 
-interface TopbarProps {
-  title: string;
-}
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard':      'Boshqaruv Paneli',
+  '/schedule':       'Dars Jadvali',
+  '/attendance':     'Davomat Tizimi',
+  '/payments':       "To'lovlar Tizimi",
+  '/groups':         'Guruhlar',
+  '/students':       "O'quvchilar",
+  '/teachers':       "O'qituvchilar",
+  '/courses':        'Kurslar',
+  '/rooms':          'Auditoriyalar',
+  '/announcements':  "E'lonlar Taxtasi",
+  '/homework':       'Uy Vazifalari',
+  '/exams':          'Imtihonlar',
+  '/certificates':   'Sertifikatlar',
+  '/finance':        'Moliya',
+  '/leads':          'CRM Leadlar',
+  '/reports':        'Hisobotlar',
+  '/settings':       'Sozlamalar',
+  '/profile':        'Mening Profilim',
+};
 
 interface NotificationItem {
   id: number;
@@ -19,13 +40,44 @@ interface NotificationItem {
   created_at: number;
 }
 
-export function Topbar({ title }: TopbarProps) {
+export function Topbar({ title }: { title?: string }) {
+  const pathname = usePathname();
   const queryClient = useQueryClient();
+
+  // Dynamic page title based on active route
+  const currentTitle = PAGE_TITLES[pathname] || title || 'Boshqaruv Paneli';
+
+  // Dark mode management
   const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      setDarkMode(true);
+      document.documentElement.classList.add('dark');
+    } else {
+      setDarkMode(false);
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    const nextMode = !darkMode;
+    setDarkMode(nextMode);
+    if (nextMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
+  // Notifications
   const [showNotifications, setShowNotifications] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch notifications
   const { data: notifData } = useQuery({
     queryKey: ['user-notifications'],
     queryFn: async () => {
@@ -36,10 +88,9 @@ export function Topbar({ title }: TopbarProps) {
         return { items: [], unread_count: 0 };
       }
     },
-    refetchInterval: 30000, // refresh every 30s
+    refetchInterval: 30000,
   });
 
-  // Mark single as read
   const markReadMutation = useMutation({
     mutationFn: async (id: number) => {
       await api.post(`/api/notifications/${id}/read`);
@@ -49,7 +100,6 @@ export function Topbar({ title }: TopbarProps) {
     },
   });
 
-  // Mark all as read
   const readAllMutation = useMutation({
     mutationFn: async () => {
       await api.post('/api/notifications/read-all');
@@ -59,7 +109,6 @@ export function Topbar({ title }: TopbarProps) {
     },
   });
 
-  // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -88,73 +137,76 @@ export function Topbar({ title }: TopbarProps) {
       case 'attendance':
         return <AlertCircle className="w-4 h-4 text-purple-500" />;
       default:
-        return <Info className="w-4 h-4 text-gray-500" />;
+        return <Info className="w-4 h-4 text-blue-500" />;
     }
   };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0 relative z-30">
-      {/* Left: Page title */}
-      <div className="flex items-center gap-4">
-        <div className="lg:hidden w-10" /> {/* hamburger space */}
-        <h1 className="text-lg font-semibold text-gray-800">{title}</h1>
+    <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 relative z-30 transition-colors">
+      {/* Left: Dynamic Page Title */}
+      <div className="flex items-center gap-3">
+        <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white tracking-tight">
+          {currentTitle}
+        </h1>
       </div>
 
-      {/* Right: Actions */}
-      <div className="flex items-center gap-3">
-        {/* Search */}
-        <div className="hidden md:flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2 w-64">
+      {/* Right: Actions (Search, Notifications, Dark Mode) */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Desktop Search */}
+        <div className="hidden md:flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-xl px-3 py-1.5 w-56 transition-colors">
           <Search className="w-4 h-4 text-gray-400" />
           <input
             type="text"
             placeholder="Qidirish..."
-            className="bg-transparent text-sm text-gray-600 outline-none w-full placeholder:text-gray-400"
+            className="bg-transparent text-sm text-gray-700 dark:text-gray-200 outline-none w-full placeholder:text-gray-400"
           />
         </div>
 
-        {/* Notifications */}
+        {/* Notifications Popover */}
         <div className="relative" ref={dropdownRef}>
           <button
+            type="button"
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition text-gray-600"
+            className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition text-gray-600 dark:text-gray-300"
             title="Bildirishnomalar"
           >
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 animate-pulse">
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-sm animate-pulse">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
           </button>
 
-          {/* Notifications Dropdown */}
+          {/* Dropdown Menu */}
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-              <div className="p-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+            <div className="fixed sm:absolute right-2 sm:right-0 top-16 sm:top-auto sm:mt-2 w-[calc(100vw-16px)] sm:w-80 md:w-96 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="p-3.5 bg-gray-50 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm text-gray-800">Bildirishnomalar</span>
+                  <span className="font-bold text-sm text-gray-900 dark:text-white">Bildirishnomalar</span>
                   {unreadCount > 0 && (
-                    <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                    <span className="bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-xs px-2 py-0.5 rounded-full font-semibold">
                       {unreadCount} yangi
                     </span>
                   )}
                 </div>
                 {unreadCount > 0 && (
                   <button
+                    type="button"
                     onClick={() => readAllMutation.mutate()}
-                    disabled={readAllMutation.isPending}
-                    className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium transition"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-1"
                   >
                     <CheckCheck className="w-3.5 h-3.5" />
-                    Barchasi o&apos;qildi
+                    Hammasi o&apos;qildi
                   </button>
                 )}
               </div>
 
-              <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
+              {/* List */}
+              <div className="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
                 {items.length === 0 ? (
-                  <div className="p-6 text-center text-gray-400 text-sm">
-                    Bildirishnomalar mavjud emas
+                  <div className="p-8 text-center text-gray-400 dark:text-gray-500 text-xs">
+                    Hozircha yangi bildirishnomalar mavjud emas
                   </div>
                 ) : (
                   items.map((n) => {
@@ -165,23 +217,25 @@ export function Topbar({ title }: TopbarProps) {
                         onClick={() => {
                           if (isUnread) markReadMutation.mutate(n.id);
                         }}
-                        className={`p-3.5 flex items-start gap-3 transition cursor-pointer hover:bg-gray-50 ${
-                          isUnread ? 'bg-blue-50/40' : ''
+                        className={`p-3.5 transition flex items-start gap-3 cursor-pointer ${
+                          isUnread
+                            ? 'bg-blue-50/60 dark:bg-blue-950/30 hover:bg-blue-50 dark:hover:bg-blue-950/50'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                         }`}
                       >
-                        <div className="mt-0.5 p-1.5 bg-gray-100 rounded-lg shrink-0">
+                        <div className="mt-0.5 w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
                           {getTypeIcon(n.type)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-1">
-                            <h4 className={`text-xs font-semibold truncate ${isUnread ? 'text-gray-900' : 'text-gray-700'}`}>
+                            <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
                               {n.title}
-                            </h4>
+                            </span>
                             {isUnread && (
                               <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
                             )}
                           </div>
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">
+                          <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 line-clamp-2 leading-relaxed">
                             {n.body}
                           </p>
                           <span className="text-[10px] text-gray-400 mt-1 block">
@@ -202,15 +256,18 @@ export function Topbar({ title }: TopbarProps) {
           )}
         </div>
 
-        {/* Dark mode toggle */}
+        {/* Tungi / Kunduzgi Rejim Toggle */}
         <button
-          onClick={() => setDarkMode(!darkMode)}
-          className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition"
+          type="button"
+          onClick={toggleDarkMode}
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition text-gray-700 dark:text-amber-400"
+          title={darkMode ? "Kunduzgi rejim" : "Tungi rejim"}
         >
-          {darkMode
-            ? <Sun className="w-5 h-5 text-gray-600" />
-            : <Moon className="w-5 h-5 text-gray-600" />
-          }
+          {darkMode ? (
+            <Sun className="w-5 h-5 text-amber-400 transition-transform rotate-0" />
+          ) : (
+            <Moon className="w-5 h-5 text-gray-600 transition-transform rotate-0" />
+          )}
         </button>
       </div>
     </header>

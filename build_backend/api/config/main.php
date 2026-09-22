@@ -59,8 +59,12 @@ return [
                 'POST auth/refresh'     => 'auth/refresh',
                 'POST api/auth/logout'  => 'auth/logout',
                 'POST auth/logout'      => 'auth/logout',
-                'GET  api/auth/me'      => 'auth/me',
-                'GET  auth/me'          => 'auth/me',
+                'GET  api/auth/me'              => 'auth/me',
+                'GET  auth/me'                  => 'auth/me',
+                'POST api/auth/update-profile'  => 'auth/update-profile',
+                'POST auth/update-profile'      => 'auth/update-profile',
+                'POST api/auth/change-password' => 'auth/change-password',
+                'POST auth/change-password'     => 'auth/change-password',
 
                 // Dashboard
                 'GET dashboard/manager'       => 'dashboard/manager',

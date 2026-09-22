@@ -135,43 +135,11 @@ export function Sidebar({ role, userName, userRole }: SidebarProps) {
   );
 
   return (
-    <>
-      {/* Desktop sidebar */}
-      <aside className={cn(
-        'hidden lg:flex flex-col bg-gray-900 transition-all duration-300 flex-shrink-0',
-        collapsed ? 'w-16' : 'w-64'
-      )}>
-        <SidebarContent />
-      </aside>
-
-      {/* Mobile hamburger */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 w-10 h-10 bg-gray-900 text-white rounded-lg flex items-center justify-center shadow-lg"
-      >
-        <Menu className="w-5 h-5" />
-      </button>
-
-      {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="w-64 bg-gray-900 flex flex-col">
-            <div className="flex justify-end px-4 pt-4">
-              <button
-                onClick={() => setMobileOpen(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <SidebarContent />
-          </div>
-          <div
-            className="flex-1 bg-black/50"
-            onClick={() => setMobileOpen(false)}
-          />
-        </div>
-      )}
-    </>
+    <aside className={cn(
+      'hidden lg:flex flex-col bg-gray-900 transition-all duration-300 flex-shrink-0',
+      collapsed ? 'w-16' : 'w-64'
+    )}>
+      <SidebarContent />
+    </aside>
   );
 }
