@@ -1,6 +1,5 @@
 'use client';
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
@@ -8,6 +7,7 @@ import {
   X, Loader2, DollarSign, ArrowDownRight, ArrowUpRight, History
 } from 'lucide-react';
 import { formatMoney } from '@/lib/utils';
+import { getCurrentUserFromToken, isStudent } from '@/lib/auth';
 
 interface PaymentPlanItem {
   id: number;
@@ -38,6 +38,16 @@ interface PaymentTransaction {
 
 export default function PaymentsPage() {
   const queryClient = useQueryClient();
+
+  const [isStudentUser, setIsStudentUser] = useState(false);
+
+  useEffect(() => {
+    const user = getCurrentUserFromToken();
+    if (user) {
+      setIsStudentUser(isStudent(user.role));
+    }
+  }, []);
+
   const [activeTab, setActiveTab] = useState<'plans' | 'history'>('plans');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -135,9 +145,13 @@ export default function PaymentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">To&apos;lovlar Tizimi</h1>
+          <h1 className="text-xl font-bold text-gray-900">
+            {isStudentUser ? "Mening to'lovlarim" : "To'lovlar Tizimi"}
+          </h1>
           <p className="text-sm text-gray-500">
-            O&apos;quvchilarning oylik to&apos;lovlari, qarzdorliklar va kvitansiyalar
+            {isStudentUser
+              ? "Guruhlar bo'yicha to'lov rejalari va cheklar tarixi"
+              : "O'quvchilarning oylik to'lovlari, qarzdorliklar va kvitansiyalar"}
           </p>
         </div>
 
@@ -268,15 +282,23 @@ export default function PaymentsPage() {
 
                         <td className="px-6 py-4 text-right">
                           {plan.remaining_amount > 0 ? (
-                            <button
-                              onClick={() => openPayModal(plan)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition shadow-xs"
-                            >
-                              <CreditCard className="w-3.5 h-3.5" />
-                              <span>To&apos;lov olish</span>
-                            </button>
+                            !isStudentUser ? (
+                              <button
+                                onClick={() => openPayModal(plan)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition shadow-xs"
+                              >
+                                <CreditCard className="w-3.5 h-3.5" />
+                                <span>To&apos;lov olish</span>
+                              </button>
+                            ) : (
+                              <span className="text-xs text-rose-600 font-semibold px-2.5 py-1 bg-rose-50 rounded-md border border-rose-100">
+                                To&apos;lanishi kerak
+                              </span>
+                            )
                           ) : (
-                            <span className="text-xs text-gray-400 italic">Yopilgan</span>
+                            <span className="text-xs text-emerald-600 font-semibold px-2.5 py-1 bg-emerald-50 rounded-md border border-emerald-100">
+                              To&apos;langan
+                            </span>
                           )}
                         </td>
                       </tr>

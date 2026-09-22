@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
@@ -8,6 +8,7 @@ import {
   Loader2, X, AlertCircle, CheckCircle, Edit2
 } from 'lucide-react';
 import { formatMoney } from '@/lib/utils';
+import { getCurrentUserFromToken, canManage } from '@/lib/auth';
 
 interface CourseItem {
   id: number;
@@ -22,6 +23,15 @@ interface CourseItem {
 
 export default function CoursesPage() {
   const queryClient = useQueryClient();
+  const [isManager, setIsManager] = useState(false);
+
+  useEffect(() => {
+    const user = getCurrentUserFromToken();
+    if (user) {
+      setIsManager(canManage(user.role));
+    }
+  }, []);
+
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -92,13 +102,15 @@ export default function CoursesPage() {
             Jami {courses.length} ta o&apos;quv yo&apos;nalishi mavjud
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Yangi kurs</span>
-        </button>
+        {isManager && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Yangi kurs</span>
+          </button>
+        )}
       </div>
 
       {/* Search */}

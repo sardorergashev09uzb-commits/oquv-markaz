@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
   Bell, Plus, Calendar, Megaphone, Trash2, X,
   Loader2, CheckCircle2, AlertCircle, Users
 } from 'lucide-react';
+import { getCurrentUserFromToken, isStudent } from '@/lib/auth';
 
 interface AnnouncementItem {
   id: number;
@@ -20,6 +21,15 @@ interface AnnouncementItem {
 
 export default function AnnouncementsPage() {
   const queryClient = useQueryClient();
+
+  const [canCreate, setCanCreate] = useState(false);
+
+  useEffect(() => {
+    const user = getCurrentUserFromToken();
+    if (user) {
+      setCanCreate(!isStudent(user.role));
+    }
+  }, []);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -82,13 +92,15 @@ export default function AnnouncementsPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Yangi e&apos;lon</span>
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Yangi e&apos;lon</span>
+          </button>
+        )}
       </div>
 
       {/* Success Alert */}
@@ -134,17 +146,19 @@ export default function AnnouncementsPage() {
                   <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700">
                     Barcha uchun
                   </span>
-                  <button
-                    onClick={() => {
-                      if (confirm("Ushbu e'lonni o'chirishni xohlaysizmi?")) {
-                        deleteMutation.mutate(item.id);
-                      }
-                    }}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                    title="O'chirish"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canCreate && (
+                    <button
+                      onClick={() => {
+                        if (confirm("Ushbu e'lonni o'chirishni xohlaysizmi?")) {
+                          deleteMutation.mutate(item.id);
+                        }
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                      title="O'chirish"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
 
