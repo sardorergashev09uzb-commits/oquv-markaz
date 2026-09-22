@@ -9,6 +9,8 @@ jobs:
   build:
     name: Build Android APK and Play Store AAB
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -48,16 +50,35 @@ jobs:
         working-directory: frontend/android
         run: ./gradlew bundleRelease
 
+      - name: Prepare Direct Files
+        run: |
+          cp frontend/android/app/build/outputs/apk/debug/app-debug.apk Oquv-Markaz.apk
+          cp frontend/android/app/build/outputs/bundle/release/app-release.aab Oquv-Markaz.aab
+
       - name: Upload Test APK
         uses: actions/upload-artifact@v4
         with:
           name: Oquv-Markaz-Test-App.apk
-          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          path: Oquv-Markaz.apk
           retention-days: 14
 
       - name: Upload Play Store AAB
         uses: actions/upload-artifact@v4
         with:
           name: Oquv-Markaz-PlayStore.aab
-          path: frontend/android/app/build/outputs/bundle/release/app-release.aab
+          path: Oquv-Markaz.aab
           retention-days: 14
+
+      - name: Publish Direct APK & AAB to Releases (Zip-siz to'g'ridan-to'g'ri)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-app
+          name: "O'quv Markaz Android App (Eng so'nggi versiya)"
+          body: "Telefonga to'g'ridan-to'g'ri o'rnatiladigan rasmiy APK va Google Play Store uchun AAB fayllar."
+          draft: false
+          prerelease: false
+          files: |
+            Oquv-Markaz.apk
+            Oquv-Markaz.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
