@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { useCurrentUser } from '@/lib/useCurrentUser';
 
 interface Student {
   id: number;
@@ -22,6 +23,7 @@ interface Student {
 
 export default function StudentsPage() {
   const queryClient = useQueryClient();
+  const { isTeacher } = useCurrentUser();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -94,18 +96,24 @@ export default function StudentsPage() {
       {/* Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">O&apos;quvchilar</h1>
-          <p className="text-sm text-gray-500">
-            Jami {pagination.total} ta o&apos;quvchi ro&apos;yxatga olingan
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            {isTeacher ? "Mening O'quvchilarim" : "O'quvchilar"}
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {isTeacher 
+              ? `Sizning guruhlaringizdagi jami ${pagination.total} ta faol o'quvchi` 
+              : `Jami ${pagination.total} ta o'quvchi ro'yxatga olingan`}
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>Yangi o&apos;quvchi</span>
-        </button>
+        {!isTeacher && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Yangi o&apos;quvchi</span>
+          </button>
+        )}
       </div>
 
       {/* Filter & Search bar */}

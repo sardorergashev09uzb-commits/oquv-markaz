@@ -23,15 +23,17 @@ interface GroupItem {
   room_name: string | null;
   schedule: Array<{ day: string; time: string }>;
   start_date: string | null;
+  end_date: string | null;
   max_students: number;
   students_count: number;
+  lessons_count?: number;
   status: string;
 }
 
 export default function GroupsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const { isStudent: isUserStudent, isLoading: isUserLoading } = useCurrentUser();
+  const { user, isStudent: isUserStudent, isTeacher: isUserTeacher, isLoading: isUserLoading } = useCurrentUser();
   const [courseFilter, setCourseFilter] = useState('');
 
   // ─── Create State ──────────────────────────────────────────────────────────
@@ -43,6 +45,7 @@ export default function GroupsPage() {
     room_id: '',
     days: 'Dush-Chor-Jum',
     time: '14:00 - 16:00',
+    duration_months: 3,
     max_students: 16,
     start_date: new Date().toISOString().split('T')[0],
   });
@@ -122,8 +125,11 @@ export default function GroupsPage() {
         course_id: Number(data.course_id),
         teacher_id: Number(data.teacher_id),
         room_id: data.room_id ? Number(data.room_id) : null,
+        days: data.days,
+        time: data.time,
+        duration_months: Number(data.duration_months),
         schedule: scheduleArray,
-        start_date: data.start_date,
+        start_date: data.start_date || new Date().toISOString().split('T')[0],
         max_students: Number(data.max_students),
         status: 'active',
       };
@@ -134,23 +140,28 @@ export default function GroupsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groups'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-teacher'] });
       setIsModalOpen(false);
       setFormData({
         name: '',
         course_id: '',
-        teacher_id: '',
+        teacher_id: isUserTeacher && user?.id ? String(user.id) : '',
         room_id: '',
         days: 'Dush-Chor-Jum',
         time: '14:00 - 16:00',
+        duration_months: 3,
         max_students: 16,
         start_date: new Date().toISOString().split('T')[0],
       });
       setFormError('');
     },
-    onError: (err: { response?: { data?: { errors?: Record<string, string[]> } } }) => {
+    onError: (err: any) => {
       const errors = err.response?.data?.errors;
+      const message = err.response?.data?.message;
       if (errors) {
         setFormError(Object.values(errors).flat().join(', '));
+      } else if (message) {
+        setFormError(message);
       } else {
         setFormError("Guruh yaratishda xatolik yuz berdi");
       }
@@ -280,8 +291,22 @@ export default function GroupsPage() {
         {/* Faqat Teacher va Admin ko'radi */}
         {!isUserStudent && !isUserLoading && (
           <button
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
+            onClick={() => {
+              setFormData({
+                name: '',
+                course_id: '',
+                teacher_id: isUserTeacher && user?.id ? String(user.id) : '',
+                room_id: '',
+                days: 'Dush-Chor-Jum',
+                time: '14:00 - 16:00',
+                duration_months: 3,
+                max_students: 16,
+                start_date: new Date().toISOString().split('T')[0],
+              });
+              setFormError('');
+              setIsModalOpen(true);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Yangi guruh</span>
@@ -373,16 +398,32 @@ export default function GroupsPage() {
                       Jadval: {group.schedule?.length ? group.schedule.map((s) => `${s.day} (${s.time})`).join(', ') : 'Belgilanmagan'}
                     </span>
                   </div>
+                  {group.start_date && (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                      <span>
+                        Davr: <strong className="text-gray-900 dark:text-white">{group.start_date}</strong> {group.end_date ? `— ${group.end_date}` : ''}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Card Footer */}
               <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  <Users className="w-4 h-4 text-blue-500 shrink-0" />
-                  <span>
-                    <strong className="text-gray-900 dark:text-white">{group.students_count}</strong> / {group.max_students} o&apos;quvchi
-                  </span>
+                <div className="flex flex-col gap-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-blue-500 shrink-0" />
+                    <span>
+                      <strong className="text-gray-900 dark:text-white">{group.students_count}</strong> / {group.max_students} o&apos;quvchi
+                    </span>
+                  </div>
+                  {group.lessons_count !== undefined && group.lessons_count > 0 && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                      <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                      <span>{group.lessons_count} ta dars rejasi</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -427,7 +468,7 @@ export default function GroupsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in border dark:border-gray-700">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="font-bold text-gray-900 dark:text-white">Yangi guruh yaratish</h3>
+              <h3 className="font-bold text-gray-900 dark:text-white">Yangi guruh ochish</h3>
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
@@ -501,6 +542,37 @@ export default function GroupsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                    Boshlanish sanasi *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                    Kurs davomiyligi (Darslar rejasi)
+                  </label>
+                  <select
+                    value={formData.duration_months}
+                    onChange={(e) => setFormData({ ...formData, duration_months: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  >
+                    <option value={1}>1 oy (12 ta dars)</option>
+                    <option value={2}>2 oy (24 ta dars)</option>
+                    <option value={3}>3 oy (36 ta dars — Standart)</option>
+                    <option value={6}>6 oy (72 ta dars)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
                     Dars xonasi
                   </label>
                   <select
@@ -532,31 +604,65 @@ export default function GroupsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
-                    Hafta kunlari
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.days}
-                    onChange={(e) => setFormData({ ...formData, days: e.target.value })}
-                    placeholder="Dush-Chor-Jum"
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  />
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                  Hafta kunlari
+                </label>
+                <input
+                  type="text"
+                  value={formData.days}
+                  onChange={(e) => setFormData({ ...formData, days: e.target.value })}
+                  placeholder="Dush-Chor-Jum"
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {[
+                    { label: 'Toq kunlar (Dush-Chor-Jum)', val: 'Dush-Chor-Jum' },
+                    { label: 'Juft kunlar (Sesh-Pay-Shan)', val: 'Sesh-Pay-Shan' },
+                    { label: 'Dam olish (Shan-Yak)', val: 'Shan-Yak' },
+                  ].map((p) => (
+                    <button
+                      key={p.val}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, days: p.val })}
+                      className={`text-[11px] px-2 py-0.5 rounded-lg border transition cursor-pointer ${
+                        formData.days === p.val
+                          ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-400 text-blue-700 dark:text-blue-300 font-medium'
+                          : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
-                    Dars vaqti
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.time}
-                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                    placeholder="14:00 - 16:00"
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  />
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                  Dars vaqti
+                </label>
+                <input
+                  type="text"
+                  value={formData.time}
+                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                  placeholder="14:00 - 16:00"
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {['09:00 - 11:00', '14:00 - 16:00', '16:00 - 18:00', '18:30 - 20:30'].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, time: t })}
+                      className={`text-[11px] px-2 py-0.5 rounded-lg border transition cursor-pointer ${
+                        formData.time === t
+                          ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-400 text-blue-700 dark:text-blue-300 font-medium'
+                          : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -564,14 +670,14 @@ export default function GroupsPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer"
                 >
                   {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>Ochish</span>

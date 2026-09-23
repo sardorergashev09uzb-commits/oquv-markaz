@@ -96,6 +96,7 @@ return [
                 'DELETE api/courses/<id:\d+>' => 'course/delete',
 
                 // Groups
+                'POST   api/groups/<id:\d+>/generate-lessons' => 'group/generate-lessons',
                 'POST   api/groups/<id:\d+>/add-student'    => 'group/add-student',
                 'POST   api/groups/<id:\d+>/remove-student' => 'group/remove-student',
                 'GET    api/groups/<id:\d+>/dashboard'      => 'group/dashboard',

@@ -42,6 +42,47 @@ class StudentController extends Controller
 
         $query = User::find()->where(['role' => User::ROLE_STUDENT]);
 
+        // Rol asosida filtrlash: O'qituvchi FAQAT o'ziga biriktirilgan guruhlar o'quvchilarini ko'radi
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
+            $teacherGroupIds = Group::find()
+                ->where(['teacher_id' => $currentUser->id])
+                ->select('id')
+                ->column();
+
+            if (empty($teacherGroupIds)) {
+                return [
+                    'items' => [],
+                    'pagination' => [
+                        'total' => 0,
+                        'page' => 1,
+                        'pageSize' => 20,
+                        'pageCount' => 0,
+                    ],
+                ];
+            }
+
+            $studentIds = GroupStudent::find()
+                ->where(['group_id' => $teacherGroupIds, 'status' => GroupStudent::STATUS_ACTIVE])
+                ->select('student_id')
+                ->distinct()
+                ->column();
+
+            if (empty($studentIds)) {
+                return [
+                    'items' => [],
+                    'pagination' => [
+                        'total' => 0,
+                        'page' => 1,
+                        'pageSize' => 20,
+                        'pageCount' => 0,
+                    ],
+                ];
+            }
+
+            $query->andWhere(['{{%users}}.id' => $studentIds]);
+        }
+
         if ($search) {
             $query->andWhere([
                 'or',
@@ -56,6 +97,15 @@ class StudentController extends Controller
         }
 
         if ($groupId) {
+            if ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
+                $ownsGroup = Group::find()->where(['id' => (int) $groupId, 'teacher_id' => $currentUser->id])->exists();
+                if (!$ownsGroup) {
+                    return [
+                        'items' => [],
+                        'pagination' => ['total' => 0, 'page' => 1, 'pageSize' => 20, 'pageCount' => 0],
+                    ];
+                }
+            }
             $query->innerJoin('{{%group_students}} gs', 'gs.student_id = {{%users}}.id')
                   ->andWhere(['gs.group_id' => (int) $groupId, 'gs.status' => GroupStudent::STATUS_ACTIVE]);
         }

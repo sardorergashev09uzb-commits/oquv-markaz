@@ -8,12 +8,14 @@ use api\components\JwtBearerAuth;
 use common\models\Course;
 use common\models\Group;
 use common\models\GroupStudent;
+use common\models\Lesson;
 use common\models\Room;
 use common\models\User;
 use Yii;
 use yii\data\ActiveDataProvider;
 use yii\rest\Controller;
 use yii\web\BadRequestHttpException;
+use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 
 /**
@@ -84,7 +86,7 @@ class GroupController extends Controller
     }
 
     /**
-     * GET /api/groups/{id} — Group Details + Students
+     * GET /api/groups/{id} — Group Details + Students + Lessons
      */
     public function actionView(int $id): array
     {
@@ -95,6 +97,20 @@ class GroupController extends Controller
 
         if (!$group) {
             throw new NotFoundHttpException("Guruh topilmadi.");
+        }
+
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
+            if ($group->teacher_id !== $currentUser->id) {
+                throw new ForbiddenHttpException("Siz faqat o'zingizga biriktirilgan guruh ma'lumotlarini ko'rishingiz mumkin.");
+            }
+        } elseif ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
+            $isEnrolled = GroupStudent::find()
+                ->where(['group_id' => $id, 'student_id' => $currentUser->id, 'status' => GroupStudent::STATUS_ACTIVE])
+                ->exists();
+            if (!$isEnrolled) {
+                throw new ForbiddenHttpException("Siz bu guruh a'zosi emassiz.");
+            }
         }
 
         // Guruh o'quvchilari
@@ -120,10 +136,18 @@ class GroupController extends Controller
             }
         }
 
+        // Guruh darslar ro'yxati
+        $lessons = Lesson::find()
+            ->where(['group_id' => $id])
+            ->orderBy(['started_at' => SORT_ASC])
+            ->all();
+
         return [
             'group' => $group,
             'students' => $students,
             'total_students' => count($students),
+            'lessons' => $lessons,
+            'total_lessons' => count($lessons),
         ];
     }
 
@@ -132,31 +156,75 @@ class GroupController extends Controller
      */
     public function actionCreate(): array
     {
+        $currentUser = Yii::$app->user->identity;
         $body = Yii::$app->request->bodyParams;
 
         $group = new Group();
-        $group->name = $body['name'] ?? '';
+        $group->name = trim((string)($body['name'] ?? ''));
         $group->course_id = (int) ($body['course_id'] ?? 0);
-        $group->teacher_id = (int) ($body['teacher_id'] ?? 0);
-        $group->room_id = !empty($body['room_id']) ? (int) $body['room_id'] : null;
-        $group->start_date = $body['start_date'] ?? date('Y-m-d');
-        $group->end_date = $body['end_date'] ?? null;
-        $group->max_students = (int) ($body['max_students'] ?? 15);
-        $group->status = $body['status'] ?? Group::STATUS_ACTIVE;
 
+        // O'qituvchi bo'lsa yoki tanlangan bo'lsa
+        $teacherId = (int) ($body['teacher_id'] ?? 0);
+        if ($currentUser && $currentUser->role === User::ROLE_TEACHER && $teacherId <= 0) {
+            $teacherId = $currentUser->id;
+        }
+        $group->teacher_id = $teacherId;
+
+        // Xona tekshiruvi: 0 yoki bo'sh bo'lsa null bo'lsin
+        $group->room_id = (!empty($body['room_id']) && (int) $body['room_id'] > 0) ? (int) $body['room_id'] : null;
+
+        // Sana tekshiruvi: bo'sh satr kelganda null yoki bugungi sana qo'yiladi
+        $startDate = !empty($body['start_date']) ? trim((string)$body['start_date']) : date('Y-m-d');
+        $group->start_date = $startDate;
+        $group->end_date = !empty($body['end_date']) ? trim((string)$body['end_date']) : null;
+        $group->max_students = !empty($body['max_students']) ? (int) $body['max_students'] : 15;
+        $group->status = !empty($body['status']) ? (string)$body['status'] : Group::STATUS_ACTIVE;
+
+        if ($currentUser && !empty($currentUser->center_id)) {
+            $group->center_id = (int) $currentUser->center_id;
+        }
+
+        // Schedule parsing
+        $scheduleArray = null;
         if (!empty($body['schedule'])) {
+            $scheduleArray = $body['schedule'];
             $group->schedule_json = is_array($body['schedule']) ? json_encode($body['schedule'], JSON_UNESCAPED_UNICODE) : (string) $body['schedule'];
         }
 
         if (!$group->save()) {
             Yii::$app->response->statusCode = 422;
-            return ['errors' => $group->getErrors()];
+            $allErrors = [];
+            foreach ($group->getErrors() as $field => $errList) {
+                $allErrors[] = implode(', ', $errList);
+            }
+            return [
+                'message' => "Guruh ma'lumotlarida xatolik: " . implode('; ', $allErrors),
+                'errors' => $group->getErrors(),
+            ];
         }
+
+        // ─── Avtomatik dars jadvalini yaratish (Auto Lesson Generator) ───
+        $durationMonths = !empty($body['duration_months']) ? (int)$body['duration_months'] : 3;
+        $daysStr = !empty($body['days']) ? (string)$body['days'] : 'Dush-Chor-Jum';
+        $timeStr = !empty($body['time']) ? (string)$body['time'] : '14:00 - 16:00';
+
+        if (is_array($scheduleArray) && !empty($scheduleArray) && empty($body['days'])) {
+            $days = array_filter(array_column($scheduleArray, 'day'));
+            if (!empty($days)) {
+                $daysStr = implode('-', $days);
+            }
+            if (!empty($scheduleArray[0]['time'])) {
+                $timeStr = $scheduleArray[0]['time'];
+            }
+        }
+
+        $generatedCount = self::generateLessonsForGroup($group, $daysStr, $timeStr, $durationMonths, $startDate);
 
         Yii::$app->response->statusCode = 201;
         return [
-            'message' => "Guruh muvaffaqiyatli yaratildi",
+            'message' => "Guruh muvaffaqiyatli yaratildi va {$generatedCount} ta dars rejasi avtomatik shakllantirildi",
             'group' => $group,
+            'generated_lessons' => $generatedCount,
         ];
     }
 
@@ -170,15 +238,28 @@ class GroupController extends Controller
             throw new NotFoundHttpException("Guruh topilmadi.");
         }
 
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
+            if ($group->teacher_id !== $currentUser->id) {
+                throw new ForbiddenHttpException("Siz faqat o'zingizga biriktirilgan guruhni tahrirlashingiz mumkin.");
+            }
+        }
+
         $body = Yii::$app->request->bodyParams;
-        if (isset($body['name'])) $group->name = $body['name'];
+        if (isset($body['name'])) $group->name = trim((string)$body['name']);
         if (isset($body['course_id'])) $group->course_id = (int) $body['course_id'];
         if (isset($body['teacher_id'])) $group->teacher_id = (int) $body['teacher_id'];
-        if (array_key_exists('room_id', $body)) $group->room_id = $body['room_id'] ? (int) $body['room_id'] : null;
-        if (isset($body['start_date'])) $group->start_date = $body['start_date'];
-        if (isset($body['end_date'])) $group->end_date = $body['end_date'];
+        if (array_key_exists('room_id', $body)) {
+            $group->room_id = (!empty($body['room_id']) && (int) $body['room_id'] > 0) ? (int) $body['room_id'] : null;
+        }
+        if (isset($body['start_date'])) {
+            $group->start_date = !empty($body['start_date']) ? trim((string)$body['start_date']) : null;
+        }
+        if (isset($body['end_date'])) {
+            $group->end_date = !empty($body['end_date']) ? trim((string)$body['end_date']) : null;
+        }
         if (isset($body['max_students'])) $group->max_students = (int) $body['max_students'];
-        if (isset($body['status'])) $group->status = $body['status'];
+        if (isset($body['status'])) $group->status = (string)$body['status'];
 
         if (isset($body['schedule'])) {
             $group->schedule_json = is_array($body['schedule']) ? json_encode($body['schedule'], JSON_UNESCAPED_UNICODE) : (string) $body['schedule'];
@@ -186,13 +267,185 @@ class GroupController extends Controller
 
         if (!$group->save()) {
             Yii::$app->response->statusCode = 422;
-            return ['errors' => $group->getErrors()];
+            $allErrors = [];
+            foreach ($group->getErrors() as $field => $errList) {
+                $allErrors[] = implode(', ', $errList);
+            }
+            return [
+                'message' => "Guruh ma'lumotlarida xatolik: " . implode('; ', $allErrors),
+                'errors' => $group->getErrors(),
+            ];
         }
 
         return [
             'message' => "Guruh muvaffaqiyatli yangilandi",
             'group' => $group,
         ];
+    }
+
+    /**
+     * POST /api/groups/{id}/generate-lessons
+     * Guruh uchun darslar jadvalini avtomatik shakllantirish
+     */
+    public function actionGenerateLessons(int $id): array
+    {
+        $group = Group::findOne($id);
+        if (!$group) {
+            throw new NotFoundHttpException("Guruh topilmadi.");
+        }
+
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
+            if ($group->teacher_id !== $currentUser->id) {
+                throw new ForbiddenHttpException("Siz faqat o'zingizga biriktirilgan guruh darslarini shakllantirishingiz mumkin.");
+            }
+        }
+
+        $body = Yii::$app->request->bodyParams;
+        $durationMonths = !empty($body['duration_months']) ? (int)$body['duration_months'] : 3;
+        $daysStr = !empty($body['days']) ? (string)$body['days'] : 'Dush-Chor-Jum';
+        $timeStr = !empty($body['time']) ? (string)$body['time'] : '14:00 - 16:00';
+        $startDate = !empty($body['start_date']) ? (string)$body['start_date'] : ($group->start_date ?: date('Y-m-d'));
+
+        if (!empty($group->schedule_json) && empty($body['days'])) {
+            $decoded = json_decode($group->schedule_json, true);
+            if (is_array($decoded) && !empty($decoded)) {
+                $days = array_filter(array_column($decoded, 'day'));
+                if (!empty($days)) $daysStr = implode('-', $days);
+                if (!empty($decoded[0]['time'])) $timeStr = $decoded[0]['time'];
+            }
+        }
+
+        if (!empty($body['force']) && $body['force'] === true) {
+            Lesson::deleteAll(['group_id' => $group->id]);
+        }
+
+        $count = self::generateLessonsForGroup($group, $daysStr, $timeStr, $durationMonths, $startDate);
+
+        return [
+            'message' => "Guruh uchun {$count} ta dars jadvali shakllantirildi",
+            'lessons_count' => $count,
+        ];
+    }
+
+    /**
+     * Guruh uchun avtomatik darslar rejasini shakllantirish (Standart o'quv markazi tizimi)
+     */
+    public static function generateLessonsForGroup(
+        Group $group,
+        string $daysStr,
+        string $timeStr,
+        int $durationMonths = 3,
+        ?string $startDate = null
+    ): int {
+        $existingCount = Lesson::find()->where(['group_id' => $group->id])->count();
+        if ($existingCount > 0) {
+            return (int) $existingCount;
+        }
+
+        if (empty($startDate)) {
+            $startDate = !empty($group->start_date) ? $group->start_date : date('Y-m-d');
+        }
+
+        if ($durationMonths <= 0) {
+            $durationMonths = 3;
+        }
+
+        // Kunlarni aniqlash: Dush (1), Sesh (2), Chor (3), Pay (4), Jum (5), Shan (6), Yak (7)
+        $dayMap = [
+            'dush' => 1, 'mon' => 1, 'monday' => 1, '1' => 1,
+            'sesh' => 2, 'tue' => 2, 'tuesday' => 2, '2' => 2,
+            'chor' => 3, 'wed' => 3, 'wednesday' => 3, '3' => 3,
+            'pay'  => 4, 'thu' => 4, 'thursday' => 4, '4' => 4,
+            'jum'  => 5, 'fri' => 5, 'friday' => 5, '5' => 5,
+            'shan' => 6, 'sat' => 6, 'saturday' => 6, '6' => 6,
+            'yak'  => 7, 'sun' => 7, 'sunday' => 7, '7' => 7,
+        ];
+
+        $parts = preg_split('/[\s,\-_|]+/', mb_strtolower($daysStr));
+        $targetDays = [];
+        foreach ($parts as $p) {
+            $pTrim = trim($p);
+            if (isset($dayMap[$pTrim])) {
+                $targetDays[] = $dayMap[$pTrim];
+            }
+        }
+        $targetDays = array_values(array_unique(array_filter($targetDays)));
+
+        if (empty($targetDays)) {
+            $targetDays = [1, 3, 5];
+        }
+        sort($targetDays);
+
+        $startTime = '14:00:00';
+        $endTime = '16:00:00';
+        if (preg_match_all('/(\d{1,2}:\d{2})/', $timeStr, $matches)) {
+            if (!empty($matches[1][0])) {
+                $startTime = strlen($matches[1][0]) === 5 ? $matches[1][0] . ':00' : $matches[1][0];
+            }
+            if (!empty($matches[1][1])) {
+                $endTime = strlen($matches[1][1]) === 5 ? $matches[1][1] . ':00' : $matches[1][1];
+            } else {
+                $timeObj = \DateTime::createFromFormat('H:i:s', $startTime);
+                if ($timeObj) {
+                    $timeObj->modify('+2 hours');
+                    $endTime = $timeObj->format('H:i:s');
+                }
+            }
+        }
+
+        $daysPerWeek = count($targetDays);
+        $totalLessons = $durationMonths * 4 * $daysPerWeek;
+        if ($totalLessons < 4) {
+            $totalLessons = 12;
+        }
+
+        $currentDate = new \DateTime($startDate);
+        $generatedCount = 0;
+        $lastLessonDate = null;
+
+        for ($lessonNum = 1; $lessonNum <= $totalLessons; $lessonNum++) {
+            while (!in_array((int)$currentDate->format('N'), $targetDays, true)) {
+                $currentDate->modify('+1 day');
+            }
+
+            $dateStr = $currentDate->format('Y-m-d');
+            $startedAt = $dateStr . ' ' . $startTime;
+            $endedAt = $dateStr . ' ' . $endTime;
+
+            if ($lessonNum === 1) {
+                $topic = "1-Dars: Kirish, guruh bilan tanishuv va kurs dasturi";
+            } elseif ($lessonNum === (int)round($totalLessons / 2)) {
+                $topic = "{$lessonNum}-Dars: Oraliq nazorat (Midterm imtihon) va bilimlarni baholash";
+            } elseif ($lessonNum === $totalLessons - 1) {
+                $topic = "{$lessonNum}-Dars: Kursni umumiy takrorlash va yakuniy imtihonga tayyorgarlik";
+            } elseif ($lessonNum === $totalLessons) {
+                $topic = "{$lessonNum}-Dars: Yakuniy imtihon va bitiruv loyihasi taqdimoti (Final exam)";
+            } else {
+                $topic = "{$lessonNum}-Dars: Nazariy tushunchalar va amaliy topshiriqlar";
+            }
+
+            $lesson = new Lesson();
+            $lesson->group_id = $group->id;
+            $lesson->topic = $topic;
+            $lesson->started_at = $startedAt;
+            $lesson->ended_at = $endedAt;
+            $lesson->status = Lesson::STATUS_SCHEDULED;
+            $lesson->note = "O'quv rejasidagi {$lessonNum}-dars";
+            if ($lesson->save()) {
+                $generatedCount++;
+                $lastLessonDate = $dateStr;
+            }
+
+            $currentDate->modify('+1 day');
+        }
+
+        if ($lastLessonDate && empty($group->end_date)) {
+            $group->end_date = $lastLessonDate;
+            $group->save(false, ['end_date']);
+        }
+
+        return $generatedCount;
     }
 
     /**
@@ -203,6 +456,13 @@ class GroupController extends Controller
         $group = Group::findOne($id);
         if (!$group) {
             throw new NotFoundHttpException("Guruh topilmadi.");
+        }
+
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
+            if ($group->teacher_id !== $currentUser->id) {
+                throw new ForbiddenHttpException("Siz faqat o'zingizga biriktirilgan guruhni o'chirishingiz mumkin.");
+            }
         }
 
         $group->status = Group::STATUS_COMPLETED;

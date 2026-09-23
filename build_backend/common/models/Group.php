@@ -93,6 +93,11 @@ class Group extends ActiveRecord
             ->via('groupStudents');
     }
 
+    public function getLessons(): ActiveQuery
+    {
+        return $this->hasMany(Lesson::class, ['group_id' => 'id']);
+    }
+
     public function fields(): array
     {
         return [
@@ -121,6 +126,11 @@ class Group extends ActiveRecord
                 return (int) $this->getStudents()
                     ->where(['{{%users}}.status' => User::STATUS_ACTIVE])
                     ->andWhere(['{{%group_students}}.status' => GroupStudent::STATUS_ACTIVE])
+                    ->count();
+            },
+            'lessons_count' => function () {
+                return (int) Lesson::find()
+                    ->where(['group_id' => $this->id])
                     ->count();
             },
             'status',
