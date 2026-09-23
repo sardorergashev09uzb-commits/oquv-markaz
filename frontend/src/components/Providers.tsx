@@ -1,8 +1,11 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { NetworkStatusBanner } from '@/components/common/NetworkStatusBanner';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -10,29 +13,51 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000,          // 1 daqiqa
-            gcTime: 5 * 60 * 1000,         // 5 daqiqa
+            staleTime: 5 * 60 * 1000,                  // 5 daqiqa davomida yangi
+            gcTime: 7 * 24 * 60 * 60 * 1000,          // 7 kun oflayn keshda saqlanadi
+            networkMode: 'offlineFirst',               // Oflaynda keshdan tezkor o'qish
             refetchOnWindowFocus: false,
             retry: (failureCount, error: unknown) => {
-              // 401 da qayta urinma
               const status = (error as { response?: { status?: number } })?.response?.status;
               if (status === 401 || status === 403) return false;
               return failureCount < 2;
             },
           },
           mutations: {
+            networkMode: 'offlineFirst',
             retry: false,
           },
         },
       })
   );
 
+  const persister = useMemo(() => {
+    if (typeof window === 'undefined') return undefined;
+    return createSyncStoragePersister({
+      storage: window.localStorage,
+      key: 'OM_REACT_QUERY_OFFLINE_CACHE_V1',
+      throttleTime: 1000,
+    });
+  }, []);
+
+  if (!persister) {
+    return null;
+  }
+
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 kun
+        buster: 'v1.0.1',
+      }}
+    >
+      <NetworkStatusBanner />
       {children}
       {process.env.NODE_ENV === 'development' && (
         <ReactQueryDevtools initialIsOpen={false} />
       )}
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }

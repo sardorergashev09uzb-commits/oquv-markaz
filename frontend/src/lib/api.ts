@@ -107,10 +107,19 @@ api.interceptors.response.use(
           originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
         }
         return api(originalRequest);
-      } catch (refreshError) {
+      } catch (refreshError: unknown) {
         processQueue(refreshError, null);
-        clearTokens();
-        window.location.href = '/login';
+        const errResp = (refreshError as { response?: { status?: number }; code?: string });
+        const isNetworkError = !errResp?.response || errResp?.code === 'ERR_NETWORK';
+
+        // Faqat server rad etgandagina (401/403) tokenni o'chirib login sahifasiga yo'naltiramiz.
+        // Agar internet yo'q bo'lsa (offline), foydalanuvchi seansini saqlab qolamiz.
+        if (!isNetworkError) {
+          clearTokens();
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
