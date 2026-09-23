@@ -8,6 +8,7 @@ import {
   Phone, Mail, Calendar, Eye, Edit2, Trash2, CheckCircle, AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface Student {
   id: number;
@@ -123,19 +124,20 @@ export default function StudentsPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <select
+        <div className="w-full sm:w-48">
+          <CustomSelect
             value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
+            onChange={(val) => {
+              setStatusFilter(val);
               setPage(1);
             }}
-            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-          >
-            <option value="">Barcha holatlar</option>
-            <option value="10">Faol</option>
-            <option value="0">Arxiv/Nofaol</option>
-          </select>
+            options={[
+              { value: '', label: 'Barcha holatlar' },
+              { value: '10', label: 'Faol' },
+              { value: '0', label: 'Arxiv/Nofaol' },
+            ]}
+            placeholder="Barcha holatlar"
+          />
         </div>
       </div>
 

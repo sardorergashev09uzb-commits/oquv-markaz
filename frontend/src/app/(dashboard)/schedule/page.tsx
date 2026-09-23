@@ -8,6 +8,7 @@ import {
   Calendar as CalendarIcon, Clock, Users, DoorOpen, GraduationCap,
   Filter, ChevronLeft, ChevronRight, Loader2, BookOpen
 } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 const DAYS_OF_WEEK = [
   { key: 'Dush', label: 'Dushanba' },
@@ -109,35 +110,35 @@ export default function SchedulePage() {
           </div>
 
           {/* Room Filter */}
-          <div className="min-w-[180px]">
-            <select
+          <div className="min-w-[190px]">
+            <CustomSelect
               value={selectedRoom}
-              onChange={(e) => setSelectedRoom(e.target.value)}
-              className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Barcha xonalar</option>
-              {rooms.map((r: any) => (
-                <option key={r.id} value={String(r.id)}>
-                  {r.name} ({r.capacity} o&apos;rin)
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedRoom(val)}
+              options={[
+                { value: 'all', label: 'Barcha xonalar' },
+                ...rooms.map((r: any) => ({
+                  value: String(r.id),
+                  label: `${r.name} (${r.capacity} o'rin)`,
+                })),
+              ]}
+              placeholder="Xonani tanlang"
+            />
           </div>
 
           {/* Teacher Filter */}
-          <div className="min-w-[180px]">
-            <select
+          <div className="min-w-[190px]">
+            <CustomSelect
               value={selectedTeacher}
-              onChange={(e) => setSelectedTeacher(e.target.value)}
-              className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Barcha o&apos;qituvchilar</option>
-              {teachers.map((t: any) => (
-                <option key={t.id} value={String(t.id)}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedTeacher(val)}
+              options={[
+                { value: 'all', label: "Barcha o'qituvchilar" },
+                ...teachers.map((t: any) => ({
+                  value: String(t.id),
+                  label: t.name,
+                })),
+              ]}
+              placeholder="O'qituvchini tanlang"
+            />
           </div>
 
           {(selectedRoom !== 'all' || selectedTeacher !== 'all') && (

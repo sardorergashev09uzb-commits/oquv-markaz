@@ -8,6 +8,7 @@ import {
   Loader2, CheckCircle, AlertCircle, PlusCircle, Shield
 } from 'lucide-react';
 import Link from 'next/link';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface StudentGroup {
   membership_id: number;
@@ -162,18 +163,19 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
           {/* Add to group form */}
           {availableGroups.length > 0 && (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-              <select
-                value={selectedGroupId}
-                onChange={(e) => setSelectedGroupId(e.target.value)}
-                className="w-full sm:w-64 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-xs text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Guruhni tanlang...</option>
-                {availableGroups.map((g: { id: number; name: string; course_name: string }) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name} ({g.course_name})
-                  </option>
-                ))}
-              </select>
+              <div className="w-full sm:w-64">
+                <CustomSelect
+                  value={selectedGroupId}
+                  onChange={(val) => setSelectedGroupId(val)}
+                  placeholder="Guruhni tanlang..."
+                  searchable={availableGroups.length > 5}
+                  options={availableGroups.map((g: { id: number; name: string; course_name: string }) => ({
+                    value: String(g.id),
+                    label: g.name,
+                    subLabel: g.course_name,
+                  }))}
+                />
+              </div>
               <button
                 disabled={!selectedGroupId || assignMutation.isPending}
                 onClick={() => selectedGroupId && assignMutation.mutate(Number(selectedGroupId))}

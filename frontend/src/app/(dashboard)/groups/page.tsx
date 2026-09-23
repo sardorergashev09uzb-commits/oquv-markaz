@@ -10,6 +10,7 @@ import {
   Pencil, Trash2, ArrowRight, AlertTriangle
 } from 'lucide-react';
 import { useCurrentUser } from '@/lib/useCurrentUser';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface GroupItem {
   id: number;
@@ -301,19 +302,20 @@ export default function GroupsPage() {
           />
         </div>
 
-        <div>
-          <select
+        <div className="w-full sm:w-60">
+          <CustomSelect
             value={courseFilter}
-            onChange={(e) => setCourseFilter(e.target.value)}
-            className="w-full sm:w-auto px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-          >
-            <option value="">Barcha kurslar</option>
-            {courses.map((c: { id: number; name: string }) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setCourseFilter(val)}
+            placeholder="Barcha kurslar"
+            searchable={courses.length > 5}
+            options={[
+              { value: '', label: 'Barcha kurslar' },
+              ...courses.map((c: { id: number; name: string }) => ({
+                value: String(c.id),
+                label: c.name,
+              })),
+            ]}
+          />
         </div>
       </div>
 

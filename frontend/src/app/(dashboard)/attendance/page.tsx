@@ -8,6 +8,7 @@ import {
   FileText, Loader2, CheckCircle2, AlertCircle, Sparkles, BookOpen
 } from 'lucide-react';
 import { useCurrentUser } from '@/lib/useCurrentUser';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface StudentAttendance {
   student_id: number;
@@ -375,26 +376,27 @@ export default function AttendancePage() {
         </div>
 
         {/* Group Selector & Create Lesson Button */}
-        <div className="flex items-center gap-3">
-          <select
-            value={selectedGroupId}
-            onChange={(e) => {
-              setSelectedGroupId(e.target.value);
-              setSelectedLessonId(null);
-            }}
-            className="px-3.5 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-800 dark:text-gray-200 shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {(groupsData || []).map((g: { id: number; name: string }) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          <div className="w-full sm:w-64">
+            <CustomSelect
+              value={selectedGroupId}
+              onChange={(val) => {
+                setSelectedGroupId(val);
+                setSelectedLessonId(null);
+              }}
+              placeholder="Guruhni tanlang..."
+              searchable={(groupsData || []).length > 5}
+              options={(groupsData || []).map((g: { id: number; name: string }) => ({
+                value: String(g.id),
+                label: g.name,
+              }))}
+            />
+          </div>
 
           <button
             disabled={!selectedGroupId}
             onClick={() => setIsNewLessonModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition shadow-xs"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition shadow-xs shrink-0 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Yangi dars</span>
@@ -640,12 +642,22 @@ export default function AttendancePage() {
 
             </div>
           ) : (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl p-16 text-center border border-gray-100 dark:border-gray-800 shadow-sm">
-              <Calendar className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-700 dark:text-gray-300 font-semibold">Dars tanlanmagan</p>
-              <p className="text-xs text-gray-400 mt-1">
-                Chap tarafdan darsni tanlang yoki yangi dars oching
+            <div className="bg-white dark:bg-gray-900 rounded-2xl p-12 sm:p-16 text-center border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col items-center justify-center">
+              <Calendar className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
+              <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">Dars tanlanmagan</p>
+              <p className="text-xs text-gray-400 mt-1 max-w-xs">
+                Darslar ro&apos;yxatidan birini tanlang yoki yangi dars boshlang
               </p>
+              {selectedGroupId && (
+                <button
+                  type="button"
+                  onClick={() => setIsNewLessonModalOpen(true)}
+                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition shadow-sm cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Yangi dars ochish</span>
+                </button>
+              )}
             </div>
           )}
         </div>
