@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 return [
+    'timeZone' => 'Asia/Tashkent',
     'bootstrap' => [
         \common\bootstrap\MailerBootstrap::class,
     ],

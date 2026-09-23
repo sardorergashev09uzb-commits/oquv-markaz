@@ -9,8 +9,10 @@ use common\models\Expense;
 use common\models\Payment;
 use common\models\PaymentPlan;
 use common\models\TeacherSalary;
+use common\models\User;
 use Yii;
 use yii\rest\Controller;
+use yii\web\ForbiddenHttpException;
 
 /**
  * FinanceController — Moliya xulosasi, xarajatlar va ish haqlari
@@ -26,6 +28,20 @@ class FinanceController extends Controller
             'class' => JwtBearerAuth::class,
         ];
         return $behaviors;
+    }
+
+    public function beforeAction($action)
+    {
+        if (!parent::beforeAction($action)) {
+            return false;
+        }
+
+        $user = Yii::$app->user->identity;
+        if (!$user || $user->role !== User::ROLE_ADMIN) {
+            throw new ForbiddenHttpException("Moliya va xarajatlar ma'lumotlari faqat rahbar/administrator uchun ruxsat etilgan.");
+        }
+
+        return true;
     }
 
     /**

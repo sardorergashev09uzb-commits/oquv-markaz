@@ -221,8 +221,22 @@ class HomeworkController extends Controller
             $sub->student_id = $currentUser->id;
         }
 
+        $isLate = false;
+        $lateHours = 0;
+        if (!empty($hw->deadline)) {
+            $deadlineTime = is_numeric($hw->deadline) ? (int)$hw->deadline : strtotime($hw->deadline);
+            if ($deadlineTime && time() > $deadlineTime) {
+                $isLate = true;
+                $lateHours = (int) ceil((time() - $deadlineTime) / 3600);
+            }
+        }
+
         $sub->file_url = trim((string)($body['file_url'] ?? $sub->file_url));
-        $sub->comment = trim((string)($body['comment'] ?? $sub->comment));
+        $comment = trim((string)($body['comment'] ?? $sub->comment));
+        if ($isLate && strpos($comment, "[Kechikib topshirildi") === false) {
+            $comment = "[Kechikib topshirildi: +{$lateHours} soat] " . $comment;
+        }
+        $sub->comment = $comment;
         $sub->status = HomeworkSubmission::STATUS_SUBMITTED;
         $sub->submitted_at = time();
 

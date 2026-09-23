@@ -123,6 +123,9 @@ class PaymentPlan extends ActiveRecord
             'remaining_amount' => function () {
                 return max(0, $this->amount - $this->paid_amount);
             },
+            'overpaid_amount' => function () {
+                return max(0, $this->paid_amount - $this->amount);
+            },
             'due_date',
             'status',
             'created_at',

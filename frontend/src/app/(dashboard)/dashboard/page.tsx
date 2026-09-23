@@ -53,7 +53,7 @@ function StudentDashboard({ userName }: { userName: string }) {
 
   const groups = studentData?.groups || [];
   const announcements = studentData?.announcements || [];
-  const attendanceRate = studentData?.attendance_rate ?? 100;
+  const attendanceRate = studentData?.attendance_rate ?? 0;
   const hasUnpaid = studentData?.has_unpaid ?? false;
   const paymentStatus = hasUnpaid ? "Qarzdorlik mavjud" : "To'langan";
 
@@ -94,8 +94,8 @@ function StudentDashboard({ userName }: { userName: string }) {
             <StatCard
               icon={ClipboardCheck}
               label="Davomatim"
-              value={`${attendanceRate}%`}
-              sub={attendanceRate >= 85 ? "A'lo ko'rsatkich" : "Nazorat zarur"}
+              value={groups.length > 0 && studentData?.attendance_rate !== undefined ? `${attendanceRate}%` : "—"}
+              sub={groups.length > 0 ? (attendanceRate >= 85 ? "A'lo ko'rsatkich" : "Nazorat zarur") : "Darslar boshlanmagan"}
               color="bg-emerald-500"
             />
           </Link>
@@ -380,7 +380,8 @@ function ManagerDashboard() {
     rooms: 0,
     todayIncome: '0',
     overdue: 0,
-    attendance: 92,
+    attendance: 0,
+    has_attendance: false,
     todayLessons: 0,
   };
 
@@ -460,8 +461,8 @@ function ManagerDashboard() {
             <StatCard
               icon={TrendingUp}
               label="O'rtacha davomat"
-              value={`${stats.attendance}%`}
-              sub="Barcha guruhlar"
+              value={stats.has_attendance && stats.groups > 0 ? `${stats.attendance}%` : "—"}
+              sub={stats.has_attendance && stats.groups > 0 ? "Barcha guruhlar" : "Hali darslar yo'q"}
               color="bg-amber-500"
             />
             <StatCard

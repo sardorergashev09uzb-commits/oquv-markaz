@@ -5,7 +5,7 @@ import api from '@/lib/api';
 import {
   CreditCard, Search, Plus, CheckCircle2, Clock, AlertCircle,
   X, Loader2, DollarSign, ArrowDownRight, ArrowUpRight, History,
-  ShieldAlert, BookOpen, Check, Wallet
+  ShieldAlert, BookOpen, Check, Wallet, Trash2
 } from 'lucide-react';
 import { formatMoney } from '@/lib/utils';
 import { getCurrentUserFromToken, isStudent, isTeacher } from '@/lib/auth';
@@ -23,6 +23,7 @@ interface PaymentPlanItem {
   amount: number;
   paid_amount: number;
   remaining_amount: number;
+  overpaid_amount?: number;
   due_date: string;
   status: 'paid' | 'partial' | 'pending' | 'overdue' | 'cancelled';
 }
@@ -109,6 +110,25 @@ export default function PaymentsPage() {
     },
     onError: () => {
       setPayError("To'lovni saqlashda xatolik yuz berdi");
+    },
+  });
+
+  // Delete/Cancel Payment Mutation (Admin only)
+  const deletePaymentMutation = useMutation({
+    mutationFn: async (paymentId: number) => {
+      const resp = await api.delete(`/api/payments/${paymentId}`);
+      return resp.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['payment-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-history'] });
+      queryClient.invalidateQueries({ queryKey: ['finance-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+      setSuccessMessage(data?.message || "To'lov muvaffaqiyatli bekor qilindi!");
+      setTimeout(() => setSuccessMessage(''), 4000);
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || "To'lovni bekor qilishda xatolik yuz berdi");
     },
   });
 
@@ -382,6 +402,13 @@ export default function PaymentsPage() {
                             <span className="font-bold text-rose-600 dark:text-rose-400">
                               {formatMoney(plan.remaining_amount)}
                             </span>
+                          ) : (plan.overpaid_amount && plan.overpaid_amount > 0) ? (
+                            <div className="flex flex-col">
+                              <span className="text-xs text-emerald-600 font-semibold">To&apos;liq to&apos;langan</span>
+                              <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                                Haqdorlik: +{formatMoney(plan.overpaid_amount)}
+                              </span>
+                            </div>
                           ) : (
                             <span className="text-xs text-emerald-600 font-semibold">To&apos;liq to&apos;langan</span>
                           )}
@@ -444,6 +471,9 @@ export default function PaymentsPage() {
                     <th className="px-6 py-3.5">To&apos;lov usuli</th>
                     <th className="px-6 py-3.5">Sana</th>
                     <th className="px-6 py-3.5">Holat / Kvitansiya</th>
+                    {!isUserStudent && currentUser?.role === 'admin' && (
+                      <th className="px-6 py-3.5 text-right">Amal</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -478,6 +508,23 @@ export default function PaymentsPage() {
                         <CheckCircle2 className="w-4 h-4" />
                         <span>Tasdiqlangan</span>
                       </td>
+                      {!isUserStudent && currentUser?.role === 'admin' && (
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            type="button"
+                            title="To'lovni bekor qilish"
+                            disabled={deletePaymentMutation.isPending}
+                            onClick={() => {
+                              if (confirm(`Haqiqatan ham ${tx.student_name} ning ${formatMoney(tx.amount)} so'mlik to'lovini bekor qilmoqchimisiz? Bu to'lov o'chirilib, qarz qayta hisoblanadi.`)) {
+                                deletePaymentMutation.mutate(tx.id);
+                              }
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -544,11 +591,15 @@ export default function PaymentsPage() {
                   required
                   min="1000"
                   step="1000"
-                  max={selectedPlan.remaining_amount}
                   value={payAmount}
                   onChange={(e) => setPayAmount(Number(e.target.value))}
                   className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-base font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
+                {payAmount > selectedPlan.remaining_amount && (
+                  <p className="mt-1.5 text-xs text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-950/40 p-2 rounded-lg border border-blue-200 dark:border-blue-900">
+                    💡 Rejadan ortiqcha to&apos;lov: <strong>+{formatMoney(payAmount - selectedPlan.remaining_amount)}</strong> (Haqdorlik sifatida o&apos;quvchi hisobiga yoziladi)
+                  </p>
+                )}
               </div>
 
               <div>

@@ -198,6 +198,16 @@ class LeadController extends Controller
             throw new NotFoundHttpException("Lid topilmadi.");
         }
 
+        // Ikki marta bosish yoki qayta konvertatsiya qilishdan himoya
+        if ($lead->status === Lead::STATUS_ENROLLED) {
+            $existingStudent = User::findByPhone($lead->phone);
+            return [
+                'message' => "Lid allaqachon o'quvchiga aylantirilgan (dublikatdan himoyalandi)",
+                'student' => $existingStudent,
+                'lead' => $lead,
+            ];
+        }
+
         $body = Yii::$app->request->bodyParams;
         $groupId = !empty($body['group_id']) ? (int) $body['group_id'] : null;
 

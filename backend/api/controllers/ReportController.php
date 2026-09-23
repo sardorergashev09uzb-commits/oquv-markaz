@@ -82,8 +82,8 @@ class ReportController extends Controller
     public function actionFinance(): array
     {
         $user = Yii::$app->user->identity;
-        if ($user && in_array($user->role, [User::ROLE_TEACHER, User::ROLE_STUDENT])) {
-            throw new \yii\web\ForbiddenHttpException("Moliya hisoboti faqat rahbar va menejerlar uchun.");
+        if (!$user || !in_array($user->role, [User::ROLE_ADMIN])) {
+            throw new \yii\web\ForbiddenHttpException("Moliya hisoboti faqat administrator uchun ruxsat etilgan.");
         }
 
         // 1. Oxirgi 6 oylik trend
@@ -375,14 +375,14 @@ class ReportController extends Controller
                     ->where(['group_id' => $groupIds, 'status' => GroupStudent::STATUS_ACTIVE])
                     ->count();
 
-                $groupStudentIds = GroupStudent::find()
-                    ->where(['group_id' => $groupIds])
-                    ->select('student_id')
+                $groupPlanIds = PaymentPlan::find()
+                    ->where(['group_id' => $groupIds, 'month' => $month])
+                    ->select('id')
                     ->column();
 
-                if (!empty($groupStudentIds)) {
+                if (!empty($groupPlanIds)) {
                     $groupRevenue = (int) Payment::find()
-                        ->where(['student_id' => $groupStudentIds])
+                        ->where(['plan_id' => $groupPlanIds])
                         ->andWhere(['like', 'paid_at', $month])
                         ->sum('amount');
                 }
@@ -440,11 +440,11 @@ class ReportController extends Controller
                 $salaryStatus = $salaryRecord->status;
                 $paidAt = $salaryRecord->paid_at;
             } else {
-                // Standart hisob: Guruh tushumining 40% i (tavsiya)
+                // Standart hisob: Guruh tushumining 40% i (tavsiya), 100 so'mgacha aniq yaxlitlash
                 $salaryId = null;
                 $salaryType = 'percentage';
                 $salaryRate = 40;
-                $calculatedSalary = (int) round($groupRevenue * 0.40);
+                $calculatedSalary = (int) (round(($groupRevenue * 0.40) / 100) * 100);
                 $paidSalary = 0;
                 $salaryStatus = TeacherSalary::STATUS_PENDING;
                 $paidAt = null;

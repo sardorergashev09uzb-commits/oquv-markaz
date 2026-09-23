@@ -91,10 +91,13 @@ class AttendanceController extends Controller
 
          $total = count($records);
          $present = 0;
+         $excused = 0;
          $items = [];
          foreach ($records as $r) {
-             if ($r->status === Attendance::STATUS_PRESENT) {
+             if ($r->status === Attendance::STATUS_PRESENT || $r->status === Attendance::STATUS_LATE) {
                  $present++;
+             } elseif ($r->status === Attendance::STATUS_EXCUSED) {
+                 $excused++;
              }
              $items[] = [
                  'id' => $r->id,
@@ -107,12 +110,14 @@ class AttendanceController extends Controller
              ];
          }
 
-         $rate = $total > 0 ? (int) round(($present / $total) * 100) : 100;
+         $effectiveTotal = max(0, $total - $excused);
+         $rate = $effectiveTotal > 0 ? (int) round(($present / $effectiveTotal) * 100) : ($total > 0 ? 100 : 0);
 
          return [
              'rate' => $rate,
              'total' => $total,
              'present' => $present,
+             'excused' => $excused,
              'items' => $items,
          ];
      }

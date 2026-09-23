@@ -222,6 +222,22 @@ class PaymentController extends Controller
             throw new NotFoundHttpException("To'lov rejasi topilmadi.");
         }
 
+        // Ikki marta tez bosishdan himoya (Duplicate debounce: 5 soniya)
+        $recentPayment = Payment::find()
+            ->where(['plan_id' => $plan->id, 'amount' => $amount])
+            ->andWhere(['>=', 'paid_at', date('Y-m-d H:i:s', time() - 5)])
+            ->orderBy(['id' => SORT_DESC])
+            ->one();
+
+        if ($recentPayment) {
+            // Dublikat yaratilmaydi, mavjud to'lov qaytariladi
+            return [
+                'message' => "To'lov allaqachon qabul qilingan (dublikatdan himoyalandi)",
+                'payment' => $recentPayment,
+                'plan' => $plan,
+            ];
+        }
+
         $payment = new Payment();
         $payment->plan_id = $plan->id;
         $payment->amount = $amount;
@@ -242,6 +258,39 @@ class PaymentController extends Controller
         return [
             'message' => "To'lov muvaffaqiyatli qabul qilindi",
             'payment' => $payment,
+            'plan' => $plan,
+        ];
+    }
+
+    /**
+     * DELETE /api/payments/<id> — To'lovni bekor qilish / o'chirish
+     * Faqat Administrator huquqiga ega foydalanuvchilar o'chira oladi
+     */
+    public function actionDelete(int $id): array
+    {
+        $currentUser = Yii::$app->user->identity;
+        if (!$currentUser || $currentUser->role !== User::ROLE_ADMIN) {
+            throw new \yii\web\ForbiddenHttpException("Faqat administrator to'lovni bekor qila oladi.");
+        }
+
+        $payment = Payment::findOne($id);
+        if (!$payment) {
+            throw new NotFoundHttpException("To'lov topilmadi.");
+        }
+
+        $plan = $payment->plan;
+        $paymentAmount = $payment->amount;
+
+        if (!$payment->delete()) {
+            throw new BadRequestHttpException("To'lovni o'chirib bo'lmadi.");
+        }
+
+        if ($plan) {
+            $plan->recalculateStatus();
+        }
+
+        return [
+            'message' => "To'lov muvaffaqiyatli bekor qilindi (" . number_format($paymentAmount, 0, '', ' ') . " so'm)",
             'plan' => $plan,
         ];
     }

@@ -60,8 +60,9 @@ class DashboardController extends Controller
 
         // O'rtacha davomat foizi (DB attendance jadvalidan)
         $totalAttendance = Attendance::find()->count();
-        $presentAttendance = Attendance::find()->where(['status' => Attendance::STATUS_PRESENT])->count();
-        $attendanceRate = $totalAttendance > 0 ? (int) round(($presentAttendance / $totalAttendance) * 100) : 100;
+        $presentAttendance = Attendance::find()->where(['status' => [Attendance::STATUS_PRESENT, Attendance::STATUS_LATE]])->count();
+        $hasAttendance = ($totalAttendance > 0 && $groupsCount > 0);
+        $attendanceRate = $hasAttendance ? (int) round(($presentAttendance / $totalAttendance) * 100) : 0;
 
         // Bugungi darslar soni
         $todayLessons = (int) Lesson::find()
@@ -93,6 +94,7 @@ class DashboardController extends Controller
                 'todayIncome'   => number_format($todayIncome, 0, '', ' '),
                 'overdue'       => $overdueCount,
                 'attendance'    => $attendanceRate,
+                'has_attendance'=> $hasAttendance,
                 'todayLessons'  => $todayLessons,
             ],
             'recentStudents' => $recentStudents,
@@ -117,8 +119,8 @@ class DashboardController extends Controller
 
         // O'quvchining shaxsiy davomati (DB dan)
         $totalAtt = Attendance::find()->where(['student_id' => $studentId])->count();
-        $presentAtt = Attendance::find()->where(['student_id' => $studentId, 'status' => Attendance::STATUS_PRESENT])->count();
-        $attRate = $totalAtt > 0 ? (int) round(($presentAtt / $totalAtt) * 100) : 100;
+        $presentAtt = Attendance::find()->where(['student_id' => $studentId, 'status' => [Attendance::STATUS_PRESENT, Attendance::STATUS_LATE]])->count();
+        $attRate = $totalAtt > 0 ? (int) round(($presentAtt / $totalAtt) * 100) : 0;
 
         // O'quvchining to'lov holati
         $currentMonth = date('Y-m');

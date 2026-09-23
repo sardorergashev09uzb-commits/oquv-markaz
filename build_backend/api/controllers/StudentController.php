@@ -142,8 +142,14 @@ class StudentController extends Controller
             throw new NotFoundHttpException("O'quvchi topilmadi.");
         }
 
-        // O'qituvchi faqat o'z o'quvchisini ko'ra oladi
         $currentUser = Yii::$app->user->identity;
+
+        // O'quvchi FAQAT o'z profilini ko'ra oladi
+        if ($currentUser && $currentUser->role === User::ROLE_STUDENT && $currentUser->id !== $id) {
+            throw new \yii\web\ForbiddenHttpException("Siz boshqa o'quvchilar ma'lumotlarini ko'ra olmaysiz.");
+        }
+
+        // O'qituvchi faqat o'z o'quvchisini ko'ra oladi
         if ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
             $isMyStudent = GroupStudent::find()
                 ->innerJoin('{{%groups}} g', 'g.id = {{%group_students}}.group_id')
@@ -371,6 +377,63 @@ class StudentController extends Controller
             'message' => "O'quvchi muvaffaqiyatli boshqa guruhga ko'chirildi",
             'from_group_id' => $fromGroupId,
             'to_group_id' => $toGroupId,
+        ];
+    }
+
+    /**
+     * POST /api/students/{id}/revert-transfer
+     * Ko'chirishni bekor qilish va eski guruhga qaytarish
+     */
+    public function actionRevertTransfer(int $id): array
+    {
+        $student = User::findOne(['id' => $id, 'role' => User::ROLE_STUDENT]);
+        if (!$student) {
+            throw new NotFoundHttpException("O'quvchi topilmadi.");
+        }
+
+        $body = Yii::$app->request->bodyParams;
+        $fromGroupId = (int) ($body['from_group_id'] ?? 0); // Guruh qayerdan qaytarilayotgani (joriy guruh)
+        $toGroupId = (int) ($body['to_group_id'] ?? 0);     // Qaysi guruhga qaytarilishi kerak (eski asl guruh)
+
+        if (!$fromGroupId || !$toGroupId) {
+            Yii::$app->response->statusCode = 422;
+            return ['message' => "Guruhlarni ko'rsatish majburiy."];
+        }
+
+        // 1. Yangi guruhdagi faollikni to'xtatish
+        $currentGs = GroupStudent::findOne(['group_id' => $fromGroupId, 'student_id' => $id]);
+        if ($currentGs) {
+            $currentGs->status = GroupStudent::STATUS_LEFT;
+            $currentGs->left_at = date('Y-m-d');
+            $currentGs->save(false);
+        }
+
+        // 2. Asl guruhdagi a'zolikni qayta faollashtirish
+        $oldGs = GroupStudent::findOne(['group_id' => $toGroupId, 'student_id' => $id]);
+        if ($oldGs) {
+            $oldGs->status = GroupStudent::STATUS_ACTIVE;
+            $oldGs->left_at = null;
+            $oldGs->save(false);
+        } else {
+            $oldGs = new GroupStudent();
+            $oldGs->group_id = $toGroupId;
+            $oldGs->student_id = $id;
+            $oldGs->enrolled_at = date('Y-m-d');
+            $oldGs->status = GroupStudent::STATUS_ACTIVE;
+            $oldGs->save(false);
+        }
+
+        // 3. Joriy oydagi to'lov rejasini asl guruhga qaytarish
+        $currentMonth = date('Y-m');
+        $plan = PaymentPlan::findOne(['student_id' => $id, 'group_id' => $fromGroupId, 'month' => $currentMonth]);
+        if ($plan) {
+            $plan->group_id = $toGroupId;
+            $plan->save(false);
+        }
+
+        return [
+            'message' => "Ko'chirish muvaffaqiyatli bekor qilindi, o'quvchi asl guruhiga qaytarildi",
+            'reverted_to_group_id' => $toGroupId,
         ];
     }
 }

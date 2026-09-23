@@ -16,6 +16,7 @@ return [
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
     'language' => 'uz',
+    'timeZone' => 'Asia/Tashkent',
     'controllerNamespace' => 'api\controllers',
     'aliases' => [
         '@bower' => '@vendor/bower-asset',
@@ -67,11 +68,18 @@ return [
                 'POST auth/change-password'     => 'auth/change-password',
 
                 // Dashboard
-                'GET dashboard/manager'       => 'dashboard/manager',
-                'GET dashboard/risk-students' => 'dashboard/risk-students',
+                'GET api/dashboard/manager'       => 'dashboard/manager',
+                'GET dashboard/manager'           => 'dashboard/manager',
+                'GET api/dashboard/teacher'       => 'dashboard/teacher',
+                'GET dashboard/teacher'           => 'dashboard/teacher',
+                'GET api/dashboard/student'       => 'dashboard/student',
+                'GET dashboard/student'           => 'dashboard/student',
+                'GET api/dashboard/risk-students' => 'dashboard/risk-students',
+                'GET dashboard/risk-students'     => 'dashboard/risk-students',
 
                 // Students
-                'POST api/students/<id:\d+>/transfer-group' => 'student/transfer-group',
+                'POST api/students/<id:\d+>/revert-transfer' => 'student/revert-transfer',
+                'POST api/students/<id:\d+>/transfer-group'  => 'student/transfer-group',
                 'POST api/students/<id:\d+>/assign-group'   => 'student/assign-group',
                 'GET  api/students/<id:\d+>/attendance'     => 'student/attendance',
                 'GET  api/students/<id:\d+>/grades'         => 'student/grades',
@@ -137,6 +145,7 @@ return [
                 // Finance & Payments
                 'GET    api/payments/history'                   => 'payment/history',
                 'POST   api/payments/create-plan'               => 'payment/create-plan',
+                'DELETE api/payments/<id:\d+>'                  => 'payment/delete',
                 'GET    api/payments'                           => 'payment/index',
                 'POST   api/payments'                           => 'payment/create',
                 'GET    api/finance/summary'                    => 'finance/summary',
