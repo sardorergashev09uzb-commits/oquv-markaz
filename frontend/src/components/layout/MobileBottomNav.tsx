@@ -30,17 +30,17 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
   let tabs = [
     { href: '/dashboard', label: 'Asosiy', icon: LayoutDashboard },
     { href: '/groups', label: 'Guruhlar', icon: BookOpen },
+    { href: '/students', label: 'O\'quvchilar', icon: Users },
     { href: '/attendance', label: 'Davomat', icon: ClipboardCheck },
-    { href: '/payments', label: "To'lovlar", icon: CreditCard },
     { href: '/profile', label: 'Profil', icon: User },
   ];
 
   if (isStudent(activeRole)) {
     tabs = [
       { href: '/dashboard', label: 'Asosiy', icon: LayoutDashboard },
+      { href: '/groups', label: 'Guruhlar', icon: BookOpen },
       { href: '/schedule', label: 'Jadval', icon: Calendar },
       { href: '/attendance', label: 'Davomat', icon: ClipboardCheck },
-      { href: '/payments', label: "To'lovlar", icon: CreditCard },
       { href: '/profile', label: 'Profil', icon: User },
     ];
   } else if (isTeacher(activeRole)) {

@@ -7,6 +7,7 @@ import {
   GraduationCap, FileText, CheckCircle, Calendar, ClipboardCheck, Star
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -284,6 +285,17 @@ export function Topbar({ title }: { title?: string }) {
               </div>
             )}
           </div>
+
+          {/* Tizim Sozlamalari (Admin & Manager uchun bildirishnomalar yonida) */}
+          {canManage(userRole) && (
+            <Link
+              href="/settings"
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-750 transition text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer"
+              title="Tizim sozlamalari"
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
+          )}
 
           {/* Tungi / Kunduzgi Rejim Toggle */}
           <button

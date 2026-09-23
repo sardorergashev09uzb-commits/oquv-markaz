@@ -7,10 +7,11 @@ import api from '@/lib/api';
 import {
   BookOpen, Users, GraduationCap, DoorOpen, Clock, Calendar,
   ChevronLeft, PlusCircle, Trash2, Loader2, AlertCircle, Phone, Mail,
-  Pencil, AlertTriangle, X
+  Pencil, AlertTriangle, X, CreditCard, DollarSign, CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { formatMoney } from '@/lib/utils';
 
 interface StudentInGroup {
   membership_id: number;
@@ -33,13 +34,36 @@ interface LessonInGroup {
   note: string | null;
 }
 
+interface PaymentPlanItem {
+  id: number;
+  student_id: number;
+  student_name: string;
+  student_phone: string;
+  group_id: number;
+  group_name: string;
+  month: string;
+  amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  due_date: string;
+  status: 'paid' | 'partial' | 'pending' | 'overdue' | 'cancelled';
+}
+
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - i);
+  const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const label = d.toLocaleDateString('uz-UZ', { year: 'numeric', month: 'long' });
+  return { value: val, label: label.charAt(0).toUpperCase() + label.slice(1) };
+});
+
 export default function GroupDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const groupId = resolvedParams.id;
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'students' | 'lessons'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'lessons' | 'payments'>('students');
   const [userRole, setUserRole] = useState<string>('');
   const [isUserStudent, setIsUserStudent] = useState<boolean>(false);
 
@@ -55,6 +79,23 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
 
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [addError, setAddError] = useState('');
+
+  // ─── To'lovlar Tab State ───────────────────────────────────────────────────
+  const [selectedPaymentMonth, setSelectedPaymentMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  const [payFormData, setPayFormData] = useState({
+    student_id: '',
+    student_name: '',
+    amount: 500000,
+    method: 'cash',
+    month: selectedPaymentMonth,
+    note: '',
+  });
+  const [payError, setPayError] = useState('');
 
   // ─── Edit Modal State ──────────────────────────────────────────────────────
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -117,7 +158,22 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     },
   });
 
-  // 4. Add student mutation
+  // 4. Fetch Group Payments for selected month
+  const { data: groupPaymentsData, isLoading: isPaymentsLoading } = useQuery({
+    queryKey: ['group-payments', groupId, selectedPaymentMonth],
+    queryFn: async () => {
+      const resp = await api.get('/api/payments', {
+        params: {
+          group_id: groupId,
+          month: selectedPaymentMonth,
+        },
+      });
+      return resp.data;
+    },
+    enabled: activeTab === 'payments',
+  });
+
+  // 5. Add student mutation
   const addStudentMutation = useMutation({
     mutationFn: async (studentId: number) => {
       const resp = await api.post(`/api/groups/${groupId}/add-student`, {
@@ -136,7 +192,7 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     },
   });
 
-  // 5. Remove student mutation
+  // 6. Remove student mutation
   const removeStudentMutation = useMutation({
     mutationFn: async (studentId: number) => {
       const resp = await api.post(`/api/groups/${groupId}/remove-student`, {
@@ -150,7 +206,7 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     },
   });
 
-  // 6. Generate lessons mutation
+  // 7. Generate lessons mutation
   const generateLessonsMutation = useMutation({
     mutationFn: async () => {
       const resp = await api.post(`/api/groups/${groupId}/generate-lessons`, {
@@ -164,7 +220,7 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     },
   });
 
-  // 7. Update group mutation
+  // 8. Update group mutation
   const updateGroupMutation = useMutation({
     mutationFn: async (payload: typeof editFormData) => {
       const scheduleArray = payload.days.split('-').map((d) => ({
@@ -202,7 +258,7 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     },
   });
 
-  // 8. Delete group mutation
+  // 9. Delete group mutation
   const deleteGroupMutation = useMutation({
     mutationFn: async () => {
       const resp = await api.delete(`/api/groups/${groupId}`);
@@ -212,6 +268,30 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
       queryClient.invalidateQueries({ queryKey: ['groups'] });
       setIsDeleteModalOpen(false);
       router.push('/groups');
+    },
+  });
+
+  // 10. Record payment mutation
+  const recordPaymentMutation = useMutation({
+    mutationFn: async (payload: typeof payFormData) => {
+      const resp = await api.post('/api/payments', {
+        student_id: Number(payload.student_id),
+        group_id: Number(groupId),
+        amount: Number(payload.amount),
+        method: payload.method,
+        month: payload.month,
+        note: payload.note,
+      });
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['group-payments', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+      setIsPayModalOpen(false);
+      setPayError('');
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) => {
+      setPayError(err.response?.data?.message || "To'lovni saqlashda xatolik yuz berdi");
     },
   });
 
@@ -250,6 +330,17 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
   const teachers = teachersData || [];
   const rooms = roomsData || [];
 
+  const paymentPlans: PaymentPlanItem[] = groupPaymentsData?.items || [];
+  const paymentSummary = groupPaymentsData?.summary || {
+    total_billed: 0,
+    total_paid: 0,
+    total_remaining: 0,
+    count_paid: 0,
+    count_partial: 0,
+    count_pending: 0,
+    count_overdue: 0,
+  };
+
   const handleOpenEdit = () => {
     const firstSchedule = group.schedule && group.schedule.length > 0 ? group.schedule[0] : null;
     const daysStr = group.schedule && group.schedule.length > 0 ? group.schedule.map((s: { day: string }) => s.day).join('-') : 'Dush-Chor-Jum';
@@ -277,6 +368,32 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
       return;
     }
     updateGroupMutation.mutate(editFormData);
+  };
+
+  const handleOpenPaymentModal = (studentId: number, studentName: string, remainingAmount?: number) => {
+    const defaultAmount = remainingAmount && remainingAmount > 0 
+      ? remainingAmount 
+      : (group.course_price || 500000);
+
+    setPayFormData({
+      student_id: String(studentId),
+      student_name: studentName,
+      amount: defaultAmount,
+      method: 'cash',
+      month: selectedPaymentMonth,
+      note: `${group.name} guruhi uchun to'lov`,
+    });
+    setPayError('');
+    setIsPayModalOpen(true);
+  };
+
+  const handlePaymentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payFormData.student_id || payFormData.amount <= 0) {
+      setPayError("To'lov summasi 0 dan katta bo'lishi kerak");
+      return;
+    }
+    recordPaymentMutation.mutate(payFormData);
   };
 
   return (
@@ -402,6 +519,18 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
         >
           <BookOpen className="w-4 h-4" />
           <span>Darslar Jadvali ({lessons.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('payments')}
+          className={`pb-3 px-1 text-sm font-semibold border-b-2 transition cursor-pointer flex items-center gap-2 ${
+            activeTab === 'payments'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+          }`}
+        >
+          <CreditCard className="w-4 h-4" />
+          <span>To&apos;lovlar</span>
         </button>
       </div>
 
@@ -651,6 +780,251 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tab 3: Payments */}
+      {activeTab === 'payments' && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-700 pb-4">
+            <div>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white">Guruh To&apos;lovlari va Balansi</h2>
+              <p className="text-xs text-gray-400">O&apos;quvchilarning oylik to&apos;lov holati va qarzdorliklari</p>
+            </div>
+
+            <div className="w-full sm:w-60">
+              <CustomSelect
+                value={selectedPaymentMonth}
+                onChange={(val) => setSelectedPaymentMonth(val)}
+                options={MONTH_OPTIONS}
+                placeholder="Oyni tanlang..."
+              />
+            </div>
+          </div>
+
+          {/* Payment Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-750 border border-gray-100 dark:border-gray-700">
+              <p className="text-xs text-gray-400 font-medium">Rejadagi to&apos;lov</p>
+              <p className="text-base font-bold text-gray-900 dark:text-white mt-1">
+                {formatMoney(paymentSummary.total_billed)}
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40">
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Yig&apos;ilgan summa</p>
+              <p className="text-base font-bold text-emerald-700 dark:text-emerald-300 mt-1">
+                {formatMoney(paymentSummary.total_paid)}
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-rose-50/50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/40">
+              <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">Qolgan qarz</p>
+              <p className="text-base font-bold text-rose-700 dark:text-rose-300 mt-1">
+                {formatMoney(paymentSummary.total_remaining)}
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40">
+              <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">To&apos;lov holati</p>
+              <p className="text-base font-bold text-blue-700 dark:text-blue-300 mt-1">
+                {paymentSummary.count_paid} / {activeStudents.length} ta to&apos;lagan
+              </p>
+            </div>
+          </div>
+
+          {/* Students Payments Table */}
+          {isPaymentsLoading ? (
+            <div className="py-12 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+          ) : activeStudents.length === 0 ? (
+            <div className="py-8 text-center text-gray-400 text-sm">
+              Bu guruhda o&apos;quvchilar mavjud emas.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-750 text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
+                  <tr>
+                    <th className="px-4 py-3">O&apos;quvchi</th>
+                    <th className="px-4 py-3">Kurs narxi</th>
+                    <th className="px-4 py-3">To&apos;langan</th>
+                    <th className="px-4 py-3">Qoldiq qarz</th>
+                    <th className="px-4 py-3">Holati</th>
+                    {!isUserStudent && <th className="px-4 py-3 text-right">Amal</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {activeStudents.map((student) => {
+                    const plan = paymentPlans.find((p) => p.student_id === student.student_id);
+                    const isPaid = plan?.status === 'paid';
+                    const isPartial = plan?.status === 'partial';
+                    const isOverdue = plan?.status === 'overdue';
+                    const remaining = plan ? plan.remaining_amount : (group.course_price || 500000);
+
+                    return (
+                      <tr key={student.student_id} className="hover:bg-gray-50/70 dark:hover:bg-gray-750 transition">
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/students/${student.student_id}`}
+                            className="font-semibold text-gray-900 dark:text-white hover:text-blue-600 transition"
+                          >
+                            {student.name}
+                          </Link>
+                          <p className="text-xs text-gray-400">{student.phone}</p>
+                        </td>
+                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300 font-medium">
+                          {formatMoney(plan ? plan.amount : (group.course_price || 500000))}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-emerald-600 dark:text-emerald-400">
+                          {formatMoney(plan ? plan.paid_amount : 0)}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-rose-600 dark:text-rose-400">
+                          {formatMoney(remaining)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {isPaid ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                              <CheckCircle2 className="w-3 h-3" /> To&apos;langan
+                            </span>
+                          ) : isPartial ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                              Qisman to&apos;langan
+                            </span>
+                          ) : isOverdue ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                              Muddati o&apos;tgan
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full font-semibold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                              To&apos;lanmagan
+                            </span>
+                          )}
+                        </td>
+                        {!isUserStudent && (
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPaymentModal(student.student_id, student.name, remaining)}
+                              className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" />
+                              <span>To&apos;lov olish</span>
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal: To'lov qabul qilish */}
+      {isPayModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">To&apos;lov qabul qilish</h3>
+                <p className="text-xs text-gray-400">{payFormData.student_name} • {group.name}</p>
+              </div>
+              <button
+                onClick={() => setIsPayModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePaymentSubmit} className="p-6 space-y-4">
+              {payError && (
+                <div className="p-3 bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-900 rounded-xl text-red-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{payError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  To&apos;lov summasi (so&apos;m) *
+                </label>
+                <input
+                  type="number"
+                  min="1000"
+                  step="5000"
+                  required
+                  value={payFormData.amount}
+                  onChange={(e) => setPayFormData({ ...payFormData, amount: Number(e.target.value) })}
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  To&apos;lov usuli *
+                </label>
+                <select
+                  value={payFormData.method}
+                  onChange={(e) => setPayFormData({ ...payFormData, method: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                >
+                  <option value="cash">Naqd pul (Cash)</option>
+                  <option value="card">Plastik karta (Terminal)</option>
+                  <option value="click">Click</option>
+                  <option value="payme">Payme</option>
+                  <option value="bank">Bank o&apos;tkazmasi</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  To&apos;lov qaysi oy uchun
+                </label>
+                <select
+                  value={payFormData.month}
+                  onChange={(e) => setPayFormData({ ...payFormData, month: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                >
+                  {MONTH_OPTIONS.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Izoh (ixtiyoriy)
+                </label>
+                <input
+                  type="text"
+                  value={payFormData.note}
+                  onChange={(e) => setPayFormData({ ...payFormData, note: e.target.value })}
+                  placeholder="Kvitansiya yoki to'lov maqsadi..."
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsPayModalOpen(false)}
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={recordPaymentMutation.isPending}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer"
+                >
+                  {recordPaymentMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>To&apos;lovni tasdiqlash</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

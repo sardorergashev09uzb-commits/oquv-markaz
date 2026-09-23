@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace api\controllers;
 
 use api\components\JwtBearerAuth;
+use common\models\Group;
 use common\models\Payment;
 use common\models\PaymentPlan;
 use common\models\User;
@@ -39,30 +40,70 @@ class PaymentController extends Controller
         $status = $request->get('status');
         $month = $request->get('month');
         $search = $request->get('search');
+        $groupId = $request->get('group_id');
+        $studentId = $request->get('student_id');
 
         $currentUser = Yii::$app->user->identity;
+
+        $query = PaymentPlan::find()->with(['student', 'group', 'group.course']);
+
+        // Agar O'qituvchi bo'lsa, o'z guruhlari to'lovlarini ko'ra oladi
         if ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
-            throw new \yii\web\ForbiddenHttpException("O'qituvchilarga to'lovlar bo'limiga kirish taqiqlangan.");
-        }
+            $teacherGroupIds = Group::find()
+                ->where(['teacher_id' => $currentUser->id])
+                ->select('id')
+                ->column();
 
-        $query = PaymentPlan::find()->with(['student', 'group']);
-
-        if ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
+            if (empty($teacherGroupIds)) {
+                return [
+                    'items' => [],
+                    'total' => 0,
+                    'summary' => [
+                        'total_billed' => 0,
+                        'total_paid' => 0,
+                        'total_remaining' => 0,
+                        'count_paid' => 0,
+                        'count_partial' => 0,
+                        'count_pending' => 0,
+                        'count_overdue' => 0,
+                    ],
+                ];
+            }
+            $query->andWhere(['{{%payment_plans}}.group_id' => $teacherGroupIds]);
+        } elseif ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
             $query->andWhere(['{{%payment_plans}}.student_id' => $currentUser->id]);
         }
 
+        if ($groupId) {
+            $query->andWhere(['{{%payment_plans}}.group_id' => (int) $groupId]);
+        }
+
+        if ($studentId) {
+            $query->andWhere(['{{%payment_plans}}.student_id' => (int) $studentId]);
+        }
+
         if ($status) {
-            $query->andWhere(['status' => $status]);
+            $query->andWhere(['{{%payment_plans}}.status' => $status]);
         }
 
         if ($month) {
-            $query->andWhere(['month' => $month]);
+            $query->andWhere(['{{%payment_plans}}.month' => $month]);
         }
 
         if ($search && (!$currentUser || $currentUser->role !== User::ROLE_STUDENT)) {
             $query->innerJoin('{{%users}} u', 'u.id = {{%payment_plans}}.student_id')
                   ->andWhere(['or', ['like', 'u.name', $search], ['like', 'u.phone', $search]]);
         }
+
+        // Summary hisoblash
+        $summaryQuery = clone $query;
+        $totalBilled = (int) $summaryQuery->sum('{{%payment_plans}}.amount');
+        $totalPaid = (int) $summaryQuery->sum('{{%payment_plans}}.paid_amount');
+        $totalRemaining = max(0, $totalBilled - $totalPaid);
+        $countPaid = (int) (clone $query)->andWhere(['{{%payment_plans}}.status' => PaymentPlan::STATUS_PAID])->count();
+        $countPartial = (int) (clone $query)->andWhere(['{{%payment_plans}}.status' => PaymentPlan::STATUS_PARTIAL])->count();
+        $countPending = (int) (clone $query)->andWhere(['{{%payment_plans}}.status' => PaymentPlan::STATUS_PENDING])->count();
+        $countOverdue = (int) (clone $query)->andWhere(['{{%payment_plans}}.status' => PaymentPlan::STATUS_OVERDUE])->count();
 
         $query->orderBy(['{{%payment_plans}}.id' => SORT_DESC]);
 
@@ -75,6 +116,15 @@ class PaymentController extends Controller
         return [
             'items' => $provider->getModels(),
             'total' => $provider->getTotalCount(),
+            'summary' => [
+                'total_billed' => $totalBilled,
+                'total_paid' => $totalPaid,
+                'total_remaining' => $totalRemaining,
+                'count_paid' => $countPaid,
+                'count_partial' => $countPartial,
+                'count_pending' => $countPending,
+                'count_overdue' => $countOverdue,
+            ],
         ];
     }
 
@@ -83,20 +133,40 @@ class PaymentController extends Controller
      */
     public function actionHistory(): array
     {
+        $request = Yii::$app->request;
         $currentUser = Yii::$app->user->identity;
-        if ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
-            throw new \yii\web\ForbiddenHttpException("O'qituvchilarga to'lovlar bo'limiga kirish taqiqlangan.");
-        }
+        $groupId = $request->get('group_id');
+        $studentId = $request->get('student_id');
+        $month = $request->get('month');
 
         $query = Payment::find()
             ->with(['plan', 'plan.student', 'plan.group', 'receivedBy'])
-            ->orderBy(['{{%payments}}.paid_at' => SORT_DESC, '{{%payments}}.id' => SORT_DESC])
-            ->limit(50);
+            ->innerJoin('{{%payment_plans}} pp', 'pp.id = {{%payments}}.plan_id');
 
-        if ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
-            $query->innerJoin('{{%payment_plans}} pp', 'pp.id = {{%payments}}.plan_id')
-                  ->andWhere(['pp.student_id' => $currentUser->id]);
+        if ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
+            $teacherGroupIds = Group::find()
+                ->where(['teacher_id' => $currentUser->id])
+                ->select('id')
+                ->column();
+            $query->andWhere(['pp.group_id' => $teacherGroupIds]);
+        } elseif ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
+            $query->andWhere(['pp.student_id' => $currentUser->id]);
         }
+
+        if ($groupId) {
+            $query->andWhere(['pp.group_id' => (int) $groupId]);
+        }
+
+        if ($studentId) {
+            $query->andWhere(['pp.student_id' => (int) $studentId]);
+        }
+
+        if ($month) {
+            $query->andWhere(['pp.month' => $month]);
+        }
+
+        $query->orderBy(['{{%payments}}.paid_at' => SORT_DESC, '{{%payments}}.id' => SORT_DESC])
+              ->limit(50);
 
         return [
             'items' => $query->all(),
@@ -110,14 +180,12 @@ class PaymentController extends Controller
     {
         $body = Yii::$app->request->bodyParams;
         $planId = (int) ($body['plan_id'] ?? 0);
+        $studentId = (int) ($body['student_id'] ?? 0);
+        $groupId = (int) ($body['group_id'] ?? 0);
+        $month = !empty($body['month']) ? (string)$body['month'] : date('Y-m');
         $amount = (int) ($body['amount'] ?? 0);
         $method = $body['method'] ?? Payment::METHOD_CASH;
         $note = $body['note'] ?? null;
-
-        $plan = PaymentPlan::findOne($planId);
-        if (!$plan) {
-            throw new NotFoundHttpException("To'lov rejasi topilmadi.");
-        }
 
         if ($amount <= 0) {
             throw new BadRequestHttpException("To'lov summasi 0 dan katta bo'lishi kerak.");
@@ -128,8 +196,34 @@ class PaymentController extends Controller
             throw new \yii\web\ForbiddenHttpException("O'quvchilar to'lov qabul qila olmaydi.");
         }
 
+        $plan = null;
+        if ($planId > 0) {
+            $plan = PaymentPlan::findOne($planId);
+        } elseif ($studentId > 0 && $groupId > 0) {
+            $plan = PaymentPlan::findOne(['student_id' => $studentId, 'group_id' => $groupId, 'month' => $month]);
+            if (!$plan) {
+                $group = Group::findOne($groupId);
+                $coursePrice = ($group && $group->course) ? (int)$group->course->price : $amount;
+                $plan = new PaymentPlan();
+                $plan->student_id = $studentId;
+                $plan->group_id = $groupId;
+                $plan->month = $month;
+                $plan->amount = $coursePrice > 0 ? $coursePrice : $amount;
+                $plan->due_date = date('Y-m-10', strtotime($month . '-01'));
+                $plan->status = PaymentPlan::STATUS_PENDING;
+                if (!$plan->save()) {
+                    Yii::$app->response->statusCode = 422;
+                    return ['errors' => $plan->getErrors()];
+                }
+            }
+        }
+
+        if (!$plan) {
+            throw new NotFoundHttpException("To'lov rejasi topilmadi.");
+        }
+
         $payment = new Payment();
-        $payment->plan_id = $planId;
+        $payment->plan_id = $plan->id;
         $payment->amount = $amount;
         $payment->method = $method;
         $payment->received_by = $user ? $user->id : 1;

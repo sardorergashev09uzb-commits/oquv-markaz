@@ -76,11 +76,20 @@ class Payment extends ActiveRecord
         return [
             'id',
             'plan_id',
+            'student_id' => function () {
+                return $this->plan ? $this->plan->student_id : null;
+            },
             'student_name' => function () {
                 return $this->plan && $this->plan->student ? $this->plan->student->name : null;
             },
+            'group_id' => function () {
+                return $this->plan ? $this->plan->group_id : null;
+            },
             'group_name' => function () {
                 return $this->plan && $this->plan->group ? $this->plan->group->name : null;
+            },
+            'month' => function () {
+                return $this->plan ? $this->plan->month : null;
             },
             'amount',
             'method',
