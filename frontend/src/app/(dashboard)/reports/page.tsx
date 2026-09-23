@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
   BarChart3, TrendingUp, Users, AlertTriangle, Download, Printer,
   DollarSign, CheckCircle2, XCircle, Clock, Calendar, ArrowUpRight,
-  ArrowDownRight, Loader2, Award, Phone, ShieldAlert, BookOpen, GraduationCap, Check
+  ArrowDownRight, Loader2, Award, Phone, ShieldAlert, BookOpen, GraduationCap, Check,
+  Calculator, Banknote, CreditCard, X, ChevronRight
 } from 'lucide-react';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useCurrentUser } from '@/lib/useCurrentUser';
@@ -101,15 +102,101 @@ export default function ReportsPage() {
     enabled: activeTab === 'risk',
   });
 
+  const queryClient = useQueryClient();
+
+  // Salary Payout Modal State
+  const [isSalaryModalOpen, setIsSalaryModalOpen] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<any | null>(null);
+  const [salaryType, setSalaryType] = useState<'percentage' | 'per_lesson' | 'fixed'>('percentage');
+  const [salaryRate, setSalaryRate] = useState<number>(40);
+  const [calculatedAmount, setCalculatedAmount] = useState<number>(0);
+  const [paidAmount, setPaidAmount] = useState<number>(0);
+  const [salaryNote, setSalaryNote] = useState<string>('');
+  const [salarySuccessMsg, setSalarySuccessMsg] = useState<string>('');
+  const [salaryErrorMsg, setSalaryErrorMsg] = useState<string>('');
+
   // 5. Teachers KPI data (Faqat rahbar va menejerlar uchun)
   const { data: teachersData, isLoading: isTeachersLoading } = useQuery({
-    queryKey: ['report-teachers'],
+    queryKey: ['report-teachers', selectedMonth],
     queryFn: async () => {
-      const res = await api.get('/api/reports/teachers');
+      const res = await api.get('/api/reports/teachers', {
+        params: { month: selectedMonth },
+      });
       return res.data;
     },
     enabled: isManager && activeTab === 'teachers',
   });
+
+  const paySalaryMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedTeacher) return;
+      const resp = await api.post('/api/reports/pay-salary', {
+        teacher_id: selectedTeacher.teacher_id,
+        month: selectedMonth,
+        type: salaryType,
+        rate: salaryRate,
+        lessons_count: selectedTeacher.conducted_lessons,
+        amount: calculatedAmount,
+        paid_amount: paidAmount,
+        note: salaryNote,
+      });
+      return resp.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['report-teachers', selectedMonth] });
+      queryClient.invalidateQueries({ queryKey: ['report-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['report-finance'] });
+      setSalarySuccessMsg(data?.message || "Oylik to'lovi saqlandi!");
+      setTimeout(() => {
+        setIsSalaryModalOpen(false);
+        setSalarySuccessMsg('');
+      }, 1500);
+    },
+    onError: (err: any) => {
+      setSalaryErrorMsg(err?.response?.data?.message || "To'lovni saqlashda xatolik yuz berdi.");
+    },
+  });
+
+  const handleOpenSalaryModal = (teacher: any) => {
+    setSelectedTeacher(teacher);
+    const type = teacher.salary_type || 'percentage';
+    const rate = teacher.salary_rate || 40;
+    setSalaryType(type);
+    setSalaryRate(rate);
+
+    let calc = teacher.calculated_salary;
+    if (!calc) {
+      if (type === 'percentage') {
+        calc = Math.round((teacher.group_revenue || 0) * (rate / 100));
+      } else if (type === 'per_lesson') {
+        calc = (teacher.conducted_lessons || 0) * rate;
+      } else {
+        calc = 0;
+      }
+    }
+    setCalculatedAmount(calc);
+    setPaidAmount(teacher.paid_salary > 0 ? teacher.paid_salary : calc);
+    setSalaryNote('');
+    setSalarySuccessMsg('');
+    setSalaryErrorMsg('');
+    setIsSalaryModalOpen(true);
+  };
+
+  const handleTypeOrRateChange = (newType: 'percentage' | 'per_lesson' | 'fixed', newRate: number) => {
+    setSalaryType(newType);
+    setSalaryRate(newRate);
+    if (!selectedTeacher) return;
+    let newCalc = 0;
+    if (newType === 'percentage') {
+      newCalc = Math.round((selectedTeacher.group_revenue || 0) * (newRate / 100));
+    } else if (newType === 'per_lesson') {
+      newCalc = (selectedTeacher.conducted_lessons || 0) * newRate;
+    } else {
+      newCalc = calculatedAmount;
+    }
+    setCalculatedAmount(newCalc);
+    setPaidAmount(newCalc);
+  };
 
   // CSV Export utility
   const handleExportCsv = () => {
@@ -139,9 +226,11 @@ export default function ReportsPage() {
         csvContent += `"${item.student_name}";"${item.phone}";"${item.group_name}";"${item.teacher_name}";${item.attendance_rate}%;${item.total_debt};"${item.risk_level}";"${item.reasons.join(', ')}"\n`;
       });
     } else if (activeTab === 'teachers' && teachersData) {
-      csvContent += 'O\'qituvchi;Telefon;Guruhlar soni;O\'quvchilar soni;O\'rtacha davomat (%);O\'rtacha ball;Oylik maosh (so\'m)\n';
-      teachersData.items.forEach((item: any) => {
-        csvContent += `"${item.teacher_name}";"${item.phone}";${item.groups_count};${item.students_count};${item.avg_attendance}%;${item.avg_score || '—'};${item.last_salary}\n`;
+      csvContent += `O'qituvchilar maoshi va KPI hisoboti — Oy: "${selectedMonth}"\n\n`;
+      csvContent += 'O\'qituvchi;Telefon;Guruhlar;O\'quvchilar;Darslar;Guruh tushumi (so\'m);Davomat (%);O\'rtacha ball;Hisoblangan maosh (so\'m);To\'langan (so\'m);Holati\n';
+      teachersData.items?.forEach((item: any) => {
+        const statusLabel = item.salary_status === 'paid' ? 'To\'langan' : item.salary_status === 'partial' ? 'Qisman' : 'To\'lanmagan';
+        csvContent += `"${item.teacher_name}";"${item.phone}";${item.groups_count};${item.students_count};${item.conducted_lessons || 0};${item.group_revenue || 0};${item.avg_attendance}%;${item.avg_score || '—'};${item.calculated_salary || 0};${item.paid_salary || 0};"${statusLabel}"\n`;
       });
     }
 
@@ -396,7 +485,7 @@ export default function ReportsPage() {
               }`}
             >
               <Award className="w-4 h-4" />
-              O&apos;qituvchilar KPI
+              O&apos;qituvchilar Maoshi & KPI
             </button>
           )}
         </nav>
@@ -1036,66 +1125,484 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {/* TAB 4: Teachers KPI */}
+      {/* TAB 4: Teachers Payroll & KPI */}
       {activeTab === 'teachers' && (
         <div className="space-y-6">
+          {/* Subheader: Month switcher & Excel export */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xs">
+            <div>
+              <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Banknote className="w-5 h-5 text-emerald-600" />
+                <span>O&apos;qituvchilar Maoshi & KPI Tahlili</span>
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Darslar soni, guruh tushumi va foiz stavkasi asosida hisoblangan maoshlar
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-48">
+                <CustomSelect
+                  value={selectedMonth}
+                  onChange={(val) => setSelectedMonth(val)}
+                  options={MONTH_OPTIONS}
+                />
+              </div>
+
+              <button
+                onClick={handleExportCsv}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-bold transition shadow-2xs"
+              >
+                <Download className="w-4 h-4" />
+                <span>Excel</span>
+              </button>
+            </div>
+          </div>
+
           {isTeachersLoading ? (
-            <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center bg-white rounded-xl">
+            <div className="p-16 text-center text-gray-500 flex flex-col items-center justify-center bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
-              O&apos;qituvchilar ko&apos;rsatkichlari yuklanmoqda...
+              <span>O&apos;qituvchilar maosh va KPI ko&apos;rsatkichlari yuklanmoqda...</span>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-4 bg-gray-50/80 border-b border-gray-200 font-bold text-sm text-gray-800">
-                O&apos;qituvchilar Samaradorligi va KPI Ko&apos;rsatkichlari
+            <>
+              {/* Top Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xs">
+                  <div className="flex items-center justify-between text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                    <span>Jami Hisoblangan Maosh</span>
+                    <span className="p-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 rounded-lg">
+                      <Calculator className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <div className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-2">
+                    {formatCurrency(teachersData?.totals?.total_calculated)}
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">
+                    {selectedMonth} oyi uchun umumiy fond
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xs">
+                  <div className="flex items-center justify-between text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                    <span>To&apos;langan Maoshlar</span>
+                    <span className="p-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 rounded-lg">
+                      <Banknote className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">
+                    {formatCurrency(teachersData?.totals?.total_paid)}
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">
+                    Hozirgacha to&apos;langan qism
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xs">
+                  <div className="flex items-center justify-between text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                    <span>To&apos;lanishi Kutilmoqda</span>
+                    <span className="p-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 rounded-lg">
+                      <Clock className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <div className="text-xl font-bold text-amber-600 dark:text-amber-400 mt-2">
+                    {formatCurrency(teachersData?.totals?.total_pending)}
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">
+                    Qolgan to&apos;lanishi kerak summa
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xs">
+                  <div className="flex items-center justify-between text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                    <span>O&apos;qituvchilar Soni</span>
+                    <span className="p-1.5 bg-purple-50 dark:bg-purple-950/40 text-purple-600 rounded-lg">
+                      <Users className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <div className="text-xl font-bold text-purple-600 dark:text-purple-400 mt-2">
+                    {teachersData?.total || 0} nafar
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">
+                    Faol ustozlar soni
+                  </div>
+                </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 text-xs text-gray-500 font-semibold uppercase bg-gray-50/50">
-                      <th className="py-3 px-4">O&apos;qituvchi</th>
-                      <th className="py-3 px-4 text-center">Guruhlar soni</th>
-                      <th className="py-3 px-4 text-center">O&apos;quvchilar soni</th>
-                      <th className="py-3 px-4 text-center">O&apos;rtacha Davomat</th>
-                      <th className="py-3 px-4 text-center">O&apos;rtacha Ball</th>
-                      <th className="py-3 px-4 text-right">Oxirgi Oylik Maoshi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {teachersData?.items?.map((t: any) => (
-                      <tr key={t.teacher_id} className="hover:bg-gray-50/60">
-                        <td className="py-3.5 px-4">
-                          <span className="font-bold text-gray-900 block">{t.teacher_name}</span>
-                          <span className="text-xs text-gray-400">{t.phone}</span>
-                        </td>
-                        <td className="py-3.5 px-4 text-center font-semibold text-gray-800">
-                          {t.groups_count} ta guruh
-                        </td>
-                        <td className="py-3.5 px-4 text-center font-semibold text-blue-600">
-                          {t.students_count} nafar
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
-                            {t.avg_attendance}%
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          {t.avg_score != null ? (
-                            <span className="font-bold text-emerald-600">{t.avg_score} ball</span>
-                          ) : (
-                            <span className="text-gray-400 text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-bold text-gray-900">
-                          {t.last_salary > 0 ? formatCurrency(t.last_salary) : '—'}
-                        </td>
+
+              {/* Table */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase bg-gray-50/70 dark:bg-gray-750">
+                        <th className="py-3 px-4">O&apos;qituvchi</th>
+                        <th className="py-3 px-4 text-center">Guruh / O&apos;quvchi</th>
+                        <th className="py-3 px-4 text-center">O&apos;tilgan Darslar</th>
+                        <th className="py-3 px-4 text-right">Guruh Tushumi</th>
+                        <th className="py-3 px-4 text-center">KPI (Davomat/Baho)</th>
+                        <th className="py-3 px-4 text-right">Hisoblangan Maosh</th>
+                        <th className="py-3 px-4 text-right">To&apos;langan Qism</th>
+                        <th className="py-3 px-4 text-center">Holati</th>
+                        <th className="py-3 px-4 text-right">Harakat</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                      {teachersData?.items?.map((t: any) => {
+                        const isPaid = t.salary_status === 'paid';
+                        const isPartial = t.salary_status === 'partial';
+
+                        return (
+                          <tr key={t.teacher_id} className="hover:bg-gray-50/60 dark:hover:bg-gray-750/50 transition">
+                            <td className="py-3.5 px-4">
+                              <span className="font-bold text-gray-900 dark:text-gray-100 block">{t.teacher_name}</span>
+                              <span className="text-xs font-mono text-gray-400">{t.phone}</span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <span className="font-semibold text-gray-800 dark:text-gray-200 block text-xs">
+                                {t.groups_count} ta guruh
+                              </span>
+                              <span className="text-[11px] text-blue-600 dark:text-blue-400 block font-medium">
+                                {t.students_count} nafar o&apos;quvchi
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <span className="inline-flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200 text-xs px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-700">
+                                {t.conducted_lessons} ta dars
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <span className="font-bold text-gray-900 dark:text-gray-100 text-xs block">
+                                {formatCurrency(t.group_revenue)}
+                              </span>
+                              <span className="text-[10px] text-gray-400">shu oyda to&apos;langan</span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                                  t.avg_attendance >= 85
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                    : t.avg_attendance >= 70
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                }`}>
+                                  {t.avg_attendance}%
+                                </span>
+                                {t.avg_score != null && (
+                                  <span className="px-1.5 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                    {t.avg_score} ball
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <span className="font-bold text-gray-900 dark:text-gray-100 text-xs block">
+                                {formatCurrency(t.calculated_salary)}
+                              </span>
+                              <span className="text-[10px] text-gray-400 capitalize">
+                                {t.salary_type === 'percentage'
+                                  ? `${t.salary_rate}% tushumdan`
+                                  : t.salary_type === 'per_lesson'
+                                  ? 'Darsbay'
+                                  : 'Belgilangan'}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <span className={`font-bold text-xs ${t.paid_salary > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>
+                                {formatCurrency(t.paid_salary)}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                                isPaid
+                                  ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                                  : isPartial
+                                  ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
+                                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                              }`}>
+                                {isPaid ? "To'langan" : isPartial ? 'Qisman' : "To'lanmagan"}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <button
+                                onClick={() => handleOpenSalaryModal(t)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-xs font-bold text-blue-700 dark:text-blue-300 transition shadow-2xs"
+                              >
+                                <CreditCard className="w-3.5 h-3.5" />
+                                <span>{isPaid ? 'Qayta hisoblash' : "Maosh to'lash"}</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Salary Payment & Calculation Modal */}
+      {isSalaryModalOpen && selectedTeacher && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-750">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base">
+                  O&apos;qituvchiga oylik maosh to&apos;lash
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Ustoz: <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedTeacher.teacher_name}</span> • Oy: <span className="font-bold text-blue-600">{selectedMonth}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setIsSalaryModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {salaryErrorMsg && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <span>{salaryErrorMsg}</span>
+                </div>
+              )}
+              {salarySuccessMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  <span>{salarySuccessMsg}</span>
+                </div>
+              )}
+
+              {/* Summary Stats of Teacher in this month */}
+              <div className="grid grid-cols-3 gap-2.5 p-3.5 bg-blue-50/60 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-900/40 text-center">
+                <div>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 block">Guruh tushumi</span>
+                  <span className="font-bold text-xs text-blue-900 dark:text-blue-200 mt-0.5 block">
+                    {formatCurrency(selectedTeacher.group_revenue)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 block">O&apos;tilgan darslar</span>
+                  <span className="font-bold text-xs text-emerald-700 dark:text-emerald-300 mt-0.5 block">
+                    {selectedTeacher.conducted_lessons} ta
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 block">Guruhlar soni</span>
+                  <span className="font-bold text-xs text-purple-700 dark:text-purple-300 mt-0.5 block">
+                    {selectedTeacher.groups_count} ta guruh
+                  </span>
+                </div>
+              </div>
+
+              {/* Calculation Type Switcher */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Hisoblash usulini tanlang:
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleTypeOrRateChange('percentage', 40)}
+                    className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 ${
+                      salaryType === 'percentage'
+                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 shadow-2xs'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-600 dark:text-gray-300'
+                    }`}
+                  >
+                    <span>Foizli</span>
+                    <span className="text-[10px] font-normal text-gray-400">Tushumdan %</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleTypeOrRateChange('per_lesson', 50000)}
+                    className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 ${
+                      salaryType === 'per_lesson'
+                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 shadow-2xs'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-600 dark:text-gray-300'
+                    }`}
+                  >
+                    <span>Darsbay</span>
+                    <span className="text-[10px] font-normal text-gray-400">Har darsga</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleTypeOrRateChange('fixed', 0)}
+                    className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 ${
+                      salaryType === 'fixed'
+                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 shadow-2xs'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-600 dark:text-gray-300'
+                    }`}
+                  >
+                    <span>Belgilangan</span>
+                    <span className="text-[10px] font-normal text-gray-400">Fiks maosh</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Rate Inputs based on Type */}
+              {salaryType === 'percentage' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    <span>Guruh tushumidan foiz stavkasi (%):</span>
+                    <span className="text-blue-600 font-bold">{salaryRate}%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={salaryRate}
+                      onChange={(e) => handleTypeOrRateChange('percentage', Number(e.target.value))}
+                      className="w-24 px-3 py-1.5 border border-gray-300 dark:border-gray-650 bg-white dark:bg-gray-750 text-gray-900 dark:text-gray-100 rounded-xl text-sm font-bold text-center"
+                    />
+                    <div className="flex items-center gap-1.5 flex-1">
+                      {[35, 40, 50, 60].map((pct) => (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => handleTypeOrRateChange('percentage', pct)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                            salaryRate === pct
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600'
+                          }`}
+                        >
+                          {pct}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {salaryType === 'per_lesson' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    <span>1 ta o&apos;tilgan dars uchun to&apos;lov (so&apos;m):</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="5000"
+                      value={salaryRate}
+                      onChange={(e) => handleTypeOrRateChange('per_lesson', Number(e.target.value))}
+                      className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-650 bg-white dark:bg-gray-750 text-gray-900 dark:text-gray-100 rounded-xl text-sm font-bold"
+                    />
+                    <div className="flex items-center gap-1">
+                      {[40000, 50000, 60000, 80000].map((rt) => (
+                        <button
+                          key={rt}
+                          type="button"
+                          onClick={() => handleTypeOrRateChange('per_lesson', rt)}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-semibold border transition ${
+                            salaryRate === rt
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600'
+                          }`}
+                        >
+                          {rt / 1000}k
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {salaryType === 'fixed' && (
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Oylik belgilangan summa (so&apos;m):
+                  </label>
+                  <input
+                    type="number"
+                    step="50000"
+                    value={calculatedAmount}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setCalculatedAmount(val);
+                      setPaidAmount(val);
+                    }}
+                    placeholder="Masalan: 4000000"
+                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-650 bg-white dark:bg-gray-750 text-gray-900 dark:text-gray-100 rounded-xl text-sm font-bold"
+                  />
+                </div>
+              )}
+
+              {/* Calculated Result Box */}
+              <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-emerald-800 dark:text-emerald-300 font-medium block">
+                    Hisoblangan jami maosh summasi:
+                  </span>
+                  <span className="text-lg font-extrabold text-emerald-700 dark:text-emerald-400">
+                    {formatCurrency(calculatedAmount)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPaidAmount(calculatedAmount)}
+                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition"
+                >
+                  To&apos;liq to&apos;lash
+                </button>
+              </div>
+
+              {/* Actual Payment Input */}
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Hozir to&apos;lanayotgan summa (so&apos;m) *
+                </label>
+                <input
+                  type="number"
+                  value={paidAmount}
+                  onChange={(e) => setPaidAmount(Number(e.target.value))}
+                  className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-650 bg-white dark:bg-gray-750 text-gray-900 dark:text-gray-100 rounded-xl text-base font-bold text-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* Note / Payment Method */}
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  To&apos;lov izohi / Turi (ixtiyoriy)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Masalan: Plastik kartaga o'tkazildi yoki Naqd to'landi"
+                  value={salaryNote}
+                  onChange={(e) => setSalaryNote(e.target.value)}
+                  className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-650 bg-white dark:bg-gray-750 text-gray-900 dark:text-gray-100 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsSalaryModalOpen(false)}
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-750 transition"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="button"
+                  disabled={paySalaryMutation.isPending || paidAmount <= 0}
+                  onClick={() => paySalaryMutation.mutate()}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-xs"
+                >
+                  {paySalaryMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <Check className="w-4 h-4" />
+                  <span>To&apos;lovni tasdiqlash</span>
+                </button>
               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

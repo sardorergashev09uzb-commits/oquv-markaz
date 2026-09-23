@@ -71,10 +71,11 @@ return [
                 'GET dashboard/risk-students' => 'dashboard/risk-students',
 
                 // Students
-                'POST api/students/<id:\d+>/assign-group' => 'student/assign-group',
-                'GET  api/students/<id:\d+>/attendance'   => 'student/attendance',
-                'GET  api/students/<id:\d+>/grades'       => 'student/grades',
-                'GET  api/students/<id:\d+>/payments'     => 'student/payments',
+                'POST api/students/<id:\d+>/transfer-group' => 'student/transfer-group',
+                'POST api/students/<id:\d+>/assign-group'   => 'student/assign-group',
+                'GET  api/students/<id:\d+>/attendance'     => 'student/attendance',
+                'GET  api/students/<id:\d+>/grades'         => 'student/grades',
+                'GET  api/students/<id:\d+>/payments'       => 'student/payments',
                 'GET    api/students'          => 'student/index',
                 'POST   api/students'          => 'student/create',
                 'GET    api/students/<id:\d+>' => 'student/view',
@@ -126,6 +127,9 @@ return [
                 'POST   api/assessments'                        => 'assessment/create',
 
                 // Homework
+                'GET    api/homework/<id:\d+>/submissions'      => 'homework/submissions',
+                'POST   api/homework/<id:\d+>/submit'           => 'homework/submit',
+                'POST   api/homework/<id:\d+>/grade'            => 'homework/grade',
                 'GET    api/homework/<id:\d+>'                  => 'homework/view',
                 'GET    api/homework'                           => 'homework/index',
                 'POST   api/homework'                           => 'homework/create',
@@ -164,6 +168,7 @@ return [
                 'POST   api/certificates/generate'              => 'certificate/generate',
 
                 // Reports
+                'POST   api/reports/pay-salary'     => 'report/pay-salary',
                 'GET    api/reports/overview'       => 'report/overview',
                 'GET    api/reports/finance'        => 'report/finance',
                 'GET    api/reports/attendance'     => 'report/attendance',
@@ -183,7 +188,7 @@ return [
     'as corsFilter' => [
         'class' => 'yii\filters\Cors',
         'cors' => [
-            'Origin' => [$_SERVER['HTTP_ORIGIN'] ?? '*'],
+            'Origin' => isset($_SERVER['HTTP_ORIGIN']) ? [$_SERVER['HTTP_ORIGIN']] : ['*'],
             'Access-Control-Request-Method'    => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
             'Access-Control-Request-Headers'   => ['*'],
             'Access-Control-Allow-Credentials' => true,

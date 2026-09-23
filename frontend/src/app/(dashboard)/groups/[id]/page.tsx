@@ -7,11 +7,13 @@ import api from '@/lib/api';
 import {
   BookOpen, Users, GraduationCap, DoorOpen, Clock, Calendar,
   ChevronLeft, PlusCircle, Trash2, Loader2, AlertCircle, Phone, Mail,
-  Pencil, AlertTriangle, X, CreditCard, DollarSign, CheckCircle2
+  Pencil, AlertTriangle, X, CreditCard, DollarSign, CheckCircle2,
+  ArrowRightLeft, FileSpreadsheet, Download
 } from 'lucide-react';
 import Link from 'next/link';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { formatMoney } from '@/lib/utils';
+import { exportToCSV } from '@/lib/exportExcel';
 
 interface StudentInGroup {
   membership_id: number;
@@ -115,6 +117,16 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
   // ─── Delete Modal State ────────────────────────────────────────────────────
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
+  // ─── Transfer Modal State ──────────────────────────────────────────────────
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [transferData, setTransferData] = useState({
+    student_id: 0,
+    student_name: '',
+    to_group_id: '',
+    reason: 'Dars vaqti mos kelmadi',
+  });
+  const [transferError, setTransferError] = useState('');
+
   // 1. Fetch Group Details & Students & Lessons
   const { data, isLoading, isError } = useQuery({
     queryKey: ['group', groupId],
@@ -122,6 +134,16 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
       const resp = await api.get(`/api/groups/${groupId}`);
       return resp.data;
     },
+  });
+
+  // Fetch all groups for transfer dropdown
+  const { data: allGroupsData } = useQuery({
+    queryKey: ['all-groups-transfer-list'],
+    queryFn: async () => {
+      const resp = await api.get('/api/groups');
+      return resp.data?.items || [];
+    },
+    enabled: isTransferModalOpen,
   });
 
   // 2. Fetch all students for adding dropdown
@@ -295,6 +317,28 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     },
   });
 
+  // 11. Transfer student mutation
+  const transferStudentMutation = useMutation({
+    mutationFn: async () => {
+      const resp = await api.post(`/api/students/${transferData.student_id}/transfer-group`, {
+        from_group_id: Number(groupId),
+        to_group_id: Number(transferData.to_group_id),
+        reason: transferData.reason,
+      });
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['group-payments', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      setIsTransferModalOpen(false);
+      setTransferError('');
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) => {
+      setTransferError(err.response?.data?.message || "O'quvchini ko'chirishda xatolik yuz berdi");
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="py-20 flex items-center justify-center">
@@ -339,6 +383,47 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     count_partial: 0,
     count_pending: 0,
     count_overdue: 0,
+  };
+
+  const handleOpenTransferModal = (studentId: number, studentName: string) => {
+    setTransferData({
+      student_id: studentId,
+      student_name: studentName,
+      to_group_id: '',
+      reason: 'Dars vaqti mos kelmadi',
+    });
+    setTransferError('');
+    setIsTransferModalOpen(true);
+  };
+
+  const handleExportStudents = () => {
+    const headers = ['№', "O'quvchi F.I.SH.", 'Telefon', "Qo'shilgan sana", 'Holati'];
+    const rows = students.map((s, idx) => [
+      idx + 1,
+      s.name,
+      s.phone,
+      s.enrolled_at,
+      s.status === 'active' ? "O'qimoqda" : "Tark etgan",
+    ]);
+    exportToCSV(`${group.name}_o'quvchilar`, headers, rows);
+  };
+
+  const handleExportPayments = () => {
+    const headers = ["O'quvchi", 'Telefon', 'Kurs narxi', "To'langan summa", 'Qoldiq qarz', 'Holati'];
+    const rows = activeStudents.map((student) => {
+      const plan = paymentPlans.find((p) => p.student_id === student.student_id);
+      const remaining = plan ? plan.remaining_amount : (group.course_price || 500000);
+      const statusText = plan?.status === 'paid' ? "To'langan" : plan?.status === 'partial' ? "Qisman to'langan" : plan?.status === 'overdue' ? "Muddati o'tgan" : "To'lanmagan";
+      return [
+        student.name,
+        student.phone,
+        plan ? plan.amount : (group.course_price || 500000),
+        plan ? plan.paid_amount : 0,
+        remaining,
+        statusText,
+      ];
+    });
+    exportToCSV(`${group.name}_${selectedPaymentMonth}_to'lovlar`, headers, rows);
   };
 
   const handleOpenEdit = () => {
@@ -543,36 +628,50 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
               <p className="text-xs text-gray-400">Guruh tarkibidagi o&apos;quvchilar va ularning holati</p>
             </div>
 
-            {/* Add student dropdown form */}
-            {!isUserStudent && availableStudents.length > 0 && (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-                <div className="w-full sm:w-64">
-                  <CustomSelect
-                    value={selectedStudentId}
-                    onChange={(val) => setSelectedStudentId(val)}
-                    placeholder="O'quvchini tanlang..."
-                    searchable={availableStudents.length > 5}
-                    options={availableStudents.map((s: { id: number; name: string; phone: string }) => ({
-                      value: String(s.id),
-                      label: s.name,
-                      subLabel: s.phone,
-                    }))}
-                  />
+            {/* Add student dropdown form & Excel export */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              {!isUserStudent && availableStudents.length > 0 && (
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="w-full sm:w-64">
+                    <CustomSelect
+                      value={selectedStudentId}
+                      onChange={(val) => setSelectedStudentId(val)}
+                      placeholder="O'quvchini tanlang..."
+                      searchable={availableStudents.length > 5}
+                      options={availableStudents.map((s: { id: number; name: string; phone: string }) => ({
+                        value: String(s.id),
+                        label: s.name,
+                        subLabel: s.phone,
+                      }))}
+                    />
+                  </div>
+                  <button
+                    disabled={!selectedStudentId || addStudentMutation.isPending}
+                    onClick={() => selectedStudentId && addStudentMutation.mutate(Number(selectedStudentId))}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer"
+                  >
+                    {addStudentMutation.isPending ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <PlusCircle className="w-3.5 h-3.5" />
+                    )}
+                    <span>Qo&apos;shish</span>
+                  </button>
                 </div>
+              )}
+
+              {students.length > 0 && (
                 <button
-                  disabled={!selectedStudentId || addStudentMutation.isPending}
-                  onClick={() => selectedStudentId && addStudentMutation.mutate(Number(selectedStudentId))}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer"
+                  type="button"
+                  onClick={handleExportStudents}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer"
+                  title="O'quvchilar ro'yxatini Excelga yuklash"
                 >
-                  {addStudentMutation.isPending ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <PlusCircle className="w-3.5 h-3.5" />
-                  )}
-                  <span>Qo&apos;shish</span>
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Excel</span>
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {addError && (
@@ -634,14 +733,25 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
                       {!isUserStudent && (
                         <td className="px-4 py-3 text-right">
                           {student.status === 'active' && (
-                            <button
-                              onClick={() => removeStudentMutation.mutate(student.student_id)}
-                              disabled={removeStudentMutation.isPending}
-                              className="text-gray-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
-                              title="Guruhdan chiqarish"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenTransferModal(student.student_id, student.name)}
+                                className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 transition cursor-pointer"
+                                title="Boshqa guruhga ko'chirish"
+                              >
+                                <ArrowRightLeft className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeStudentMutation.mutate(student.student_id)}
+                                disabled={removeStudentMutation.isPending}
+                                className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
+                                title="Guruhdan chiqarish"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           )}
                         </td>
                       )}
@@ -792,13 +902,24 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
               <p className="text-xs text-gray-400">O&apos;quvchilarning oylik to&apos;lov holati va qarzdorliklari</p>
             </div>
 
-            <div className="w-full sm:w-60">
-              <CustomSelect
-                value={selectedPaymentMonth}
-                onChange={(val) => setSelectedPaymentMonth(val)}
-                options={MONTH_OPTIONS}
-                placeholder="Oyni tanlang..."
-              />
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="w-full sm:w-60">
+                <CustomSelect
+                  value={selectedPaymentMonth}
+                  onChange={(val) => setSelectedPaymentMonth(val)}
+                  options={MONTH_OPTIONS}
+                  placeholder="Oyni tanlang..."
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleExportPayments}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer"
+                title="To'lovlar jadvalini Excelga yuklash"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Excel</span>
+              </button>
             </div>
           </div>
 
@@ -1235,6 +1356,107 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
                 <span>Ha, arxivlash</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: O'quvchini boshqa guruhga ko'chirish */}
+      {isTransferModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Guruhni almashtirish / Ko&apos;chirish</h3>
+                <p className="text-xs text-gray-400">{transferData.student_name} ni boshqa guruhga o&apos;tkazish</p>
+              </div>
+              <button
+                onClick={() => setIsTransferModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!transferData.to_group_id) {
+                  setTransferError("Yangi guruhni tanlang");
+                  return;
+                }
+                transferStudentMutation.mutate();
+              }}
+              className="p-6 space-y-4"
+            >
+              {transferError && (
+                <div className="p-3 bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-900 rounded-xl text-red-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{transferError}</span>
+                </div>
+              )}
+
+              <div className="p-3.5 rounded-xl bg-gray-50 dark:bg-gray-750 border border-gray-200 dark:border-gray-700 text-xs">
+                <span className="text-gray-400 block mb-0.5">Hozirgi guruh:</span>
+                <span className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                  {group.name} ({group.course_name})
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Ko&apos;chiriladigan yangi guruh *
+                </label>
+                <select
+                  required
+                  value={transferData.to_group_id}
+                  onChange={(e) => setTransferData({ ...transferData, to_group_id: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                >
+                  <option value="">Yangi guruhni tanlang...</option>
+                  {(allGroupsData || [])
+                    .filter((g: any) => String(g.id) !== String(groupId))
+                    .map((g: any) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name} ({g.course_name}) — {g.teacher_name || 'Ustoz'}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Ko&apos;chirish sababi
+                </label>
+                <select
+                  value={transferData.reason}
+                  onChange={(e) => setTransferData({ ...transferData, reason: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                >
+                  <option value="Dars vaqti mos kelmadi">Dars vaqti mos kelmadi</option>
+                  <option value="Ustozni almashtirish">Ustozni almashtirish / Taklifi</option>
+                  <option value="O'zlashtirish darajasi o'zgardi">O&apos;zlashtirish darajasi o&apos;zgardi</option>
+                  <option value="Boshqa sabab">Boshqa sabab</option>
+                </select>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsTransferModalOpen(false)}
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={transferStudentMutation.isPending}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                >
+                  {transferStudentMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>Ko&apos;chirish</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

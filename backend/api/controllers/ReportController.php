@@ -343,7 +343,7 @@ class ReportController extends Controller
 
     /**
      * GET /api/reports/teachers
-     * O'qituvchilar KPI va samaradorligi
+     * O'qituvchilar KPI, guruh tushumlari va oylik maosh hisob-kitobi
      */
     public function actionTeachers(): array
     {
@@ -352,6 +352,8 @@ class ReportController extends Controller
             throw new \yii\web\ForbiddenHttpException("Ruxsat berilmagan.");
         }
 
+        $month = Yii::$app->request->get('month') ?: date('Y-m');
+
         $query = User::find()->where(['role' => User::ROLE_TEACHER, 'status' => User::STATUS_ACTIVE]);
         if ($user && $user->role === User::ROLE_TEACHER) {
             $query->andWhere(['id' => $user->id]);
@@ -359,22 +361,50 @@ class ReportController extends Controller
         $teachers = $query->all();
 
         $result = [];
+        $totalCalculatedAll = 0;
+        $totalPaidAll = 0;
 
         foreach ($teachers as $t) {
             $groups = Group::find()->where(['teacher_id' => $t->id, 'status' => Group::STATUS_ACTIVE])->all();
             $groupIds = array_map(fn($g) => $g->id, $groups);
 
             $studentsCount = 0;
+            $groupRevenue = 0;
             if (!empty($groupIds)) {
                 $studentsCount = (int) GroupStudent::find()
                     ->where(['group_id' => $groupIds, 'status' => GroupStudent::STATUS_ACTIVE])
                     ->count();
+
+                $groupStudentIds = GroupStudent::find()
+                    ->where(['group_id' => $groupIds])
+                    ->select('student_id')
+                    ->column();
+
+                if (!empty($groupStudentIds)) {
+                    $groupRevenue = (int) Payment::find()
+                        ->where(['student_id' => $groupStudentIds])
+                        ->andWhere(['like', 'paid_at', $month])
+                        ->sum('amount');
+                }
             }
 
-            // O'rtacha davomat
+            // O'tkazilgan darslar soni (ushbu oyda)
+            $conductedLessons = 0;
             $avgAttendance = 100;
             if (!empty($groupIds)) {
-                $lessonIds = Lesson::find()->where(['group_id' => $groupIds])->select('id')->column();
+                $conductedLessons = (int) Lesson::find()
+                    ->where(['group_id' => $groupIds])
+                    ->andWhere(['like', 'started_at', $month])
+                    ->count();
+
+                $lessonIds = Lesson::find()->where(['group_id' => $groupIds])
+                    ->andWhere(['like', 'started_at', $month])
+                    ->select('id')->column();
+
+                if (empty($lessonIds)) {
+                    $lessonIds = Lesson::find()->where(['group_id' => $groupIds])->select('id')->column();
+                }
+
                 if (!empty($lessonIds)) {
                     $attTotal = (int) Attendance::find()->where(['lesson_id' => $lessonIds])->count();
                     $attPresent = (int) Attendance::find()->where(['lesson_id' => $lessonIds, 'status' => [Attendance::STATUS_PRESENT, Attendance::STATUS_LATE]])->count();
@@ -396,28 +426,140 @@ class ReportController extends Controller
                 }
             }
 
-            // Oxirgi to'langan oylik
-            $lastSalary = (int) TeacherSalary::find()
-                ->where(['teacher_id' => $t->id])
-                ->orderBy(['id' => SORT_DESC])
-                ->select('amount')
-                ->scalar();
+            // Ushbu oydagi oylik maoshi yozuvi
+            $salaryRecord = TeacherSalary::find()
+                ->where(['teacher_id' => $t->id, 'month' => $month])
+                ->one();
+
+            if ($salaryRecord) {
+                $salaryId = $salaryRecord->id;
+                $salaryType = $salaryRecord->type;
+                $salaryRate = $salaryRecord->rate;
+                $calculatedSalary = (int) $salaryRecord->amount;
+                $paidSalary = (int) $salaryRecord->paid_amount;
+                $salaryStatus = $salaryRecord->status;
+                $paidAt = $salaryRecord->paid_at;
+            } else {
+                // Standart hisob: Guruh tushumining 40% i (tavsiya)
+                $salaryId = null;
+                $salaryType = 'percentage';
+                $salaryRate = 40;
+                $calculatedSalary = (int) round($groupRevenue * 0.40);
+                $paidSalary = 0;
+                $salaryStatus = TeacherSalary::STATUS_PENDING;
+                $paidAt = null;
+            }
+
+            $totalCalculatedAll += $calculatedSalary;
+            $totalPaidAll += $paidSalary;
 
             $result[] = [
-                'teacher_id'     => $t->id,
-                'teacher_name'   => $t->name,
-                'phone'          => $t->phone,
-                'groups_count'   => count($groups),
-                'students_count' => $studentsCount,
-                'avg_attendance' => $avgAttendance,
-                'avg_score'      => $avgScore,
-                'last_salary'    => $lastSalary,
+                'teacher_id'        => $t->id,
+                'teacher_name'      => $t->name,
+                'phone'             => $t->phone,
+                'groups_count'      => count($groups),
+                'students_count'    => $studentsCount,
+                'conducted_lessons' => $conductedLessons,
+                'group_revenue'     => $groupRevenue,
+                'avg_attendance'    => $avgAttendance,
+                'avg_score'         => $avgScore,
+                'salary_id'         => $salaryId,
+                'salary_type'       => $salaryType,
+                'salary_rate'       => $salaryRate,
+                'calculated_salary' => $calculatedSalary,
+                'paid_salary'       => $paidSalary,
+                'salary_status'     => $salaryStatus,
+                'paid_at'           => $paidAt,
+                'last_salary'       => $paidSalary > 0 ? $paidSalary : $calculatedSalary,
             ];
         }
 
         return [
-            'items' => $result,
-            'total' => count($result),
+            'month'  => $month,
+            'items'  => $result,
+            'total'  => count($result),
+            'totals' => [
+                'total_calculated' => $totalCalculatedAll,
+                'total_paid'       => $totalPaidAll,
+                'total_pending'    => max(0, $totalCalculatedAll - $totalPaidAll),
+            ],
+        ];
+    }
+
+    /**
+     * POST /api/reports/pay-salary
+     * O'qituvchiga oylik maosh to'lash va xarajatlarga yozish
+     */
+    public function actionPaySalary(): array
+    {
+        $user = Yii::$app->user->identity;
+        if ($user && in_array($user->role, [User::ROLE_TEACHER, User::ROLE_STUDENT])) {
+            throw new \yii\web\ForbiddenHttpException("Faqat rahbar yoki menejerlar maosh to'lay oladi.");
+        }
+
+        $body = Yii::$app->request->bodyParams;
+        $teacherId = (int) ($body['teacher_id'] ?? 0);
+        $month = trim((string) ($body['month'] ?? date('Y-m')));
+        $type = trim((string) ($body['type'] ?? 'percentage'));
+        $lessonsCount = isset($body['lessons_count']) ? (int) $body['lessons_count'] : null;
+        $rate = isset($body['rate']) ? (int) $body['rate'] : null;
+        $amount = (int) ($body['amount'] ?? 0);
+        $paidAmount = (int) ($body['paid_amount'] ?? $amount);
+        $note = trim((string) ($body['note'] ?? ''));
+
+        $teacher = User::findOne(['id' => $teacherId, 'role' => User::ROLE_TEACHER]);
+        if (!$teacher) {
+            throw new \yii\web\NotFoundHttpException("O'qituvchi topilmadi.");
+        }
+
+        if ($amount <= 0 && $paidAmount <= 0) {
+            Yii::$app->response->statusCode = 422;
+            return [
+                'success' => false,
+                'message' => "Maosh summasi 0 dan katta bo'lishi kerak.",
+            ];
+        }
+
+        $salary = TeacherSalary::findOne(['teacher_id' => $teacherId, 'month' => $month]);
+        if (!$salary) {
+            $salary = new TeacherSalary();
+            $salary->teacher_id = $teacherId;
+            $salary->month = $month;
+        }
+
+        $salary->type = in_array($type, ['fixed', 'per_lesson', 'percentage']) ? $type : 'percentage';
+        $salary->lessons_count = $lessonsCount;
+        $salary->rate = $rate;
+        $salary->amount = $amount;
+        $salary->paid_amount = $paidAmount;
+        $salary->status = ($paidAmount >= $amount && $amount > 0) ? TeacherSalary::STATUS_PAID : ($paidAmount > 0 ? TeacherSalary::STATUS_PARTIAL : TeacherSalary::STATUS_PENDING);
+        $salary->paid_at = date('Y-m-d H:i:s');
+
+        if (!$salary->save()) {
+            Yii::$app->response->statusCode = 422;
+            return [
+                'success' => false,
+                'errors' => $salary->getErrors(),
+            ];
+        }
+
+        // Tizim xarajatlariga ham avtomatik kiritish
+        try {
+            $expense = new Expense();
+            $expense->category = Expense::CATEGORY_SALARY;
+            $expense->amount = $paidAmount;
+            $expense->description = "O'qituvchi oyligi: {$teacher->name} ({$month})" . ($note ? " — {$note}" : "");
+            $expense->date = date('Y-m-d');
+            $expense->created_by = $user ? $user->id : 1;
+            $expense->save(false);
+        } catch (\Throwable $e) {
+            Yii::error("Maosh xarajatiga saqlashda xatolik: " . $e->getMessage());
+        }
+
+        return [
+            'success' => true,
+            'message' => "{$teacher->name} uchun {$month} oyi maoshi (" . number_format($paidAmount, 0, '', ' ') . " so'm) muvaffaqiyatli saqlandi!",
+            'salary'  => $salary,
         ];
     }
 

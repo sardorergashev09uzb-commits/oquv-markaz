@@ -7,6 +7,7 @@ namespace api\controllers;
 use api\components\JwtBearerAuth;
 use common\models\Group;
 use common\models\GroupStudent;
+use common\models\PaymentPlan;
 use common\models\User;
 use Yii;
 use yii\data\ActiveDataProvider;
@@ -304,5 +305,72 @@ class StudentController extends Controller
         }
 
         return ['message' => "O'quvchi guruhga biriktirildi", 'membership' => $gs];
+    }
+
+    /**
+     * POST /api/students/{id}/transfer-group
+     */
+    public function actionTransferGroup(int $id): array
+    {
+        $student = User::findOne(['id' => $id, 'role' => User::ROLE_STUDENT]);
+        if (!$student) {
+            throw new NotFoundHttpException("O'quvchi topilmadi.");
+        }
+
+        $body = Yii::$app->request->bodyParams;
+        $fromGroupId = (int) ($body['from_group_id'] ?? 0);
+        $toGroupId = (int) ($body['to_group_id'] ?? 0);
+        $reason = $body['reason'] ?? null;
+
+        if (!$fromGroupId || !$toGroupId) {
+            Yii::$app->response->statusCode = 422;
+            return ['message' => "Eski va yangi guruhni tanlash majburiy."];
+        }
+
+        if ($fromGroupId === $toGroupId) {
+            Yii::$app->response->statusCode = 422;
+            return ['message' => "Yangi guruh eski guruhdan farq qilishi kerak."];
+        }
+
+        $toGroup = Group::findOne($toGroupId);
+        if (!$toGroup) {
+            throw new NotFoundHttpException("Yangi guruh topilmadi.");
+        }
+
+        // 1. Eski guruhdagi a'zolikni yopish
+        $oldGs = GroupStudent::findOne(['group_id' => $fromGroupId, 'student_id' => $id]);
+        if ($oldGs) {
+            $oldGs->status = GroupStudent::STATUS_LEFT;
+            $oldGs->left_at = date('Y-m-d');
+            $oldGs->save(false);
+        }
+
+        // 2. Yangi guruhga a'zo qilish
+        $newGs = GroupStudent::findOne(['group_id' => $toGroupId, 'student_id' => $id]);
+        if ($newGs) {
+            $newGs->status = GroupStudent::STATUS_ACTIVE;
+            $newGs->left_at = null;
+        } else {
+            $newGs = new GroupStudent();
+            $newGs->group_id = $toGroupId;
+            $newGs->student_id = $id;
+            $newGs->enrolled_at = date('Y-m-d');
+            $newGs->status = GroupStudent::STATUS_ACTIVE;
+        }
+        $newGs->save(false);
+
+        // 3. To'lov rejasini yangi guruh bilan bog'lash (agar joriy oy rejasi mavjud bo'lsa)
+        $currentMonth = date('Y-m');
+        $oldPlan = PaymentPlan::findOne(['student_id' => $id, 'group_id' => $fromGroupId, 'month' => $currentMonth]);
+        if ($oldPlan && !PaymentPlan::find()->where(['student_id' => $id, 'group_id' => $toGroupId, 'month' => $currentMonth])->exists()) {
+            $oldPlan->group_id = $toGroupId;
+            $oldPlan->save(false);
+        }
+
+        return [
+            'message' => "O'quvchi muvaffaqiyatli boshqa guruhga ko'chirildi",
+            'from_group_id' => $fromGroupId,
+            'to_group_id' => $toGroupId,
+        ];
     }
 }
