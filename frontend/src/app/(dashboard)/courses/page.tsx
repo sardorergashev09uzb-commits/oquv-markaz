@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
   BookOpen, Plus, Search, Clock, DollarSign, Users,
-  Loader2, X, AlertCircle, CheckCircle, Pencil, Trash2, AlertTriangle
+  Loader2, X, AlertCircle, CheckCircle, Pencil, Trash2, AlertTriangle, RotateCcw
 } from 'lucide-react';
 import { formatMoney } from '@/lib/utils';
 import { getCurrentUserFromToken, canManage } from '@/lib/auth';
@@ -60,9 +60,14 @@ export default function CoursesPage() {
   });
   const [editFormError, setEditFormError] = useState('');
 
-  // Delete Modal State
+  // Delete Modal State (Archive)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingCourse, setDeletingCourse] = useState<CourseItem | null>(null);
+
+  // Force Delete Modal State (Permanent)
+  const [isForceDeleteModalOpen, setIsForceDeleteModalOpen] = useState(false);
+  const [forceDeletingCourse, setForceDeletingCourse] = useState<CourseItem | null>(null);
+  const [forceDeleteError, setForceDeleteError] = useState('');
 
   // Fetch Courses
   const { data, isLoading } = useQuery({
@@ -121,7 +126,7 @@ export default function CoursesPage() {
     },
   });
 
-  // Delete Course Mutation
+  // Delete Course Mutation (Archive)
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const resp = await api.delete(`/api/courses/${id}`);
@@ -132,6 +137,39 @@ export default function CoursesPage() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
       setIsDeleteModalOpen(false);
       setDeletingCourse(null);
+    },
+  });
+
+  // Restore Course Mutation (Unarchive)
+  const restoreMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const resp = await api.post(`/api/courses/${id}/restore`);
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || "Kursni qayta tiklashda xatolik yuz berdi");
+    },
+  });
+
+  // Force Delete Course Mutation (Permanent)
+  const forceDeleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const resp = await api.delete(`/api/courses/${id}/force`);
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+      setIsForceDeleteModalOpen(false);
+      setForceDeletingCourse(null);
+      setForceDeleteError('');
+    },
+    onError: (err: any) => {
+      setForceDeleteError(err.response?.data?.message || "Kursni butunlay o'chirishda xatolik yuz berdi");
     },
   });
 
@@ -172,7 +210,26 @@ export default function CoursesPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const courses: CourseItem[] = data || [];
+  const handleOpenForceDelete = (course: CourseItem) => {
+    setForceDeletingCourse(course);
+    setForceDeleteError('');
+    setIsForceDeleteModalOpen(true);
+  };
+
+  // Client-side safeguard filtering ensuring accurate view even with cached data
+  const rawCourses: CourseItem[] = data || [];
+  const courses = rawCourses.filter((course: CourseItem) => {
+    if (statusFilter !== '' && String(course.status) !== String(statusFilter)) {
+      return false;
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      const matchName = course.name.toLowerCase().includes(q);
+      const matchLevel = course.level?.toLowerCase().includes(q);
+      if (!matchName && !matchLevel) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -288,24 +345,50 @@ export default function CoursesPage() {
               {/* Action Buttons for Manager */}
               {isManager && (
                 <div className="mt-5 pt-3 border-t border-gray-100 dark:border-gray-750 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEdit(course)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition cursor-pointer"
-                    title="Tahrirlash"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    <span>Tahrirlash</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenDelete(course)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
-                    title="Arxivlash"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Arxivlash</span>
-                  </button>
+                  {course.status === 1 ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(course)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition cursor-pointer"
+                        title="Tahrirlash"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Tahrirlash</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDelete(course)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
+                        title="Arxivlash"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Arxivlash</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        disabled={restoreMutation.isPending}
+                        onClick={() => restoreMutation.mutate(course.id)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-lg transition cursor-pointer"
+                        title="Arxivdan chiqarish"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Arxivdan chiqarish</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenForceDelete(course)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 rounded-lg transition cursor-pointer"
+                        title="Butunlay o'chirish"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Butunlay o&apos;chirish</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -583,6 +666,54 @@ export default function CoursesPage() {
               >
                 {deleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>Ha, arxivlash</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Kursni Butunlay O'chirish Tasdig'i */}
+      {isForceDeleteModalOpen && forceDeletingCourse && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700 p-6 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                Kursni butunlay o&apos;chirmoqchimisiz?
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                <strong className="text-gray-800 dark:text-gray-200">&quot;{forceDeletingCourse.name}&quot;</strong> ma&apos;lumotlar bazasidan butunlay o&apos;chiriladi. Agar ushbu kursga bog&apos;liq guruhlar bo&apos;lsa, o&apos;chirish rad etilishi mumkin.
+              </p>
+              {forceDeleteError && (
+                <div className="mt-2 p-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-xl text-red-700 dark:text-red-300 text-xs">
+                  {forceDeleteError}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForceDeleteModalOpen(false);
+                  setForceDeletingCourse(null);
+                  setForceDeleteError('');
+                }}
+                className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={forceDeleteMutation.isPending}
+                onClick={() => forceDeleteMutation.mutate(forceDeletingCourse.id)}
+                className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+              >
+                {forceDeleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>Ha, butunlay o&apos;chirish</span>
               </button>
             </div>
           </div>

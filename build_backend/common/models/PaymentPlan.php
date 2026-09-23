@@ -117,6 +117,23 @@ class PaymentPlan extends ActiveRecord
             'group_name' => function () {
                 return $this->group ? $this->group->name : null;
             },
+            'course_name' => function () {
+                return ($this->group && $this->group->course) ? $this->group->course->name : null;
+            },
+            'group' => function () {
+                if (!$this->group) {
+                    return null;
+                }
+                return [
+                    'id' => $this->group->id,
+                    'name' => $this->group->name,
+                    'course' => $this->group->course ? [
+                        'id' => $this->group->course->id,
+                        'name' => $this->group->course->name,
+                        'price' => $this->group->course->price,
+                    ] : null,
+                ];
+            },
             'month',
             'amount',
             'paid_amount',

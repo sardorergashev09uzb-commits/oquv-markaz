@@ -66,7 +66,7 @@ class GroupController extends Controller
             $query->andWhere(['{{%groups}}.teacher_id' => (int) $teacherId]);
         }
 
-        if ($status) {
+        if ($status !== null && $status !== '') {
             $query->andWhere(['{{%groups}}.status' => $status]);
         }
 
@@ -465,10 +465,59 @@ class GroupController extends Controller
             }
         }
 
+        $force = (int) Yii::$app->request->get('force', 0);
+        if ($force === 1) {
+            return $this->actionForceDelete($id);
+        }
+
         $group->status = Group::STATUS_COMPLETED;
         $group->save(false);
 
         return ['message' => "Guruh yakunlandi/arxivlandi"];
+    }
+
+    /**
+     * POST /api/groups/{id}/restore — Arxivdan chiqarish
+     */
+    public function actionRestore(int $id): array
+    {
+        $group = Group::findOne($id);
+        if (!$group) {
+            throw new NotFoundHttpException("Guruh topilmadi.");
+        }
+
+        $group->status = Group::STATUS_ACTIVE;
+        $group->save(false);
+
+        return [
+            'message' => "Guruh arxivdan chiqarildi va qayta faollashtirildi",
+            'group' => $group,
+        ];
+    }
+
+    /**
+     * DELETE /api/groups/{id}/force — Bazadan butunlay o'chirish
+     */
+    public function actionForceDelete(int $id): array
+    {
+        $group = Group::findOne($id);
+        if (!$group) {
+            throw new NotFoundHttpException("Guruh topilmadi.");
+        }
+
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role !== User::ROLE_ADMIN) {
+            throw new ForbiddenHttpException("Faqat administrator guruhni bazadan butunlay o'chira oladi.");
+        }
+
+        // Bog'liq darslar va jadvallarni tozalash
+        Lesson::deleteAll(['group_id' => $id]);
+        PaymentPlan::deleteAll(['group_id' => $id]);
+        GroupStudent::deleteAll(['group_id' => $id]);
+
+        $group->delete();
+
+        return ['message' => "Guruh va unga tegishli jadvallar bazadan butunlay o'chirildi"];
     }
 
     /**

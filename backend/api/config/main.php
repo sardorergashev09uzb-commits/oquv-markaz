@@ -78,6 +78,8 @@ return [
                 'GET dashboard/risk-students'     => 'dashboard/risk-students',
 
                 // Students
+                'POST   api/students/<id:\d+>/restore'          => 'student/restore',
+                'DELETE api/students/<id:\d+>/force'            => 'student/force-delete',
                 'POST api/students/<id:\d+>/revert-transfer' => 'student/revert-transfer',
                 'POST api/students/<id:\d+>/transfer-group'  => 'student/transfer-group',
                 'POST api/students/<id:\d+>/assign-group'   => 'student/assign-group',
@@ -98,6 +100,8 @@ return [
                 'DELETE api/teachers/<id:\d+>' => 'teacher/delete',
 
                 // Courses
+                'POST   api/courses/<id:\d+>/restore' => 'course/restore',
+                'DELETE api/courses/<id:\d+>/force'   => 'course/force-delete',
                 'GET    api/courses'          => 'course/index',
                 'POST   api/courses'          => 'course/create',
                 'GET    api/courses/<id:\d+>' => 'course/view',
@@ -105,6 +109,8 @@ return [
                 'DELETE api/courses/<id:\d+>' => 'course/delete',
 
                 // Groups
+                'POST   api/groups/<id:\d+>/restore'          => 'group/restore',
+                'DELETE api/groups/<id:\d+>/force'            => 'group/force-delete',
                 'POST   api/groups/<id:\d+>/generate-lessons' => 'group/generate-lessons',
                 'POST   api/groups/<id:\d+>/add-student'    => 'group/add-student',
                 'POST   api/groups/<id:\d+>/remove-student' => 'group/remove-student',
@@ -116,6 +122,8 @@ return [
                 'DELETE api/groups/<id:\d+>' => 'group/delete',
 
                 // Rooms
+                'POST   api/rooms/<id:\d+>/restore' => 'room/restore',
+                'DELETE api/rooms/<id:\d+>/force'   => 'room/force-delete',
                 'GET    api/rooms'          => 'room/index',
                 'POST   api/rooms'          => 'room/create',
                 'PUT    api/rooms/<id:\d+>' => 'room/update',

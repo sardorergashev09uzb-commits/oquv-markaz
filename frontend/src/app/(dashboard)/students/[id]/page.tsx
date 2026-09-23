@@ -41,6 +41,8 @@ interface PaymentPlanItem {
   id: number;
   student_id: number;
   group_id: number;
+  group_name?: string;
+  course_name?: string;
   month: string;
   amount: number;
   paid_amount: number;
@@ -62,7 +64,10 @@ interface PaymentHistoryItem {
   note?: string;
   plan?: {
     month: string;
-    group?: { name: string };
+    group_id?: number;
+    group_name?: string;
+    course_name?: string;
+    group?: { name: string; course?: { name: string } };
   };
   receivedBy?: {
     name: string;
@@ -678,10 +683,10 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                         <tr key={plan.id} className="hover:bg-gray-50/70 dark:hover:bg-gray-750 transition">
                           <td className="px-4 py-3">
                             <span className="font-semibold text-gray-900 dark:text-white">
-                              {plan.group?.name || `Guruh #${plan.group_id}`}
+                              {plan.group_name || plan.group?.name || `Guruh #${plan.group_id}`}
                             </span>
-                            {plan.group?.course && (
-                              <p className="text-xs text-gray-400">{plan.group.course.name}</p>
+                            {(plan.course_name || plan.group?.course?.name) && (
+                              <p className="text-xs text-gray-400">{plan.course_name || plan.group?.course?.name}</p>
                             )}
                           </td>
                           <td className="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-300">
@@ -775,8 +780,11 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                         </td>
                         <td className="px-4 py-3 text-xs">
                           <span className="font-semibold text-gray-800 dark:text-gray-200">
-                            {item.plan?.group?.name || '-'}
+                            {item.plan?.group?.name || item.plan?.group_name || (item.plan?.group_id ? `Guruh #${item.plan?.group_id}` : '-')}
                           </span>
+                          {(item.plan?.course_name || item.plan?.group?.course?.name) && (
+                            <p className="text-[11px] text-gray-400">{item.plan?.course_name || item.plan?.group?.course?.name}</p>
+                          )}
                           {item.plan?.month && (
                             <span className="text-gray-400 ml-1">({item.plan.month})</span>
                           )}

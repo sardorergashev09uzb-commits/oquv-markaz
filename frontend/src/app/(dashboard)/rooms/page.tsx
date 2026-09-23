@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
   DoorOpen, Plus, Users, Loader2, X, AlertCircle, CheckCircle,
-  Pencil, Trash2, Search, AlertTriangle
+  Pencil, Trash2, Search, AlertTriangle, RotateCcw
 } from 'lucide-react';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useCurrentUser } from '@/lib/useCurrentUser';
@@ -44,9 +44,14 @@ export default function RoomsPage() {
   });
   const [editFormError, setEditFormError] = useState('');
 
-  // Delete Modal State
+  // Delete Modal State (Archive)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingRoom, setDeletingRoom] = useState<RoomItem | null>(null);
+
+  // Force Delete Modal State (Permanent)
+  const [isForceDeleteModalOpen, setIsForceDeleteModalOpen] = useState(false);
+  const [forceDeletingRoom, setForceDeletingRoom] = useState<RoomItem | null>(null);
+  const [forceDeleteError, setForceDeleteError] = useState('');
 
   // Fetch Rooms
   const { data, isLoading } = useQuery({
@@ -99,7 +104,7 @@ export default function RoomsPage() {
     },
   });
 
-  // Delete Room Mutation
+  // Delete Room Mutation (Archive)
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const resp = await api.delete(`/api/rooms/${id}`);
@@ -110,6 +115,39 @@ export default function RoomsPage() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
       setIsDeleteModalOpen(false);
       setDeletingRoom(null);
+    },
+  });
+
+  // Restore Room Mutation (Unarchive)
+  const restoreMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const resp = await api.post(`/api/rooms/${id}/restore`);
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || "Xonani tiklashda xatolik yuz berdi");
+    },
+  });
+
+  // Force Delete Room Mutation (Permanent)
+  const forceDeleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const resp = await api.delete(`/api/rooms/${id}/force`);
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+      setIsForceDeleteModalOpen(false);
+      setForceDeletingRoom(null);
+      setForceDeleteError('');
+    },
+    onError: (err: any) => {
+      setForceDeleteError(err.response?.data?.message || "Xonani butunlay o'chirishda xatolik yuz berdi");
     },
   });
 
@@ -147,7 +185,23 @@ export default function RoomsPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const rooms: RoomItem[] = data || [];
+  const handleOpenForceDelete = (room: RoomItem) => {
+    setForceDeletingRoom(room);
+    setForceDeleteError('');
+    setIsForceDeleteModalOpen(true);
+  };
+
+  // Client-side safeguard filtering ensuring accurate view even with cached data
+  const rawRooms: RoomItem[] = data || [];
+  const rooms = rawRooms.filter((room: RoomItem) => {
+    if (statusFilter !== '' && String(room.status) !== String(statusFilter)) {
+      return false;
+    }
+    if (search && !room.name.toLowerCase().includes(search.toLowerCase())) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -253,24 +307,50 @@ export default function RoomsPage() {
               {/* Action buttons */}
               {canEdit && (
                 <div className="mt-5 pt-3 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEdit(room)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition cursor-pointer"
-                    title="Tahrirlash"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    <span>Tahrirlash</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenDelete(room)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
-                    title="Arxivlash"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Arxivlash</span>
-                  </button>
+                  {room.status === 1 ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(room)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition cursor-pointer"
+                        title="Tahrirlash"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Tahrirlash</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDelete(room)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
+                        title="Arxivlash"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Arxivlash</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        disabled={restoreMutation.isPending}
+                        onClick={() => restoreMutation.mutate(room.id)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-lg transition cursor-pointer"
+                        title="Arxivdan chiqarish"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Arxivdan chiqarish</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenForceDelete(room)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 rounded-lg transition cursor-pointer"
+                        title="Butunlay o'chirish"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Butunlay o&apos;chirish</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -468,6 +548,54 @@ export default function RoomsPage() {
               >
                 {deleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>Ha, arxivlash</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Xonani Butunlay O'chirish Tasdig'i */}
+      {isForceDeleteModalOpen && forceDeletingRoom && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700 p-6 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                Xonani butunlay o&apos;chirmoqchimisiz?
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                <strong className="text-gray-800 dark:text-gray-200">&quot;{forceDeletingRoom.name}&quot;</strong> ma&apos;lumotlar bazasidan qaytarib bo&apos;lmaydigan qilib butunlay o&apos;chiriladi.
+              </p>
+              {forceDeleteError && (
+                <div className="mt-2 p-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-xl text-red-700 dark:text-red-300 text-xs">
+                  {forceDeleteError}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForceDeleteModalOpen(false);
+                  setForceDeletingRoom(null);
+                  setForceDeleteError('');
+                }}
+                className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={forceDeleteMutation.isPending}
+                onClick={() => forceDeleteMutation.mutate(forceDeletingRoom.id)}
+                className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+              >
+                {forceDeleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>Ha, butunlay o&apos;chirish</span>
               </button>
             </div>
           </div>

@@ -4,7 +4,7 @@ import {
   Bell, Search, Sun, Moon, CheckCheck, Megaphone, Award,
   CreditCard, AlertCircle, Info, X, LayoutGrid, Users,
   BookOpen, DoorOpen, UserPlus, TrendingUp, Shield, Settings,
-  GraduationCap, FileText, CheckCircle, Calendar, ClipboardCheck, Star
+  GraduationCap, FileText, CheckCircle, Calendar, ClipboardCheck, Star, RefreshCw
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
@@ -57,6 +57,23 @@ export function Topbar({ title }: { title?: string }) {
     const user = getCurrentUserFromToken();
     if (user) setUserRole(user.role);
   }, []);
+
+  // Data refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshToast, setRefreshToast] = useState(false);
+
+  const handleRefreshData = async () => {
+    setIsRefreshing(true);
+    try {
+      await queryClient.invalidateQueries();
+      setRefreshToast(true);
+      setTimeout(() => setRefreshToast(false), 3000);
+    } catch {
+      // ignore
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
 
   // Dark mode state
   const [darkMode, setDarkMode] = useState(false);
@@ -286,6 +303,19 @@ export function Topbar({ title }: { title?: string }) {
             )}
           </div>
 
+          {/* Bazadan ma'lumotlarni to'liq yangilash (Sync DB Data) */}
+          <button
+            type="button"
+            onClick={handleRefreshData}
+            disabled={isRefreshing}
+            className={`w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-750 transition text-gray-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer ${
+              isRefreshing ? 'opacity-70' : ''
+            }`}
+            title="Ma'lumotlarni bazadan to'liq yangilash (Keshni yangilash)"
+          >
+            <RefreshCw className={`w-4 h-4 text-emerald-600 dark:text-emerald-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+
           {/* Tizim Sozlamalari (Admin & Manager uchun bildirishnomalar yonida) */}
           {canManage(userRole) && (
             <Link
@@ -312,6 +342,14 @@ export function Topbar({ title }: { title?: string }) {
           </button>
         </div>
       </header>
+
+      {/* Toast: Ma'lumotlar yangilandi */}
+      {refreshToast && (
+        <div className="fixed top-16 right-4 z-50 p-3 px-4 bg-emerald-600 text-white text-xs font-semibold rounded-2xl shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+          <CheckCircle className="w-4 h-4 shrink-0 text-white" />
+          <span>Barcha ma&apos;lumotlar bazadan yangilandi!</span>
+        </div>
+      )}
 
       {/* ─── Creative App Hub Modal (Bento Launcher) ────────────────── */}
       {showAppHub && (

@@ -1,15 +1,74 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '@/lib/api';
 import {
   Building2, MessageSquare, Users, Database, Save, CheckCircle2,
-  AlertCircle, Send, Lock, ShieldCheck
+  AlertCircle, Send, Lock, ShieldCheck, BookOpen, Plus, Loader2,
+  DollarSign, ExternalLink
 } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'sms' | 'users' | 'system' | 'limits'>('profile');
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<'profile' | 'courses' | 'sms' | 'users' | 'system' | 'limits'>('profile');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [testSmsStatus, setTestSmsStatus] = useState<string | null>(null);
+
+  // Courses Tab State inside Settings
+  const [courseForm, setCourseForm] = useState({
+    name: '',
+    level: 'Boshlang\'ich (A1)',
+    duration_months: 3,
+    price: 500000,
+    description: '',
+  });
+  const [courseFormError, setCourseFormError] = useState('');
+  const [courseSuccess, setCourseSuccess] = useState(false);
+
+  const { data: coursesData, isLoading: isCoursesLoading } = useQuery({
+    queryKey: ['courses-settings'],
+    queryFn: async () => {
+      const resp = await api.get('/api/courses');
+      return resp.data?.items || [];
+    },
+  });
+
+  const createCourseMutation = useMutation({
+    mutationFn: async (payload: typeof courseForm) => {
+      const resp = await api.post('/api/courses', payload);
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courses-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses-dropdown'] });
+      setCourseForm({
+        name: '',
+        level: 'Boshlang\'ich (A1)',
+        duration_months: 3,
+        price: 500000,
+        description: '',
+      });
+      setCourseFormError('');
+      setCourseSuccess(true);
+      setTimeout(() => setCourseSuccess(false), 3500);
+    },
+    onError: (err: any) => {
+      setCourseFormError(err.response?.data?.message || "Kursni yaratishda xatolik yuz berdi");
+    },
+  });
+
+  const handleCreateCourse = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!courseForm.name) {
+      setCourseFormError("Kurs nomi kiritilishi shart");
+      return;
+    }
+    createCourseMutation.mutate(courseForm);
+  };
 
   const [limits, setLimits] = useState({
     maxStudentsPerGroup: 16,
@@ -83,6 +142,18 @@ export default function SettingsPage() {
           >
             <Building2 className="w-4 h-4 shrink-0" />
             Markaz Profili
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('courses')}
+            className={`px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg flex items-center gap-1.5 sm:gap-2 transition whitespace-nowrap ${
+              activeTab === 'courses'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <BookOpen className="w-4 h-4 shrink-0" />
+            Kurslar & Fanlar
           </button>
           <button
             type="button"
@@ -227,6 +298,185 @@ export default function SettingsPage() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* TAB: Courses & Subjects Management in Settings */}
+      {activeTab === 'courses' && (
+        <div className="space-y-6 max-w-4xl w-full">
+          {courseSuccess && (
+            <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm font-semibold rounded-xl flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              Yangi kurs muvaffaqiyatli saqlandi!
+            </div>
+          )}
+
+          {/* Quick Create Form */}
+          <form onSubmit={handleCreateCourse} className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+              <h3 className="font-bold text-sm sm:text-base text-gray-900 dark:text-white flex items-center gap-2">
+                <Plus className="w-4 h-4 text-blue-600" />
+                Yangi Kurs / Fan Qo&apos;shish
+              </h3>
+              <Link
+                href="/courses"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                <span>Barcha kurslar sahifasi</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {courseFormError && (
+              <div className="p-3 bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-900 rounded-xl text-red-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{courseFormError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Kurs nomi *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Masalan: Frontend Dasturlash"
+                  value={courseForm.name}
+                  onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Darajasi
+                </label>
+                <CustomSelect
+                  value={courseForm.level}
+                  onChange={(val) => setCourseForm({ ...courseForm, level: val })}
+                  options={[
+                    { value: "Boshlang'ich (A1)", label: "Boshlang'ich (A1)" },
+                    { value: "Elementar (A2)", label: "Elementar (A2)" },
+                    { value: "O'rta (B1-B2)", label: "O'rta (B1-B2)" },
+                    { value: "Kuchli / Intensive (C1)", label: "Kuchli / Intensive (C1)" },
+                    { value: "Professional", label: "Professional" },
+                    { value: "Bolalar uchun", label: "Bolalar uchun" },
+                  ]}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Oylik to&apos;lov (so&apos;mda) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="10000"
+                  value={courseForm.price}
+                  onChange={(e) => setCourseForm({ ...courseForm, price: Number(e.target.value) })}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Davomiyligi (oy)
+                </label>
+                <CustomSelect
+                  value={String(courseForm.duration_months)}
+                  onChange={(val) => setCourseForm({ ...courseForm, duration_months: Number(val) })}
+                  options={[
+                    { value: '1', label: '1 oy' },
+                    { value: '2', label: '2 oy' },
+                    { value: '3', label: '3 oy' },
+                    { value: '4', label: '4 oy' },
+                    { value: '6', label: '6 oy' },
+                    { value: '9', label: '9 oy' },
+                    { value: '12', label: '12 oy' },
+                  ]}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                Tavsif (ixtiyoriy)
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Kurs haqida qisqacha tavsif..."
+                value={courseForm.description}
+                onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={createCourseMutation.isPending}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 cursor-pointer shadow-sm transition"
+              >
+                {createCourseMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
+                <span>Kursni saqlash</span>
+              </button>
+            </div>
+          </form>
+
+          {/* Current Courses List */}
+          <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
+            <h3 className="font-bold text-sm sm:text-base text-gray-900 dark:text-white flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-blue-600" />
+              Mavjud O&apos;quv Kurslari ({coursesData?.length || 0})
+            </h3>
+
+            {isCoursesLoading ? (
+              <div className="py-8 flex justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+              </div>
+            ) : (coursesData || []).length === 0 ? (
+              <p className="text-xs text-gray-400 py-4 text-center">Hozircha kurslar mavjud emas</p>
+            ) : (
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {(coursesData || []).map((c: any) => (
+                  <div key={c.id} className="py-3 flex items-center justify-between gap-3 text-xs sm:text-sm">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <strong className="text-gray-900 dark:text-white font-semibold">{c.name}</strong>
+                        {c.level && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-medium">
+                            {c.level}
+                          </span>
+                        )}
+                        {c.status === 0 && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-500">
+                            Arxiv
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-400 text-xs mt-0.5">
+                        {c.duration_months} oy davomiyligi
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        {Number(c.price || 0).toLocaleString('uz-UZ')} so&apos;m
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* TAB 2: SMS Gateway */}

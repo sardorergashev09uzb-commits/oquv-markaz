@@ -134,9 +134,53 @@ class CourseController extends Controller
             throw new NotFoundHttpException("Kurs topilmadi.");
         }
 
+        $force = (int) Yii::$app->request->get('force', 0);
+        if ($force === 1) {
+            return $this->actionForceDelete($id);
+        }
+
         $course->status = Course::STATUS_INACTIVE;
         $course->save(false);
 
         return ['message' => "Kurs arxivlandi"];
+    }
+
+    /**
+     * POST /api/courses/{id}/restore — Arxivdan chiqarish
+     */
+    public function actionRestore(int $id): array
+    {
+        $course = Course::findOne($id);
+        if (!$course) {
+            throw new NotFoundHttpException("Kurs topilmadi.");
+        }
+
+        $course->status = Course::STATUS_ACTIVE;
+        $course->save(false);
+
+        return [
+            'message' => "Kurs arxivdan chiqarildi va qayta faollashtirildi",
+            'course' => $course,
+        ];
+    }
+
+    /**
+     * DELETE /api/courses/{id}/force — Bazadan butunlay o'chirish
+     */
+    public function actionForceDelete(int $id): array
+    {
+        $course = Course::findOne($id);
+        if (!$course) {
+            throw new NotFoundHttpException("Kurs topilmadi.");
+        }
+
+        $groupsCount = $course->getGroups()->count();
+        if ($groupsCount > 0) {
+            throw new \yii\web\BadRequestHttpException("Ushbu kursga biriktirilgan {$groupsCount} ta guruh mavjud. Avval guruhlarni o'chiring yoki kursini almashtiring.");
+        }
+
+        $course->delete();
+
+        return ['message' => "Kurs bazadan butunlay o'chirildi"];
     }
 }

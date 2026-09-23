@@ -13,10 +13,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000,                  // 5 daqiqa davomida yangi
-            gcTime: 7 * 24 * 60 * 60 * 1000,          // 7 kun oflayn keshda saqlanadi
+            staleTime: 10 * 1000,                      // 10 soniya — yangi ma'lumotlar DB dan darhol olinadi
+            gcTime: 7 * 24 * 60 * 60 * 1000,          // Oflaynda foydalanish uchun
             networkMode: 'offlineFirst',               // Oflaynda keshdan tezkor o'qish
-            refetchOnWindowFocus: false,
+            refetchOnMount: true,                      // Sahifa ochilganda DB dan yangilash
+            refetchOnWindowFocus: true,                 // Foydalanuvchi qaytganda yangilash
             retry: (failureCount, error: unknown) => {
               const status = (error as { response?: { status?: number } })?.response?.status;
               if (status === 401 || status === 403) return false;
@@ -35,7 +36,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     if (typeof window === 'undefined') return undefined;
     return createSyncStoragePersister({
       storage: window.localStorage,
-      key: 'OM_REACT_QUERY_OFFLINE_CACHE_V1',
+      key: 'OM_REACT_QUERY_OFFLINE_CACHE_V2',
       throttleTime: 1000,
     });
   }, []);
@@ -50,7 +51,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       persistOptions={{
         persister,
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 kun
-        buster: 'v1.0.1',
+        buster: 'v1.0.2',
       }}
     >
       <NetworkStatusBanner />

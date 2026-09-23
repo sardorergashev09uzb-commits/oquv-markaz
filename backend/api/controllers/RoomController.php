@@ -106,9 +106,53 @@ class RoomController extends Controller
             throw new NotFoundHttpException("Xona topilmadi.");
         }
 
+        $force = (int) Yii::$app->request->get('force', 0);
+        if ($force === 1) {
+            return $this->actionForceDelete($id);
+        }
+
         $room->status = Room::STATUS_INACTIVE;
         $room->save(false);
 
         return ['message' => "Xona arxivlandi"];
+    }
+
+    /**
+     * POST /api/rooms/{id}/restore — Arxivdan chiqarish
+     */
+    public function actionRestore(int $id): array
+    {
+        $room = Room::findOne($id);
+        if (!$room) {
+            throw new NotFoundHttpException("Xona topilmadi.");
+        }
+
+        $room->status = Room::STATUS_ACTIVE;
+        $room->save(false);
+
+        return [
+            'message' => "Xona arxivdan chiqarildi va qayta faollashtirildi",
+            'room' => $room,
+        ];
+    }
+
+    /**
+     * DELETE /api/rooms/{id}/force — Bazadan butunlay o'chirish
+     */
+    public function actionForceDelete(int $id): array
+    {
+        $room = Room::findOne($id);
+        if (!$room) {
+            throw new NotFoundHttpException("Xona topilmadi.");
+        }
+
+        $groupsCount = $room->getGroups()->count();
+        if ($groupsCount > 0) {
+            throw new \yii\web\BadRequestHttpException("Bu xonaga biriktirilgan {$groupsCount} ta guruh mavjud. Avval guruhlarning dars xonasini o'zgartiring.");
+        }
+
+        $room->delete();
+
+        return ['message' => "Xona bazadan butunlay o'chirildi"];
     }
 }

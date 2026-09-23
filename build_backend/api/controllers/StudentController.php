@@ -270,11 +270,59 @@ class StudentController extends Controller
             throw new NotFoundHttpException("O'quvchi topilmadi.");
         }
 
+        $force = (int) Yii::$app->request->get('force', 0);
+        if ($force === 1) {
+            return $this->actionForceDelete($id);
+        }
+
         // Soft delete yoki deaktivatsiya
         $student->status = User::STATUS_INACTIVE;
         $student->save(false);
 
         return ['message' => "O'quvchi muvaffaqiyatli arxivlandi"];
+    }
+
+    /**
+     * POST /api/students/{id}/restore — Arxivdan chiqarish
+     */
+    public function actionRestore(int $id): array
+    {
+        $student = User::findOne(['id' => $id, 'role' => User::ROLE_STUDENT]);
+        if (!$student) {
+            throw new NotFoundHttpException("O'quvchi topilmadi.");
+        }
+
+        $student->status = User::STATUS_ACTIVE;
+        $student->save(false);
+
+        return [
+            'message' => "O'quvchi arxivdan chiqarildi va faollashtirildi",
+            'student' => $student,
+        ];
+    }
+
+    /**
+     * DELETE /api/students/{id}/force — Bazadan butunlay o'chirish
+     */
+    public function actionForceDelete(int $id): array
+    {
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role !== User::ROLE_ADMIN) {
+            throw new \yii\web\ForbiddenHttpException("Faqat administrator o'quvchini bazadan butunlay o'chira oladi.");
+        }
+
+        $student = User::findOne(['id' => $id, 'role' => User::ROLE_STUDENT]);
+        if (!$student) {
+            throw new NotFoundHttpException("O'quvchi topilmadi.");
+        }
+
+        // Bog'liq ma'lumotlarni tozalash
+        GroupStudent::deleteAll(['student_id' => $id]);
+        PaymentPlan::deleteAll(['student_id' => $id]);
+
+        $student->delete();
+
+        return ['message' => "O'quvchi bazadan butunlay o'chirildi"];
     }
 
     /**

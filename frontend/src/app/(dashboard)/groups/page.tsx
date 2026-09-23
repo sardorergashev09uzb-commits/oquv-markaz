@@ -7,7 +7,7 @@ import api from '@/lib/api';
 import {
   BookOpen, Plus, Search, Users, Calendar, DoorOpen,
   GraduationCap, Loader2, X, AlertCircle, Clock,
-  Pencil, Trash2, ArrowRight, AlertTriangle
+  Pencil, Trash2, ArrowRight, AlertTriangle, RotateCcw
 } from 'lucide-react';
 import { useCurrentUser } from '@/lib/useCurrentUser';
 import { CustomSelect } from '@/components/ui/CustomSelect';
@@ -35,6 +35,7 @@ export default function GroupsPage() {
   const [search, setSearch] = useState('');
   const { user, isStudent: isUserStudent, isTeacher: isUserTeacher, isLoading: isUserLoading } = useCurrentUser();
   const [courseFilter, setCourseFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   // ─── Create State ──────────────────────────────────────────────────────────
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -67,18 +68,24 @@ export default function GroupsPage() {
   });
   const [editFormError, setEditFormError] = useState('');
 
-  // ─── Delete State ──────────────────────────────────────────────────────────
+  // ─── Delete State (Archive) ────────────────────────────────────────────────
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingGroup, setDeletingGroup] = useState<GroupItem | null>(null);
 
+  // ─── Force Delete State (Permanent) ────────────────────────────────────────
+  const [isForceDeleteModalOpen, setIsForceDeleteModalOpen] = useState(false);
+  const [forceDeletingGroup, setForceDeletingGroup] = useState<GroupItem | null>(null);
+  const [forceDeleteError, setForceDeleteError] = useState('');
+
   // ─── 1. Fetch Groups ───────────────────────────────────────────────────────
   const { data: groupsData, isLoading } = useQuery({
-    queryKey: ['groups', search, courseFilter],
+    queryKey: ['groups', search, courseFilter, statusFilter],
     queryFn: async () => {
       const resp = await api.get('/api/groups', {
         params: {
           search: search || undefined,
           course_id: courseFilter || undefined,
+          status: statusFilter || undefined,
         },
       });
       return resp.data?.items || [];
@@ -206,7 +213,7 @@ export default function GroupsPage() {
     },
   });
 
-  // ─── Delete Group Mutation ─────────────────────────────────────────────────
+  // ─── Delete Group Mutation (Archive) ───────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const resp = await api.delete(`/api/groups/${id}`);
@@ -216,6 +223,39 @@ export default function GroupsPage() {
       queryClient.invalidateQueries({ queryKey: ['groups'] });
       setIsDeleteModalOpen(false);
       setDeletingGroup(null);
+    },
+  });
+
+  // ─── Restore Group Mutation (Unarchive) ────────────────────────────────────
+  const restoreMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const resp = await api.post(`/api/groups/${id}/restore`);
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || "Guruhni qayta faollashtirishda xatolik yuz berdi");
+    },
+  });
+
+  // ─── Force Delete Group Mutation (Permanent) ───────────────────────────────
+  const forceDeleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const resp = await api.delete(`/api/groups/${id}/force`);
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+      setIsForceDeleteModalOpen(false);
+      setForceDeletingGroup(null);
+      setForceDeleteError('');
+    },
+    onError: (err: any) => {
+      setForceDeleteError(err.response?.data?.message || "Guruhni butunlay o'chirishda xatolik yuz berdi");
     },
   });
 
@@ -265,7 +305,25 @@ export default function GroupsPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const groups: GroupItem[] = groupsData || [];
+  const handleOpenForceDelete = (group: GroupItem) => {
+    setForceDeletingGroup(group);
+    setForceDeleteError('');
+    setIsForceDeleteModalOpen(true);
+  };
+
+  const rawGroups: GroupItem[] = groupsData || [];
+  const groups = rawGroups.filter((group: GroupItem) => {
+    if (statusFilter && group.status !== statusFilter) {
+      return false;
+    }
+    if (courseFilter && String(group.course_id) !== String(courseFilter)) {
+      return false;
+    }
+    if (search && !group.name.toLowerCase().includes(search.toLowerCase())) {
+      return false;
+    }
+    return true;
+  });
   const courses = coursesData || [];
   const teachers = teachersData || [];
   const rooms = roomsData || [];
@@ -342,6 +400,19 @@ export default function GroupsPage() {
             ]}
           />
         </div>
+
+        <div className="w-full sm:w-48">
+          <CustomSelect
+            value={statusFilter}
+            onChange={(val) => setStatusFilter(val)}
+            placeholder="Barcha holatlar"
+            options={[
+              { value: '', label: 'Barcha holatlar' },
+              { value: 'active', label: 'Faol guruhlar' },
+              { value: 'completed', label: 'Tugallangan / Arxiv' },
+            ]}
+          />
+        </div>
       </div>
 
       {/* Groups Grid */}
@@ -374,8 +445,12 @@ export default function GroupsPage() {
                   >
                     {group.name}
                   </Link>
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 capitalize">
-                    {group.status}
+                  <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-semibold border capitalize ${
+                    group.status === 'active'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                      : 'bg-gray-100 dark:bg-gray-750 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                  }`}>
+                    {group.status === 'active' ? 'Faol' : group.status === 'completed' ? 'Tugallangan / Arxiv' : group.status}
                   </span>
                 </div>
 
@@ -438,22 +513,46 @@ export default function GroupsPage() {
 
                   {!isUserStudent && (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(group)}
-                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition cursor-pointer"
-                        title="Tahrirlash"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenDelete(group)}
-                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
-                        title="O'chirish / Arxivlash"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {group.status === 'active' ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(group)}
+                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition cursor-pointer"
+                            title="Tahrirlash"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDelete(group)}
+                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
+                            title="Arxivlash"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            disabled={restoreMutation.isPending}
+                            onClick={() => restoreMutation.mutate(group.id)}
+                            className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition cursor-pointer"
+                            title="Arxivdan chiqarish (Faollashtirish)"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenForceDelete(group)}
+                            className="p-1.5 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
+                            title="Butunlay o'chirish"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -504,38 +603,32 @@ export default function GroupsPage() {
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
                     Kursni tanlang *
                   </label>
-                  <select
-                    required
+                  <CustomSelect
                     value={formData.course_id}
-                    onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  >
-                    <option value="">Kursni tanlang...</option>
-                    {courses.map((c: { id: number; name: string }) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, course_id: val })}
+                    placeholder="Kursni tanlang..."
+                    searchable
+                    options={courses.map((c: any) => ({
+                      value: String(c.id),
+                      label: `${c.name}${c.level ? ` (${c.level})` : ''}${c.price ? ` — ${Number(c.price).toLocaleString('uz-UZ')} so'm` : ''}`,
+                    }))}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
                     O&apos;qituvchi *
                   </label>
-                  <select
-                    required
+                  <CustomSelect
                     value={formData.teacher_id}
-                    onChange={(e) => setFormData({ ...formData, teacher_id: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  >
-                    <option value="">O&apos;qituvchini tanlang...</option>
-                    {teachers.map((t: { id: number; name: string }) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, teacher_id: val })}
+                    placeholder="O'qituvchini tanlang..."
+                    searchable
+                    options={teachers.map((t: any) => ({
+                      value: String(t.id),
+                      label: `${t.name}${t.phone ? ` (${t.phone})` : ''}`,
+                    }))}
+                  />
                 </div>
               </div>
 
@@ -557,16 +650,17 @@ export default function GroupsPage() {
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
                     Kurs davomiyligi (Darslar rejasi)
                   </label>
-                  <select
-                    value={formData.duration_months}
-                    onChange={(e) => setFormData({ ...formData, duration_months: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  >
-                    <option value={1}>1 oy (12 ta dars)</option>
-                    <option value={2}>2 oy (24 ta dars)</option>
-                    <option value={3}>3 oy (36 ta dars — Standart)</option>
-                    <option value={6}>6 oy (72 ta dars)</option>
-                  </select>
+                  <CustomSelect
+                    value={String(formData.duration_months)}
+                    onChange={(val) => setFormData({ ...formData, duration_months: Number(val) })}
+                    placeholder="Davomiylik..."
+                    options={[
+                      { value: '1', label: '1 oy (12 ta dars)' },
+                      { value: '2', label: '2 oy (24 ta dars)' },
+                      { value: '3', label: '3 oy (36 ta dars — Standart)' },
+                      { value: '6', label: '6 oy (72 ta dars)' },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -575,18 +669,19 @@ export default function GroupsPage() {
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
                     Dars xonasi
                   </label>
-                  <select
+                  <CustomSelect
                     value={formData.room_id}
-                    onChange={(e) => setFormData({ ...formData, room_id: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  >
-                    <option value="">Xonani tanlang (ixtiyoriy)...</option>
-                    {rooms.map((r: { id: number; name: string }) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, room_id: val })}
+                    placeholder="Xonani tanlang (ixtiyoriy)..."
+                    searchable
+                    options={[
+                      { value: '', label: "Xonani tanlang (ixtiyoriy)..." },
+                      ...rooms.map((r: any) => ({
+                        value: String(r.id),
+                        label: `${r.name}${r.capacity ? ` (${r.capacity} o'rin)` : ''}`,
+                      })),
+                    ]}
+                  />
                 </div>
 
                 <div>
@@ -728,38 +823,32 @@ export default function GroupsPage() {
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
                     Kurs *
                   </label>
-                  <select
-                    required
+                  <CustomSelect
                     value={editFormData.course_id}
-                    onChange={(e) => setEditFormData({ ...editFormData, course_id: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  >
-                    <option value="">Kursni tanlang...</option>
-                    {courses.map((c: { id: number; name: string }) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setEditFormData({ ...editFormData, course_id: val })}
+                    placeholder="Kursni tanlang..."
+                    searchable
+                    options={courses.map((c: any) => ({
+                      value: String(c.id),
+                      label: `${c.name}${c.level ? ` (${c.level})` : ''}${c.price ? ` — ${Number(c.price).toLocaleString('uz-UZ')} so'm` : ''}`,
+                    }))}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
                     O&apos;qituvchi *
                   </label>
-                  <select
-                    required
+                  <CustomSelect
                     value={editFormData.teacher_id}
-                    onChange={(e) => setEditFormData({ ...editFormData, teacher_id: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  >
-                    <option value="">O&apos;qituvchini tanlang...</option>
-                    {teachers.map((t: { id: number; name: string }) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setEditFormData({ ...editFormData, teacher_id: val })}
+                    placeholder="O'qituvchini tanlang..."
+                    searchable
+                    options={teachers.map((t: any) => ({
+                      value: String(t.id),
+                      label: `${t.name}${t.phone ? ` (${t.phone})` : ''}`,
+                    }))}
+                  />
                 </div>
               </div>
 
@@ -768,18 +857,19 @@ export default function GroupsPage() {
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
                     Dars xonasi
                   </label>
-                  <select
+                  <CustomSelect
                     value={editFormData.room_id}
-                    onChange={(e) => setEditFormData({ ...editFormData, room_id: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  >
-                    <option value="">Xonani tanlang...</option>
-                    {rooms.map((r: { id: number; name: string }) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setEditFormData({ ...editFormData, room_id: val })}
+                    placeholder="Xonani tanlang..."
+                    searchable
+                    options={[
+                      { value: '', label: "Xonani tanlang..." },
+                      ...rooms.map((r: any) => ({
+                        value: String(r.id),
+                        label: `${r.name}${r.capacity ? ` (${r.capacity} o'rin)` : ''}`,
+                      })),
+                    ]}
+                  />
                 </div>
 
                 <div>
@@ -826,15 +916,16 @@ export default function GroupsPage() {
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
                     Holati
                   </label>
-                  <select
+                  <CustomSelect
                     value={editFormData.status}
-                    onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  >
-                    <option value="active">Faol (Active)</option>
-                    <option value="completed">Yakunlangan (Completed)</option>
-                    <option value="cancelled">Bekor qilingan (Cancelled)</option>
-                  </select>
+                    onChange={(val) => setEditFormData({ ...editFormData, status: val })}
+                    placeholder="Guruh holati..."
+                    options={[
+                      { value: 'active', label: 'Faol (Active)' },
+                      { value: 'completed', label: 'Tugallangan / Arxiv (Completed)' },
+                      { value: 'cancelled', label: 'Bekor qilingan (Cancelled)' },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -893,6 +984,54 @@ export default function GroupsPage() {
               >
                 {deleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>Ha, arxivlash</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Guruhni Butunlay O'chirish Tasdig'i */}
+      {isForceDeleteModalOpen && forceDeletingGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700 p-6 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                Guruhni butunlay o&apos;chirmoqchimisiz?
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                <strong className="text-gray-800 dark:text-gray-200">&quot;{forceDeletingGroup.name}&quot;</strong> guruhi ma&apos;lumotlar bazasidan qaytarib bo&apos;lmaydigan qilib butunlay o&apos;chiriladi.
+              </p>
+              {forceDeleteError && (
+                <div className="mt-2 p-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-xl text-red-700 dark:text-red-300 text-xs">
+                  {forceDeleteError}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForceDeleteModalOpen(false);
+                  setForceDeletingGroup(null);
+                  setForceDeleteError('');
+                }}
+                className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={forceDeleteMutation.isPending}
+                onClick={() => forceDeleteMutation.mutate(forceDeletingGroup.id)}
+                className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+              >
+                {forceDeleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>Ha, butunlay o&apos;chirish</span>
               </button>
             </div>
           </div>
