@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { formatMoney } from '@/lib/utils';
 import { getCurrentUserFromToken, isStudent, isTeacher } from '@/lib/auth';
+import { useCurrentUser } from '@/lib/useCurrentUser';
 import Link from 'next/link';
 
 interface PaymentPlanItem {
@@ -41,22 +42,7 @@ interface PaymentTransaction {
 
 export default function PaymentsPage() {
   const queryClient = useQueryClient();
-
-  const [currentUser, setCurrentUser] = useState<{ id: number; role: string; name: string } | null>(null);
-
-  useEffect(() => {
-    const user = getCurrentUserFromToken();
-    if (user) {
-      setCurrentUser({
-        id: user.sub,
-        role: user.role,
-        name: user.name,
-      });
-    }
-  }, []);
-
-  const isUserStudent = currentUser ? isStudent(currentUser.role) : false;
-  const isUserTeacher = currentUser ? isTeacher(currentUser.role) : false;
+  const { user: currentUser, isStudent: isUserStudent, isTeacher: isUserTeacher, isLoading: isUserLoading } = useCurrentUser();
 
   const [activeTab, setActiveTab] = useState<'plans' | 'history'>('plans');
   const [search, setSearch] = useState('');
@@ -182,6 +168,16 @@ export default function PaymentsPage() {
         );
     }
   };
+
+  // 0. Loading State
+  if (isUserLoading) {
+    return (
+      <div className="py-24 flex flex-col items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
+        <p className="text-xs text-gray-400">Yuklanmoqda...</p>
+      </div>
+    );
+  }
 
   // 1. Agar O'qituvchi bo'lsa:
   if (isUserTeacher) {

@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace api\controllers;
 
 use api\components\JwtBearerAuth;
+use common\models\GroupStudent;
 use common\models\Homework;
 use common\models\HomeworkSubmission;
 use common\models\Lesson;
+use common\models\User;
 use Yii;
 use yii\rest\Controller;
+use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 
 /**
@@ -36,11 +39,26 @@ class HomeworkController extends Controller
         $lessonId = Yii::$app->request->get('lesson_id');
         $query = Homework::find()->with(['lesson', 'lesson.group']);
 
-        if ($lessonId) {
-            $query->andWhere(['lesson_id' => (int) $lessonId]);
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
+            $groupIds = GroupStudent::find()
+                ->select('group_id')
+                ->where(['student_id' => $currentUser->id, 'status' => GroupStudent::STATUS_ACTIVE])
+                ->column();
+
+            $query->innerJoin('{{%lessons}} l', 'l.id = {{%homework}}.lesson_id')
+                  ->andWhere(['l.group_id' => $groupIds]);
+        } elseif ($currentUser && $currentUser->role === User::ROLE_TEACHER) {
+            $query->innerJoin('{{%lessons}} l', 'l.id = {{%homework}}.lesson_id')
+                  ->innerJoin('{{%groups}} g', 'g.id = l.group_id')
+                  ->andWhere(['g.teacher_id' => $currentUser->id]);
         }
 
-        $query->orderBy(['id' => SORT_DESC]);
+        if ($lessonId) {
+            $query->andWhere(['{{%homework}}.lesson_id' => (int) $lessonId]);
+        }
+
+        $query->orderBy(['{{%homework}}.id' => SORT_DESC]);
 
         return [
             'items' => $query->all(),
@@ -52,6 +70,10 @@ class HomeworkController extends Controller
      */
     public function actionCreate(): array
     {
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->role === User::ROLE_STUDENT) {
+            throw new ForbiddenHttpException("O'quvchilar uy vazifasi yarata olmaydi.");
+        }
         $body = Yii::$app->request->bodyParams;
 
         $hw = new Homework();

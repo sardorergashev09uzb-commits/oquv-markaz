@@ -41,6 +41,7 @@ class GroupController extends Controller
         $search = $request->get('search');
         $courseId = $request->get('course_id');
         $teacherId = $request->get('teacher_id');
+        $status = $request->get('status');
         $query = Group::find()->with(['course', 'teacher', 'room']);
 
         $currentUser = Yii::$app->user->identity;
@@ -52,22 +53,22 @@ class GroupController extends Controller
         }
 
         if ($search) {
-            $query->andWhere(['like', 'name', $search]);
+            $query->andWhere(['like', '{{%groups}}.name', $search]);
         }
 
         if ($courseId) {
-            $query->andWhere(['course_id' => (int) $courseId]);
+            $query->andWhere(['{{%groups}}.course_id' => (int) $courseId]);
         }
 
         if ($teacherId) {
-            $query->andWhere(['teacher_id' => (int) $teacherId]);
+            $query->andWhere(['{{%groups}}.teacher_id' => (int) $teacherId]);
         }
 
         if ($status) {
-            $query->andWhere(['status' => $status]);
+            $query->andWhere(['{{%groups}}.status' => $status]);
         }
 
-        $query->orderBy(['id' => SORT_DESC]);
+        $query->orderBy(['{{%groups}}.id' => SORT_DESC]);
 
         $provider = new ActiveDataProvider([
             'query' => $query,

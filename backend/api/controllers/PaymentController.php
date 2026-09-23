@@ -64,7 +64,7 @@ class PaymentController extends Controller
                   ->andWhere(['or', ['like', 'u.name', $search], ['like', 'u.phone', $search]]);
         }
 
-        $query->orderBy(['id' => SORT_DESC]);
+        $query->orderBy(['{{%payment_plans}}.id' => SORT_DESC]);
 
         $pageSize = (int) $request->get('per_page', 50);
         $provider = new ActiveDataProvider([
@@ -90,7 +90,7 @@ class PaymentController extends Controller
 
         $query = Payment::find()
             ->with(['plan', 'plan.student', 'plan.group', 'receivedBy'])
-            ->orderBy(['paid_at' => SORT_DESC, 'id' => SORT_DESC])
+            ->orderBy(['{{%payments}}.paid_at' => SORT_DESC, '{{%payments}}.id' => SORT_DESC])
             ->limit(50);
 
         if ($currentUser && $currentUser->role === User::ROLE_STUDENT) {

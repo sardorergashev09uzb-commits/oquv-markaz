@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { useCurrentUser } from '@/lib/useCurrentUser';
 import {
   Calendar as CalendarIcon, Clock, Users, DoorOpen, GraduationCap,
   Filter, ChevronLeft, ChevronRight, Loader2, BookOpen
@@ -18,6 +19,7 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function SchedulePage() {
+  const { isStudent } = useCurrentUser();
   const [selectedRoom, setSelectedRoom] = useState<string>('all');
   const [selectedTeacher, setSelectedTeacher] = useState<string>('all');
 
@@ -87,68 +89,74 @@ export default function SchedulePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Haftalik Dars Jadvali</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Barcha xonalar, o&apos;qituvchilar va guruhlarning dars vaqtlari
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+            {isStudent ? 'Mening Dars Jadvalim' : 'Haftalik Dars Jadvali'}
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {isStudent 
+              ? 'Siz a\'zo bo\'lgan guruhlarning haftalik dars vaqtlari va xonalari' 
+              : 'Barcha xonalar, o\'qituvchilar va guruhlarning dars vaqtlari'}
           </p>
         </div>
       </div>
 
-      {/* Filters bar */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-          <Filter className="w-4 h-4 text-gray-400" />
-          Filterlar:
-        </div>
+      {/* Filters bar (Only for admins/teachers) */}
+      {!isStudent && (
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 font-medium">
+            <Filter className="w-4 h-4 text-gray-400" />
+            Filterlar:
+          </div>
 
-        {/* Room Filter */}
-        <div className="min-w-[180px]">
-          <select
-            value={selectedRoom}
-            onChange={(e) => setSelectedRoom(e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Barcha xonalar</option>
-            {rooms.map((r: any) => (
-              <option key={r.id} value={String(r.id)}>
-                {r.name} ({r.capacity} o&apos;rin)
-              </option>
-            ))}
-          </select>
-        </div>
+          {/* Room Filter */}
+          <div className="min-w-[180px]">
+            <select
+              value={selectedRoom}
+              onChange={(e) => setSelectedRoom(e.target.value)}
+              className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Barcha xonalar</option>
+              {rooms.map((r: any) => (
+                <option key={r.id} value={String(r.id)}>
+                  {r.name} ({r.capacity} o&apos;rin)
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {/* Teacher Filter */}
-        <div className="min-w-[180px]">
-          <select
-            value={selectedTeacher}
-            onChange={(e) => setSelectedTeacher(e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Barcha o&apos;qituvchilar</option>
-            {teachers.map((t: any) => (
-              <option key={t.id} value={String(t.id)}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          {/* Teacher Filter */}
+          <div className="min-w-[180px]">
+            <select
+              value={selectedTeacher}
+              onChange={(e) => setSelectedTeacher(e.target.value)}
+              className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Barcha o&apos;qituvchilar</option>
+              {teachers.map((t: any) => (
+                <option key={t.id} value={String(t.id)}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {(selectedRoom !== 'all' || selectedTeacher !== 'all') && (
-          <button
-            onClick={() => {
-              setSelectedRoom('all');
-              setSelectedTeacher('all');
-            }}
-            className="text-xs text-blue-600 hover:text-blue-800 font-medium transition ml-auto"
-          >
-            Filtrlarni tozalash
-          </button>
-        )}
-      </div>
+          {(selectedRoom !== 'all' || selectedTeacher !== 'all') && (
+            <button
+              onClick={() => {
+                setSelectedRoom('all');
+                setSelectedTeacher('all');
+              }}
+              className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium transition ml-auto"
+            >
+              Filtrlarni tozalash
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Weekly Timetable Grid */}
       {isLoading ? (
-        <div className="p-16 text-center text-gray-500 flex flex-col items-center justify-center bg-white rounded-xl border border-gray-200">
+        <div className="p-16 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
           Jadval yuklanmoqda...
         </div>
@@ -157,10 +165,10 @@ export default function SchedulePage() {
           {DAYS_OF_WEEK.map((day) => {
             const slots = getDaySchedule(day.key);
             return (
-              <div key={day.key} className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col min-h-[420px]">
+              <div key={day.key} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col min-h-[420px]">
                 {/* Day Header */}
-                <div className="p-3.5 bg-gray-50/80 border-b border-gray-200 text-center">
-                  <span className="text-xs font-bold uppercase tracking-wider text-gray-700 block">
+                <div className="p-3.5 bg-gray-50/80 dark:bg-gray-750/80 border-b border-gray-200 dark:border-gray-700 text-center">
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200 block">
                     {day.label}
                   </span>
                   <span className="text-[11px] text-gray-400 font-medium">
@@ -178,33 +186,33 @@ export default function SchedulePage() {
                     slots.map((item, idx) => (
                       <div
                         key={idx}
-                        className="p-3 rounded-lg border border-blue-100 bg-blue-50/40 hover:bg-blue-50 transition space-y-1.5"
+                        className="p-3 rounded-lg border border-blue-100 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition space-y-1.5"
                       >
                         {/* Time */}
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-blue-700">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-blue-700 dark:text-blue-400">
                           <Clock className="w-3.5 h-3.5" />
                           {item.time}
                         </div>
 
                         {/* Group Name */}
-                        <div className="font-bold text-sm text-gray-900 leading-tight">
+                        <div className="font-bold text-sm text-gray-900 dark:text-gray-100 leading-tight">
                           {item.group.name}
                         </div>
 
                         {/* Course Name */}
-                        <div className="text-xs text-gray-600 flex items-center gap-1">
+                        <div className="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-1">
                           <BookOpen className="w-3 h-3 text-gray-400 shrink-0" />
                           <span className="truncate">{item.group.course_name || item.group.course?.name || 'Kurs'}</span>
                         </div>
 
                         {/* Teacher & Room */}
-                        <div className="pt-1.5 border-t border-blue-100/80 flex items-center justify-between text-[11px] text-gray-500">
+                        <div className="pt-1.5 border-t border-blue-100/80 dark:border-blue-900/40 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
                           <div className="flex items-center gap-1 truncate">
                             <GraduationCap className="w-3 h-3 text-gray-400 shrink-0" />
                             <span className="truncate">{item.group.teacher_name || item.group.teacher?.name || 'Ustoz'}</span>
                           </div>
                           {(item.group.room_name || item.group.room?.name) && (
-                            <span className="bg-white px-1.5 py-0.5 rounded border border-gray-200 font-medium text-gray-700 shrink-0">
+                            <span className="bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 font-medium text-gray-700 dark:text-gray-300 shrink-0">
                               {item.group.room_name || item.group.room?.name}
                             </span>
                           )}

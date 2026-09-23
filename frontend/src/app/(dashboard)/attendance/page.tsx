@@ -7,7 +7,7 @@ import {
   ClipboardCheck, Users, Calendar, Plus, Check, X, Clock,
   FileText, Loader2, CheckCircle2, AlertCircle, Sparkles, BookOpen
 } from 'lucide-react';
-import { getCurrentUserFromToken, isStudent } from '@/lib/auth';
+import { useCurrentUser } from '@/lib/useCurrentUser';
 
 interface StudentAttendance {
   student_id: number;
@@ -36,17 +36,7 @@ interface MyAttendanceItem {
 
 export default function AttendancePage() {
   const queryClient = useQueryClient();
-
-  const [userRole, setUserRole] = useState<string>('');
-  const [isUserStudent, setIsUserStudent] = useState<boolean>(false);
-
-  useEffect(() => {
-    const user = getCurrentUserFromToken();
-    if (user) {
-      setUserRole(user.role);
-      setIsUserStudent(isStudent(user.role));
-    }
-  }, []);
+  const { isStudent: isUserStudent, isLoading: isUserLoading } = useCurrentUser();
 
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [selectedLessonId, setSelectedLessonId] = useState<number | null>(null);
@@ -239,6 +229,16 @@ export default function AttendancePage() {
         );
     }
   };
+
+  // ─── Loading State ────────────────────────────────────────────────────────
+  if (isUserLoading) {
+    return (
+      <div className="py-24 flex flex-col items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
+        <p className="text-xs text-gray-400">Yuklanmoqda...</p>
+      </div>
+    );
+  }
 
   // ─── O'quvchi uchun maxsus davomat sahifasi ──────────────────────────────
   if (isUserStudent) {

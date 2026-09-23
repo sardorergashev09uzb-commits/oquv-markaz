@@ -8,7 +8,7 @@ import {
   Loader2, CheckCircle2, AlertCircle, Sparkles, X, TrendingUp,
   Star, BookOpen, Clock, HelpCircle
 } from 'lucide-react';
-import { getCurrentUserFromToken, isStudent } from '@/lib/auth';
+import { useCurrentUser } from '@/lib/useCurrentUser';
 
 interface AssessmentItem {
   id: number;
@@ -43,17 +43,7 @@ interface MyScoreItem {
 
 export default function ExamsPage() {
   const queryClient = useQueryClient();
-
-  const [userRole, setUserRole] = useState<string>('');
-  const [isUserStudent, setIsUserStudent] = useState<boolean>(false);
-
-  useEffect(() => {
-    const user = getCurrentUserFromToken();
-    if (user) {
-      setUserRole(user.role);
-      setIsUserStudent(isStudent(user.role));
-    }
-  }, []);
+  const { isStudent: isUserStudent, isLoading: isUserLoading } = useCurrentUser();
 
   // ─── Student Mode: O'quvchining shaxsiy imtihon va test natijalari ─────────
   const { data: myScoresData, isLoading: isMyScoresLoading } = useQuery({
@@ -211,6 +201,16 @@ export default function ExamsPage() {
   };
 
   const currentExam = exams.find((e) => e.id === selectedExamId);
+
+  // ─── Loading State ────────────────────────────────────────────────────────
+  if (isUserLoading) {
+    return (
+      <div className="py-24 flex flex-col items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
+        <p className="text-xs text-gray-400">Yuklanmoqda...</p>
+      </div>
+    );
+  }
 
   // ─── O'quvchi UI qismi ───────────────────────────────────────────────────
   if (isUserStudent) {

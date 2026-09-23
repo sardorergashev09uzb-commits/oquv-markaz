@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { useCurrentUser } from '@/lib/useCurrentUser';
 import {
   BookMarked, Plus, Calendar, Clock, Award,
   Loader2, X, AlertCircle, CheckCircle, FileText, CheckCircle2
@@ -20,6 +21,7 @@ interface HomeworkItem {
 }
 
 export default function HomeworkPage() {
+  const { isStudent, isLoading: isUserLoading } = useCurrentUser();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -112,18 +114,24 @@ export default function HomeworkPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Uy Vazifalari</h1>
-          <p className="text-sm text-gray-500">
-            Darslar bo&apos;yicha topshiriqlar berish, muddatlar va baholash
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            {isStudent ? 'Mening Uy Vazifalarim' : 'Uy Vazifalari'}
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {isStudent 
+              ? "Guruhlaringiz bo'yicha berilgan barcha topshiriqlar va muddatlar" 
+              : "Darslar bo'yicha topshiriqlar berish, muddatlar va baholash"}
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Yangi vazifa</span>
-        </button>
+        {!isStudent && !isUserLoading && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Yangi vazifa</span>
+          </button>
+        )}
       </div>
 
       {/* Homework Grid */}
@@ -142,21 +150,21 @@ export default function HomeworkPage() {
           {homeworks.map((hw) => (
             <div
               key={hw.id}
-              className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition flex flex-col justify-between"
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-bold text-gray-900 text-base">{hw.title}</h3>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base">{hw.title}</h3>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                     Max: {hw.max_score} ball
                   </span>
                 </div>
 
-                <p className="text-xs text-gray-600 mt-2 line-clamp-3">
+                <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 line-clamp-3">
                   {hw.description || 'Topshiriq tavsifi kiritilmagan'}
                 </p>
 
-                <div className="space-y-2 mt-5 pt-4 border-t border-gray-100 text-xs text-gray-500">
+                <div className="space-y-2 mt-5 pt-4 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
                   <div className="flex items-center gap-2">
                     <FileText className="w-3.5 h-3.5 text-blue-500" />
                     <span>Dars ID: #{hw.lesson_id}</span>
@@ -171,11 +179,11 @@ export default function HomeworkPage() {
                 </div>
               </div>
 
-              <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-xs">
-                <span className="font-semibold text-blue-600">
+              <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-xs">
+                <span className="font-semibold text-blue-600 dark:text-blue-400">
                   {hw.submissions_count || 0} ta topshirilgan
                 </span>
-                <span className="text-gray-400">
+                <span className="text-gray-400 dark:text-gray-500">
                   {new Date(hw.created_at * 1000).toLocaleDateString('uz-UZ')}
                 </span>
               </div>
@@ -184,15 +192,15 @@ export default function HomeworkPage() {
         </div>
       )}
 
-      {/* Modal: Yangi Vazifa */}
-      {isModalOpen && (
+      {/* Modal: Yangi Vazifa (Only for teachers/admins) */}
+      {!isStudent && isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="font-bold text-gray-900">Yangi uy vazifasi berish</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="font-bold text-gray-900 dark:text-gray-100">Yangi uy vazifasi berish</h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
               >
                 <X className="w-5 h-5" />
               </button>
