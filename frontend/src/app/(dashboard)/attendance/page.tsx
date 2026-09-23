@@ -5,7 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
   ClipboardCheck, Users, Calendar, Plus, Check, X, Clock,
-  FileText, Loader2, CheckCircle2, AlertCircle, Sparkles, BookOpen
+  FileText, Loader2, CheckCircle2, AlertCircle, Sparkles, BookOpen,
+  Award, Zap, Star
 } from 'lucide-react';
 import { useCurrentUser } from '@/lib/useCurrentUser';
 import { CustomSelect } from '@/components/ui/CustomSelect';
@@ -16,6 +17,8 @@ interface StudentAttendance {
   phone: string;
   status: 'present' | 'absent' | 'late' | 'excused';
   note: string;
+  score?: number | string | null;
+  feedback?: string;
 }
 
 interface LessonItem {
@@ -146,7 +149,31 @@ export default function AttendancePage() {
     },
   });
 
-  // 5. Bulk Save Attendance Mutation (Teacher/Admin)
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const hasTodayLesson = lessons.some((l) => l.started_at && l.started_at.startsWith(todayDateStr));
+
+  // 4b. Start Today's Lesson with 1-click
+  const startTodayLessonMutation = useMutation({
+    mutationFn: async () => {
+      const todayFormatted = new Date().toLocaleDateString('uz-UZ', { day: 'numeric', month: 'long' });
+      const resp = await api.post('/api/attendance/create-lesson', {
+        group_id: Number(selectedGroupId),
+        topic: `Bugungi dars (${todayFormatted})`,
+        date: todayDateStr,
+      });
+      return resp.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['lessons', selectedGroupId] });
+      if (data?.lesson?.id) {
+        setSelectedLessonId(data.lesson.id);
+      }
+      setSaveMessage("Bugungi dars ochildi! Endi davomat va baholarni belgilashingiz mumkin.");
+      setTimeout(() => setSaveMessage(''), 4000);
+    },
+  });
+
+  // 5. Bulk Save Attendance & Daily Scores Mutation (Teacher/Admin)
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -155,14 +182,16 @@ export default function AttendancePage() {
           student_id: s.student_id,
           status: s.status,
           note: s.note,
+          score: s.score !== undefined && s.score !== '' && s.score !== null ? Number(s.score) : null,
+          feedback: s.feedback || s.note || '',
         })),
       };
       const resp = await api.post('/api/attendance/bulk-save', payload);
       return resp.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['lesson-attendance', selectedLessonId] });
-      setSaveMessage("Davomat muvaffaqiyatli saqlandi!");
+      setSaveMessage(data?.message || "Davomat va baholar muvaffaqiyatli saqlandi!");
       setTimeout(() => setSaveMessage(''), 4000);
     },
   });
@@ -179,6 +208,18 @@ export default function AttendancePage() {
     );
   };
 
+  const handleScoreChange = (studentId: number, score: string) => {
+    setStudents((prev) =>
+      prev.map((s) => (s.student_id === studentId ? { ...s, score: score === '' ? '' : score } : s))
+    );
+  };
+
+  const handleSetAllScores = (val: number) => {
+    setStudents((prev) =>
+      prev.map((s) => ({ ...s, score: val }))
+    );
+  };
+
   const handleNoteChange = (studentId: number, note: string) => {
     setStudents((prev) =>
       prev.map((s) => (s.student_id === studentId ? { ...s, note } : s))
@@ -191,6 +232,11 @@ export default function AttendancePage() {
   const absentCount = students.filter((s) => s.status === 'absent').length;
   const lateCount = students.filter((s) => s.status === 'late').length;
   const excusedCount = students.filter((s) => s.status === 'excused').length;
+
+  const scoredStudents = students.filter((s) => s.score !== undefined && s.score !== null && s.score !== '');
+  const avgScore = scoredStudents.length > 0
+    ? Math.round(scoredStudents.reduce((acc, curr) => acc + Number(curr.score), 0) / scoredStudents.length)
+    : null;
 
   const renderStatusBadge = (status: string) => {
     switch (status) {
@@ -375,7 +421,7 @@ export default function AttendancePage() {
           </p>
         </div>
 
-        {/* Group Selector & Create Lesson Button */}
+        {/* Group Selector & Action Buttons */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
           <div className="w-full sm:w-64">
             <CustomSelect
@@ -392,6 +438,23 @@ export default function AttendancePage() {
               }))}
             />
           </div>
+
+          {/* 1-Click: Bugungi darsni boshlash */}
+          {selectedGroupId && !hasTodayLesson && (
+            <button
+              type="button"
+              disabled={startTodayLessonMutation.isPending}
+              onClick={() => startTodayLessonMutation.mutate()}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-sm transition shrink-0 cursor-pointer"
+            >
+              {startTodayLessonMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Zap className="w-4 h-4 text-yellow-200 fill-yellow-200" />
+              )}
+              <span>Bugungi darsni boshlash</span>
+            </button>
+          )}
 
           <button
             disabled={!selectedGroupId}
@@ -488,20 +551,29 @@ export default function AttendancePage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={handleMarkAllPresent}
-                    className="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-semibold transition"
+                    className="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-semibold transition"
                   >
                     Hamma keldi
                   </button>
 
                   <button
                     type="button"
+                    onClick={() => handleSetAllScores(100)}
+                    className="px-3 py-2 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-semibold transition flex items-center gap-1"
+                  >
+                    <Award className="w-3.5 h-3.5" />
+                    <span>Hammaga 100 ball</span>
+                  </button>
+
+                  <button
+                    type="button"
                     disabled={saveMutation.isPending}
                     onClick={() => saveMutation.mutate()}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-xs font-semibold transition shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
                   >
                     {saveMutation.isPending ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -513,8 +585,8 @@ export default function AttendancePage() {
                 </div>
               </div>
 
-              {/* Attendance Mini Summary Badges */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              {/* Attendance & Grading Mini Summary Badges */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
                 <div className="p-3 bg-green-50/70 dark:bg-emerald-950/30 border border-green-100 dark:border-emerald-900/50 rounded-xl flex items-center justify-between">
                   <span className="text-green-700 dark:text-emerald-400 font-medium">Kelganlar:</span>
                   <strong className="text-green-800 dark:text-emerald-300 text-sm font-bold">{presentCount} ta</strong>
@@ -530,6 +602,15 @@ export default function AttendancePage() {
                 <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-xl flex items-center justify-between">
                   <span className="text-blue-700 dark:text-blue-400 font-medium">Sababli:</span>
                   <strong className="text-blue-800 dark:text-blue-300 text-sm font-bold">{excusedCount} ta</strong>
+                </div>
+                <div className="p-3 bg-purple-50/70 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/50 rounded-xl flex items-center justify-between">
+                  <span className="text-purple-700 dark:text-purple-400 font-medium flex items-center gap-1">
+                    <Award className="w-3.5 h-3.5" />
+                    O&apos;rtacha:
+                  </span>
+                  <strong className="text-purple-800 dark:text-purple-300 text-sm font-bold">
+                    {avgScore !== null ? `${avgScore} ball` : '-'}
+                  </strong>
                 </div>
               </div>
 
@@ -549,6 +630,7 @@ export default function AttendancePage() {
                       <tr>
                         <th className="px-4 py-3">O&apos;quvchi</th>
                         <th className="px-4 py-3 text-center">Davomat</th>
+                        <th className="px-4 py-3 text-center">Kunlik Ball (0-100)</th>
                         <th className="px-4 py-3">Izoh / Sabab</th>
                       </tr>
                     </thead>
@@ -566,7 +648,7 @@ export default function AttendancePage() {
                               <button
                                 type="button"
                                 onClick={() => handleStatusChange(student.student_id, 'present')}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                                   student.status === 'present'
                                     ? 'bg-emerald-600 text-white shadow-xs'
                                     : 'text-gray-600 dark:text-gray-300 hover:text-emerald-700'
@@ -577,7 +659,7 @@ export default function AttendancePage() {
                               <button
                                 type="button"
                                 onClick={() => handleStatusChange(student.student_id, 'absent')}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                                   student.status === 'absent'
                                     ? 'bg-rose-600 text-white shadow-xs'
                                     : 'text-gray-600 dark:text-gray-300 hover:text-rose-700'
@@ -588,7 +670,7 @@ export default function AttendancePage() {
                               <button
                                 type="button"
                                 onClick={() => handleStatusChange(student.student_id, 'late')}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                                   student.status === 'late'
                                     ? 'bg-amber-500 text-white shadow-xs'
                                     : 'text-gray-600 dark:text-gray-300 hover:text-amber-700'
@@ -599,7 +681,7 @@ export default function AttendancePage() {
                               <button
                                 type="button"
                                 onClick={() => handleStatusChange(student.student_id, 'excused')}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                                   student.status === 'excused'
                                     ? 'bg-blue-600 text-white shadow-xs'
                                     : 'text-gray-600 dark:text-gray-300 hover:text-blue-700'
@@ -607,6 +689,33 @@ export default function AttendancePage() {
                               >
                                 Sababli
                               </button>
+                            </div>
+                          </td>
+
+                          {/* Daily Grade / Ball (0-100) */}
+                          <td className="px-4 py-3.5 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={student.score ?? ''}
+                                onChange={(e) => handleScoreChange(student.student_id, e.target.value)}
+                                placeholder="Ball"
+                                className="w-20 px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold text-center text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white dark:focus:bg-gray-900 transition"
+                              />
+                              <div className="hidden xl:flex items-center gap-1">
+                                {[100, 85, 70].map((preset) => (
+                                  <button
+                                    key={preset}
+                                    type="button"
+                                    onClick={() => handleScoreChange(student.student_id, String(preset))}
+                                    className="px-1.5 py-0.5 text-[10px] font-semibold bg-gray-100 hover:bg-purple-100 dark:bg-gray-800 dark:hover:bg-purple-950/50 text-gray-600 dark:text-gray-300 rounded border border-gray-200 dark:border-gray-700 transition cursor-pointer"
+                                  >
+                                    {preset}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           </td>
 
@@ -633,10 +742,10 @@ export default function AttendancePage() {
                   type="button"
                   disabled={saveMutation.isPending}
                   onClick={() => saveMutation.mutate()}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition shadow-sm"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition shadow-sm cursor-pointer"
                 >
                   {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>Davomatni saqlash</span>
+                  <span>Davomat va baholarni saqlash</span>
                 </button>
               </div>
 
@@ -649,14 +758,31 @@ export default function AttendancePage() {
                 Darslar ro&apos;yxatidan birini tanlang yoki yangi dars boshlang
               </p>
               {selectedGroupId && (
-                <button
-                  type="button"
-                  onClick={() => setIsNewLessonModalOpen(true)}
-                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition shadow-sm cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Yangi dars ochish</span>
-                </button>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                  {!hasTodayLesson && (
+                    <button
+                      type="button"
+                      disabled={startTodayLessonMutation.isPending}
+                      onClick={() => startTodayLessonMutation.mutate()}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
+                    >
+                      {startTodayLessonMutation.isPending ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Zap className="w-3.5 h-3.5 text-yellow-200 fill-yellow-200" />
+                      )}
+                      <span>Bugungi darsni boshlash</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsNewLessonModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition shadow-sm cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Yangi dars ochish</span>
+                  </button>
+                </div>
               )}
             </div>
           )}

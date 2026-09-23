@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace api\controllers;
 
 use api\components\JwtBearerAuth;
+use common\models\Assessment;
+use common\models\AssessmentScore;
 use common\models\Attendance;
 use common\models\Group;
 use common\models\GroupStudent;
@@ -135,20 +137,34 @@ class AttendanceController extends Controller
             ->indexBy('student_id')
             ->all();
 
+        // Mavjud baholar (Assessment & AssessmentScore)
+        $assessment = Assessment::findOne(['lesson_id' => $lid]);
+        $scores = [];
+        if ($assessment) {
+            $scores = AssessmentScore::find()
+                ->where(['assessment_id' => $assessment->id])
+                ->indexBy('student_id')
+                ->all();
+        }
+
         $list = [];
         foreach ($students as $student) {
             $att = $attendances[$student->id] ?? null;
+            $sc = $scores[$student->id] ?? null;
             $list[] = [
                 'student_id'   => $student->id,
                 'student_name' => $student->name,
                 'phone'        => $student->phone,
                 'status'       => $att ? $att->status : Attendance::STATUS_PRESENT, // default present
                 'note'         => $att ? $att->note : '',
+                'score'        => $sc && $sc->score !== null ? (float) $sc->score : null,
+                'feedback'     => $sc ? $sc->feedback : '',
             ];
         }
 
         return [
             'lesson' => $lesson,
+            'assessment' => $assessment,
             'students' => $list,
             'total' => count($list),
         ];
@@ -172,10 +188,14 @@ class AttendanceController extends Controller
             throw new NotFoundHttpException("Guruh topilmadi.");
         }
 
+        $date = !empty($body['date']) ? $body['date'] : date('Y-m-d');
+        $rawTopic = trim((string)($body['topic'] ?? ''));
+        $topic = !empty($rawTopic) ? $rawTopic : "Bugungi dars (" . date('d.m.Y', strtotime($date)) . ")";
+
         $lesson = new Lesson();
         $lesson->group_id = $groupId;
-        $lesson->topic = $body['topic'] ?? 'Mavzu belgilanmagan';
-        $lesson->started_at = $body['date'] ? $body['date'] . ' ' . date('H:i:s') : date('Y-m-d H:i:s');
+        $lesson->topic = $topic;
+        $lesson->started_at = $date . ' ' . date('H:i:s');
         $lesson->status = Lesson::STATUS_ACTIVE;
 
         if (!$lesson->save()) {
@@ -191,7 +211,7 @@ class AttendanceController extends Controller
 
     /**
      * POST /api/attendance/bulk-save
-     * Davomatni ommaviy saqlash
+     * Davomat va kunlik baholarni ommaviy saqlash
      */
     public function actionBulkSave(): array
     {
@@ -202,17 +222,42 @@ class AttendanceController extends Controller
 
         $body = Yii::$app->request->bodyParams;
         $lessonId = (int) ($body['lesson_id'] ?? 0);
-        $records = $body['attendance'] ?? []; // [{student_id: 1, status: 'present', note: ''}]
+        $records = $body['attendance'] ?? []; // [{student_id: 1, status: 'present', note: '', score: 95, feedback: ''}]
 
         $lesson = Lesson::findOne($lessonId);
         if (!$lesson) {
             throw new NotFoundHttpException("Dars topilmadi.");
         }
 
-        $user = Yii::$app->user->identity;
         $markedBy = $user ? $user->id : null;
 
+        // Baholar mavjudligini tekshiramiz
+        $hasAnyScore = false;
+        foreach ($records as $item) {
+            if (isset($item['score']) && $item['score'] !== null && $item['score'] !== '') {
+                $hasAnyScore = true;
+                break;
+            }
+        }
+
+        $assessment = null;
+        if ($hasAnyScore) {
+            $assessment = Assessment::findOne(['lesson_id' => $lessonId]);
+            if (!$assessment) {
+                $assessment = new Assessment();
+                $assessment->group_id = $lesson->group_id;
+                $assessment->lesson_id = $lessonId;
+                $assessment->title = "Dars bahosi: " . ($lesson->topic ?: "Dars #" . $lessonId);
+                $assessment->type = Assessment::TYPE_QUIZ;
+                $assessment->max_score = 100;
+                $assessment->date = $lesson->started_at ? substr($lesson->started_at, 0, 10) : date('Y-m-d');
+                $assessment->created_by = $markedBy ?: 1;
+                $assessment->save(false);
+            }
+        }
+
         $savedCount = 0;
+        $savedScoresCount = 0;
         foreach ($records as $item) {
             $studentId = (int) ($item['student_id'] ?? 0);
             if (!$studentId) continue;
@@ -230,14 +275,31 @@ class AttendanceController extends Controller
             if ($att->save(false)) {
                 $savedCount++;
             }
+
+            // Agar baho kiritilgan bo'lsa
+            if ($assessment && isset($item['score']) && $item['score'] !== null && $item['score'] !== '') {
+                $scoreVal = (float) $item['score'];
+                $sc = AssessmentScore::findOne(['assessment_id' => $assessment->id, 'student_id' => $studentId]) ?? new AssessmentScore();
+                $sc->assessment_id = $assessment->id;
+                $sc->student_id = $studentId;
+                $sc->score = $scoreVal;
+                $sc->feedback = !empty($item['feedback']) ? (string)$item['feedback'] : ($note ?: null);
+                $sc->status = AssessmentScore::STATUS_GRADED;
+                $sc->graded_by = $markedBy;
+                $sc->graded_at = time();
+                if ($sc->save(false)) {
+                    $savedScoresCount++;
+                }
+            }
         }
 
         $lesson->status = Lesson::STATUS_COMPLETED;
         $lesson->save(false);
 
         return [
-            'message' => "Davomat saqlandi",
+            'message' => "Davomat va baholar muvaffaqiyatli saqlandi",
             'saved_count' => $savedCount,
+            'saved_scores_count' => $savedScoresCount,
         ];
     }
 }
