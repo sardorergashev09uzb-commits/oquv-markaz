@@ -118,7 +118,10 @@ class Group extends ActiveRecord
             'end_date',
             'max_students',
             'students_count' => function () {
-                return $this->getGroupStudents()->where(['status' => GroupStudent::STATUS_ACTIVE])->count();
+                return (int) $this->getStudents()
+                    ->where(['{{%users}}.status' => User::STATUS_ACTIVE])
+                    ->andWhere(['{{%group_students}}.status' => GroupStudent::STATUS_ACTIVE])
+                    ->count();
             },
             'status',
             'created_at',
