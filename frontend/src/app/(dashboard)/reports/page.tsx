@@ -1,16 +1,60 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
   BarChart3, TrendingUp, Users, AlertTriangle, Download, Printer,
   DollarSign, CheckCircle2, XCircle, Clock, Calendar, ArrowUpRight,
-  ArrowDownRight, Loader2, Award, Phone, ShieldAlert, BookOpen
+  ArrowDownRight, Loader2, Award, Phone, ShieldAlert, BookOpen, GraduationCap, Check
 } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - i);
+  const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const label = d.toLocaleDateString('uz-UZ', { year: 'numeric', month: 'long' });
+  return { value: val, label: label.charAt(0).toUpperCase() + label.slice(1) };
+});
 
 export default function ReportsPage() {
-  const [activeTab, setActiveTab] = useState<'finance' | 'attendance' | 'risk' | 'teachers'>('finance');
+  const [activeTab, setActiveTab] = useState<'monthly_group' | 'finance' | 'attendance' | 'risk' | 'teachers'>('monthly_group');
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  // 0. Groups for Monthly Group Report dropdown
+  const { data: groupsData } = useQuery({
+    queryKey: ['groups-for-report'],
+    queryFn: async () => {
+      const res = await api.get('/api/groups');
+      return res.data?.items || [];
+    },
+  });
+
+  useEffect(() => {
+    if (!selectedGroupId && groupsData && groupsData.length > 0) {
+      setSelectedGroupId(String(groupsData[0].id));
+    }
+  }, [groupsData, selectedGroupId]);
+
+  // 0b. Monthly Group Comprehensive Summary
+  const { data: monthlyGroupData, isLoading: isMonthlyGroupLoading } = useQuery({
+    queryKey: ['report-monthly-group', selectedGroupId, selectedMonth],
+    queryFn: async () => {
+      const res = await api.get('/api/reports/monthly-group-summary', {
+        params: {
+          group_id: selectedGroupId || undefined,
+          month: selectedMonth,
+        },
+      });
+      return res.data;
+    },
+    enabled: activeTab === 'monthly_group',
+  });
 
   // 1. Overview data
   const { data: overview, isLoading: isOverviewLoading } = useQuery({
@@ -66,7 +110,14 @@ export default function ReportsPage() {
     let filename = `hisobot_${activeTab}_${new Date().toISOString().slice(0, 10)}.csv`;
     let csvContent = '\uFEFF'; // UTF-8 BOM
 
-    if (activeTab === 'finance' && finance) {
+    if (activeTab === 'monthly_group' && monthlyGroupData) {
+      csvContent += `Guruh: "${monthlyGroupData.group?.name || ''}"; Oy: "${selectedMonth}"\n`;
+      csvContent += `O'qituvchi: "${monthlyGroupData.group?.teacher_name || ''}"; Kurs: "${monthlyGroupData.group?.course_name || ''}"\n\n`;
+      csvContent += 'O\'quvchi;Telefon;Darslar;Davomat (%);O\'rtacha ball;Reja summa;To\'langan;Qarzdorlik;To\'lov holati;Xulosa\n';
+      (monthlyGroupData.students || []).forEach((s: any) => {
+        csvContent += `"${s.student_name}";"${s.phone}";"${s.present_count}/${s.total_lessons}";${s.attendance_rate}%;${s.average_score !== null ? s.average_score : '—'};${s.plan_amount};${s.paid_amount};${s.debt};"${s.payment_status}";"${s.conclusion}"\n`;
+      });
+    } else if (activeTab === 'finance' && finance) {
       csvContent += 'Oy;Tushum (so\'m);Xarajat (so\'m);Sof foyda (so\'m)\n';
       finance.monthly_trend.forEach((item: any) => {
         csvContent += `"${item.month}";${item.revenue};${item.expense};${item.profit}\n`;
@@ -207,6 +258,17 @@ export default function ReportsPage() {
       <div className="border-b border-gray-200 print:hidden">
         <nav className="flex space-x-6">
           <button
+            onClick={() => setActiveTab('monthly_group')}
+            className={`pb-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition cursor-pointer ${
+              activeTab === 'monthly_group'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            Oylik Guruh Hisoboti
+          </button>
+          <button
             onClick={() => setActiveTab('finance')}
             className={`pb-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition ${
               activeTab === 'finance'
@@ -257,6 +319,224 @@ export default function ReportsPage() {
           </button>
         </nav>
       </div>
+
+      {/* TAB 0: Oylik Guruh Hisoboti */}
+      {activeTab === 'monthly_group' && (
+        <div className="space-y-6">
+          {/* Filter Bar */}
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 print:hidden">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+              {/* Group Select */}
+              <div className="w-full sm:w-64">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Guruhni tanlang:</label>
+                <CustomSelect
+                  value={selectedGroupId}
+                  onChange={(val) => setSelectedGroupId(val)}
+                  placeholder="Guruhni tanlang..."
+                  searchable={(groupsData || []).length > 5}
+                  options={(groupsData || []).map((g: any) => ({
+                    value: String(g.id),
+                    label: g.name,
+                    subLabel: g.course_name,
+                  }))}
+                />
+              </div>
+
+              {/* Month Select */}
+              <div className="w-full sm:w-56">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Hisobot oyi:</label>
+                <CustomSelect
+                  value={selectedMonth}
+                  onChange={(val) => setSelectedMonth(val)}
+                  options={MONTH_OPTIONS}
+                  placeholder="Oyni tanlang..."
+                />
+              </div>
+            </div>
+
+            {monthlyGroupData?.group && (
+              <div className="text-left md:text-right border-t md:border-t-0 pt-3 md:pt-0 border-gray-100">
+                <span className="text-xs text-gray-400 block font-medium">Biriktirilgan o&apos;qituvchi:</span>
+                <span className="text-sm font-bold text-gray-800">{monthlyGroupData.group.teacher_name}</span>
+                <span className="text-xs text-blue-600 block font-medium mt-0.5">{monthlyGroupData.group.course_name}</span>
+              </div>
+            )}
+          </div>
+
+          {isMonthlyGroupLoading ? (
+            <div className="p-16 text-center text-gray-500 flex flex-col items-center justify-center bg-white rounded-2xl border border-gray-100">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
+              Guruh bo&apos;yicha oylik hisobot hisoblanmoqda...
+            </div>
+          ) : !monthlyGroupData?.group ? (
+            <div className="p-12 text-center text-gray-400 bg-white rounded-2xl border border-gray-100">
+              Guruh tanlanmagan yoki ma&apos;lumot topilmadi.
+            </div>
+          ) : (
+            <>
+              {/* Group Monthly Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <span className="text-xs text-gray-400 font-medium uppercase">O&apos;quvchilar</span>
+                  <div className="text-2xl font-extrabold text-gray-900 mt-1">
+                    {monthlyGroupData.stats.total_students} nafar
+                  </div>
+                  <span className="text-[11px] text-gray-400 block mt-0.5">Faol qatnashuvchilar</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <span className="text-xs text-gray-400 font-medium uppercase">O&apos;tilgan Darslar</span>
+                  <div className="text-2xl font-extrabold text-blue-600 mt-1">
+                    {monthlyGroupData.stats.total_lessons} ta
+                  </div>
+                  <span className="text-[11px] text-gray-400 block mt-0.5">Ushbu oy davomida</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <span className="text-xs text-gray-400 font-medium uppercase">Guruh Davomati</span>
+                  <div className="text-2xl font-extrabold text-emerald-600 mt-1">
+                    {monthlyGroupData.stats.overall_attendance_rate}%
+                  </div>
+                  <span className="text-[11px] text-emerald-600 font-medium block mt-0.5">
+                    {monthlyGroupData.stats.overall_attendance_rate >= 80 ? "Yuqori davomat" : "Nazorat talab"}
+                  </span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <span className="text-xs text-gray-400 font-medium uppercase">O&apos;rtacha Ball</span>
+                  <div className="text-2xl font-extrabold text-purple-600 mt-1">
+                    {monthlyGroupData.stats.overall_average_score !== null ? `${monthlyGroupData.stats.overall_average_score}` : '—'}
+                  </div>
+                  <span className="text-[11px] text-gray-400 block mt-0.5">Muntazam test/baholar</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <span className="text-xs text-gray-400 font-medium uppercase">Qarzdorlik</span>
+                  <div className={`text-2xl font-extrabold mt-1 ${monthlyGroupData.stats.total_debt > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {formatCurrency(monthlyGroupData.stats.total_debt)}
+                  </div>
+                  <span className="text-[11px] text-gray-400 block mt-0.5">
+                    Tushum: {formatCurrency(monthlyGroupData.stats.total_collected)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Detailed Students Table */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">
+                      {monthlyGroupData.group.name} — Oylik Natijalar ({selectedMonth})
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Har bir o&apos;quvchining davomati, oylik baholari va to&apos;lov holati
+                    </p>
+                  </div>
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-bold">
+                    {monthlyGroupData.students.length} ta o&apos;quvchi
+                  </span>
+                </div>
+
+                {monthlyGroupData.students.length === 0 ? (
+                  <div className="p-12 text-center text-gray-400 text-sm">
+                    Ushbu guruhda o&apos;quvchilar ro&apos;yxati mavjud emas.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
+                        <tr>
+                          <th className="px-4 py-3.5">#</th>
+                          <th className="px-4 py-3.5">O&apos;quvchi</th>
+                          <th className="px-4 py-3.5 text-center">Davomat (Darslar)</th>
+                          <th className="px-4 py-3.5 text-center">Davomat %</th>
+                          <th className="px-4 py-3.5 text-center">Oylik Baho</th>
+                          <th className="px-4 py-3.5">Kurs To&apos;lovi</th>
+                          <th className="px-4 py-3.5">Qarz</th>
+                          <th className="px-4 py-3.5 text-center">Xulosa</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {monthlyGroupData.students.map((student: any, idx: number) => {
+                          return (
+                            <tr key={student.student_id} className="hover:bg-gray-50/70 transition">
+                              <td className="px-4 py-3.5 text-xs text-gray-400 font-semibold">{idx + 1}</td>
+                              <td className="px-4 py-3.5">
+                                <p className="font-bold text-gray-900">{student.student_name}</p>
+                                <p className="text-xs text-gray-400">{student.phone}</p>
+                              </td>
+                              <td className="px-4 py-3.5 text-center font-semibold text-gray-700">
+                                {student.present_count} / {student.total_lessons}
+                              </td>
+                              <td className="px-4 py-3.5 text-center">
+                                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${
+                                  student.attendance_rate >= 85
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : student.attendance_rate >= 70
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                }`}>
+                                  {student.attendance_rate}%
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5 text-center font-bold">
+                                {student.average_score !== null ? (
+                                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold ${
+                                    student.average_score >= 80
+                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                      : student.average_score >= 60
+                                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                      : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                  }`}>
+                                    {student.average_score} ball
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-300 text-xs">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3.5 text-xs">
+                                <p className="font-semibold text-gray-800">
+                                  {formatCurrency(student.paid_amount)}
+                                </p>
+                                <span className="text-[11px] text-gray-400">
+                                  Reja: {formatCurrency(student.plan_amount)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5 text-xs font-bold">
+                                {student.debt > 0 ? (
+                                  <span className="text-rose-600">
+                                    {formatCurrency(student.debt)}
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                                    <Check className="w-3.5 h-3.5" />
+                                    Qarz yo&apos;q
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3.5 text-center">
+                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${
+                                  student.conclusion === "A'lochi" || student.conclusion === "A'lo"
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : student.conclusion === "Yaxshi"
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                }`}>
+                                  {student.conclusion}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* TAB 1: Finance */}
       {activeTab === 'finance' && (

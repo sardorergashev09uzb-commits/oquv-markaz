@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace api\controllers;
 
 use api\components\JwtBearerAuth;
+use common\models\Assessment;
 use common\models\AssessmentScore;
 use common\models\Attendance;
 use common\models\Expense;
@@ -396,6 +397,192 @@ class ReportController extends Controller
         return [
             'items' => $result,
             'total' => count($result),
+        ];
+    }
+
+    /**
+     * GET /api/reports/monthly-group-summary
+     * Guruh bo'yicha oylik to'liq hisobot (davomat + baho + to'lov)
+     */
+    public function actionMonthlyGroupSummary(): array
+    {
+        $groupId = (int) Yii::$app->request->get('group_id');
+        $month = Yii::$app->request->get('month') ?: date('Y-m');
+
+        if (!$groupId) {
+            $firstGroup = Group::findOne(['status' => Group::STATUS_ACTIVE]);
+            $groupId = $firstGroup ? $firstGroup->id : 0;
+        }
+
+        $group = Group::findOne($groupId);
+        if (!$group) {
+            return [
+                'group' => null,
+                'month' => $month,
+                'stats' => null,
+                'students' => [],
+            ];
+        }
+
+        // Oy bo'yicha o'tkazilgan darslar
+        $lessons = Lesson::find()
+            ->where(['group_id' => $groupId])
+            ->andWhere(['like', 'started_at', $month])
+            ->orderBy(['started_at' => SORT_ASC])
+            ->all();
+
+        $lessonIds = array_map(fn($l) => $l->id, $lessons);
+        $totalLessons = count($lessons);
+
+        // Faol o'quvchilar
+        $students = User::find()
+            ->innerJoin('{{%group_students}} gs', 'gs.student_id = {{%users}}.id')
+            ->where(['gs.group_id' => $groupId, 'gs.status' => GroupStudent::STATUS_ACTIVE])
+            ->orderBy(['name' => SORT_ASC])
+            ->all();
+
+        // Ushbu oydagi yoki ushbu darslardagi barcha baholashlar
+        $assessments = Assessment::find()
+            ->where(['group_id' => $groupId])
+            ->andWhere(['or', ['lesson_id' => $lessonIds], ['like', 'date', $month]])
+            ->all();
+        $assessmentIds = array_map(fn($a) => $a->id, $assessments);
+
+        $studentRows = [];
+        $totalPresentOverall = 0;
+        $totalPossibleOverall = $totalLessons * count($students);
+        $totalDebtSum = 0;
+        $totalCollectedSum = 0;
+        $totalExpectedSum = 0;
+        $allScoresSum = 0;
+        $allScoresCount = 0;
+
+        foreach ($students as $student) {
+            // 1. Davomat
+            $presentCount = 0;
+            $lateCount = 0;
+            $absentCount = 0;
+            $excusedCount = 0;
+
+            if (!empty($lessonIds)) {
+                $atts = Attendance::find()
+                    ->where(['student_id' => $student->id, 'lesson_id' => $lessonIds])
+                    ->all();
+
+                foreach ($atts as $att) {
+                    if ($att->status === Attendance::STATUS_PRESENT) $presentCount++;
+                    elseif ($att->status === Attendance::STATUS_LATE) $lateCount++;
+                    elseif ($att->status === Attendance::STATUS_ABSENT) $absentCount++;
+                    elseif ($att->status === Attendance::STATUS_EXCUSED) $excusedCount++;
+                }
+            }
+
+            $effectivePresent = $presentCount + $lateCount;
+            $attRate = $totalLessons > 0 ? round(($effectivePresent / $totalLessons) * 100, 1) : 100;
+            $totalPresentOverall += $effectivePresent;
+
+            // 2. Baholar
+            $avgScore = null;
+            if (!empty($assessmentIds)) {
+                $score = AssessmentScore::find()
+                    ->where(['assessment_id' => $assessmentIds, 'student_id' => $student->id])
+                    ->andWhere(['not', ['score' => null]])
+                    ->average('score');
+                if ($score !== null) {
+                    $avgScore = round((float) $score, 1);
+                    $allScoresSum += $avgScore;
+                    $allScoresCount++;
+                }
+            }
+
+            // 3. To'lov
+            $plan = PaymentPlan::find()
+                ->where(['student_id' => $student->id, 'group_id' => $groupId])
+                ->andWhere(['like', 'month', $month])
+                ->one();
+
+            if (!$plan) {
+                // Agar oylik plan topilmasa, so'nggi planini olamiz
+                $plan = PaymentPlan::find()
+                    ->where(['student_id' => $student->id, 'group_id' => $groupId])
+                    ->orderBy(['id' => SORT_DESC])
+                    ->one();
+            }
+
+            $planAmount = $plan ? (int) $plan->amount : 0;
+            $paidAmount = $plan ? (int) $plan->paid_amount : 0;
+            $debt = max(0, $planAmount - $paidAmount);
+            $paymentStatus = $plan ? $plan->status : 'pending';
+
+            $totalExpectedSum += $planAmount;
+            $totalCollectedSum += $paidAmount;
+            $totalDebtSum += $debt;
+
+            // Xulosa / Status
+            $conclusion = "A'lo";
+            if ($attRate < 70 || ($avgScore !== null && $avgScore < 60) || $debt > 0) {
+                if ($debt > 0 && $attRate < 70) {
+                    $conclusion = "Qarzdor va past davomat";
+                } elseif ($debt > 0) {
+                    $conclusion = "To'lov qarzdor";
+                } elseif ($attRate < 70) {
+                    $conclusion = "Past davomat";
+                } else {
+                    $conclusion = "O'zlashtirish past";
+                }
+            } elseif ($attRate >= 85 && ($avgScore === null || $avgScore >= 80)) {
+                $conclusion = "A'lochi";
+            } else {
+                $conclusion = "Yaxshi";
+            }
+
+            $studentRows[] = [
+                'student_id'     => $student->id,
+                'student_name'   => $student->name,
+                'phone'          => $student->phone,
+                'total_lessons'  => $totalLessons,
+                'present_count'  => $effectivePresent,
+                'absent_count'   => $absentCount,
+                'excused_count'  => $excusedCount,
+                'attendance_rate'=> $attRate,
+                'average_score'  => $avgScore,
+                'plan_amount'    => $planAmount,
+                'paid_amount'    => $paidAmount,
+                'debt'           => $debt,
+                'payment_status' => $paymentStatus,
+                'conclusion'     => $conclusion,
+            ];
+        }
+
+        $overallAttendanceRate = $totalPossibleOverall > 0
+            ? round(($totalPresentOverall / $totalPossibleOverall) * 100, 1)
+            : 100;
+
+        $overallAvgScore = $allScoresCount > 0
+            ? round($allScoresSum / $allScoresCount, 1)
+            : null;
+
+        $teacher = $group->teacher_id ? User::findOne($group->teacher_id) : null;
+        $course = $group->course ? $group->course->name : '';
+
+        return [
+            'group' => [
+                'id'           => $group->id,
+                'name'         => $group->name,
+                'course_name'  => $course,
+                'teacher_name' => $teacher ? $teacher->name : 'Biriktirilmagan',
+            ],
+            'month' => $month,
+            'stats' => [
+                'total_students'          => count($students),
+                'total_lessons'           => $totalLessons,
+                'overall_attendance_rate' => $overallAttendanceRate,
+                'overall_average_score'   => $overallAvgScore,
+                'total_expected'          => $totalExpectedSum,
+                'total_collected'         => $totalCollectedSum,
+                'total_debt'              => $totalDebtSum,
+            ],
+            'students' => $studentRows,
         ];
     }
 
