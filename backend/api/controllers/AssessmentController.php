@@ -35,11 +35,17 @@ class AssessmentController extends Controller
      */
     public function actionIndex(): array
     {
+        $user = Yii::$app->user->identity;
         $groupId = Yii::$app->request->get('group_id');
         $query = Assessment::find()->with('group');
 
+        if ($user && $user->role === User::ROLE_TEACHER) {
+            $query->innerJoin('{{%groups}} g', 'g.id = {{%assessments}}.group_id')
+                  ->andWhere(['g.teacher_id' => $user->id]);
+        }
+
         if ($groupId) {
-            $query->andWhere(['group_id' => (int) $groupId]);
+            $query->andWhere(['{{%assessments}}.group_id' => (int) $groupId]);
         }
 
         $query->orderBy(['date' => SORT_DESC, 'id' => SORT_DESC]);
@@ -152,10 +158,19 @@ class AssessmentController extends Controller
             ];
         }
 
-        // Guruh o'quvchilari
+        if ($user && $user->role === User::ROLE_TEACHER && $assessment->group && $assessment->group->teacher_id !== $user->id) {
+            throw new \yii\web\ForbiddenHttpException("Siz faqat o'z guruhingiz imtihonini ko'rishingiz mumkin.");
+        }
+
+        // Guruh o'quvchilari (faqat faol o'quvchilar)
         $students = User::find()
             ->innerJoin('{{%group_students}} gs', 'gs.student_id = {{%users}}.id')
-            ->where(['gs.group_id' => $assessment->group_id, 'gs.status' => GroupStudent::STATUS_ACTIVE])
+            ->where([
+                'gs.group_id' => $assessment->group_id,
+                'gs.status' => GroupStudent::STATUS_ACTIVE,
+                '{{%users}}.status' => User::STATUS_ACTIVE,
+                '{{%users}}.role' => User::ROLE_STUDENT,
+            ])
             ->orderBy(['name' => SORT_ASC])
             ->all();
 
@@ -194,9 +209,18 @@ class AssessmentController extends Controller
         }
 
         $body = Yii::$app->request->bodyParams;
+        $groupId = (int) ($body['group_id'] ?? 0);
+        $group = Group::findOne($groupId);
+        if (!$group) {
+            throw new NotFoundHttpException("Guruh topilmadi.");
+        }
+
+        if ($user && $user->role === User::ROLE_TEACHER && $group->teacher_id !== $user->id) {
+            throw new \yii\web\ForbiddenHttpException("Siz faqat o'z guruhingizga imtihon yaratishingiz mumkin.");
+        }
 
         $assessment = new Assessment();
-        $assessment->group_id = (int) ($body['group_id'] ?? 0);
+        $assessment->group_id = $groupId;
         $assessment->title = $body['title'] ?? 'Test';
         $assessment->type = $body['type'] ?? Assessment::TYPE_TEST;
         $assessment->max_score = (int) ($body['max_score'] ?? 100);
@@ -233,6 +257,10 @@ class AssessmentController extends Controller
             throw new NotFoundHttpException("Baholash topilmadi.");
         }
 
+        if ($user && $user->role === User::ROLE_TEACHER && $assessment->group && $assessment->group->teacher_id !== $user->id) {
+            throw new \yii\web\ForbiddenHttpException("Siz faqat o'z guruhingiz o'quvchilarini baholashingiz mumkin.");
+        }
+
         $body = Yii::$app->request->bodyParams;
         $scoresData = $body['scores'] ?? []; // [{student_id: 1, score: 85, feedback: ''}]
 
@@ -244,17 +272,24 @@ class AssessmentController extends Controller
             $scoreValue = isset($item['score']) && $item['score'] !== '' ? (float) $item['score'] : null;
             $feedback = $item['feedback'] ?? null;
 
-            $score = AssessmentScore::findOne(['assessment_id' => $id, 'student_id' => $studentId]) ?? new AssessmentScore();
-            $score->assessment_id = $id;
-            $score->student_id = $studentId;
-            $score->score = $scoreValue;
-            $score->feedback = $feedback;
-            $score->status = AssessmentScore::STATUS_GRADED;
-            $score->graded_by = $user ? $user->id : null;
-            $score->graded_at = time();
+            if ($scoreValue !== null) {
+                $score = AssessmentScore::findOne(['assessment_id' => $id, 'student_id' => $studentId]) ?? new AssessmentScore();
+                $score->assessment_id = $id;
+                $score->student_id = $studentId;
+                $score->score = $scoreValue;
+                $score->feedback = $feedback;
+                $score->status = AssessmentScore::STATUS_GRADED;
+                $score->graded_by = $user ? $user->id : null;
+                $score->graded_at = time();
 
-            if ($score->save(false)) {
-                $savedCount++;
+                if ($score->save(false)) {
+                    $savedCount++;
+                }
+            } else {
+                $sc = AssessmentScore::findOne(['assessment_id' => $id, 'student_id' => $studentId]);
+                if ($sc) {
+                    $sc->delete();
+                }
             }
         }
 

@@ -9,6 +9,7 @@ import {
   Star, BookOpen, Clock, HelpCircle
 } from 'lucide-react';
 import { useCurrentUser } from '@/lib/useCurrentUser';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface AssessmentItem {
   id: number;
@@ -392,25 +393,26 @@ export default function ExamsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <select
-            value={selectedGroupId}
-            onChange={(e) => {
-              setSelectedGroupId(e.target.value);
-              setSelectedExamId(null);
-            }}
-            className="px-3.5 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-800 dark:text-gray-200 shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {(groupsData || []).map((g: { id: number; name: string }) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
+          <div className="w-56">
+            <CustomSelect
+              value={selectedGroupId}
+              onChange={(val) => {
+                setSelectedGroupId(val);
+                setSelectedExamId(null);
+              }}
+              placeholder="Guruhni tanlang..."
+              searchable={(groupsData || []).length > 5}
+              options={(groupsData || []).map((g: { id: number; name: string }) => ({
+                value: String(g.id),
+                label: g.name,
+              }))}
+            />
+          </div>
 
           <button
             disabled={!selectedGroupId}
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition shadow-xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Yangi baholash</span>

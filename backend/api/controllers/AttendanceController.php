@@ -39,10 +39,15 @@ class AttendanceController extends Controller
      */
     public function actionIndex(): array
     {
+        $user = Yii::$app->user->identity;
         $groupId = (int) Yii::$app->request->get('group_id');
         if (!$groupId) {
             // Agar guruh ko'rsatilmagan bo'lsa, birinchi faol guruhni olamiz
-            $firstGroup = Group::findOne(['status' => Group::STATUS_ACTIVE]);
+            if ($user && $user->role === User::ROLE_TEACHER) {
+                $firstGroup = Group::findOne(['teacher_id' => $user->id, 'status' => Group::STATUS_ACTIVE]);
+            } else {
+                $firstGroup = Group::findOne(['status' => Group::STATUS_ACTIVE]);
+            }
             $groupId = $firstGroup ? $firstGroup->id : 0;
         }
 
@@ -51,10 +56,14 @@ class AttendanceController extends Controller
             return ['lessons' => [], 'group' => null];
         }
 
+        if ($user && $user->role === User::ROLE_TEACHER && $group->teacher_id !== $user->id) {
+            throw new \yii\web\ForbiddenHttpException("Siz faqat o'z guruhingiz davomatini ko'rishingiz mumkin.");
+        }
+
         $lessons = Lesson::find()
             ->where(['group_id' => $groupId])
             ->orderBy(['started_at' => SORT_DESC])
-            ->limit(30)
+            ->limit(50)
             ->all();
 
         return [
@@ -124,10 +133,19 @@ class AttendanceController extends Controller
             throw new NotFoundHttpException("Dars topilmadi.");
         }
 
-        // Guruhdagi faol o'quvchilar
+        if ($user && $user->role === User::ROLE_TEACHER && $lesson->group && $lesson->group->teacher_id !== $user->id) {
+            throw new \yii\web\ForbiddenHttpException("Siz faqat o'z guruhingiz davomatini ko'rishingiz mumkin.");
+        }
+
+        // Guruhdagi faol o'quvchilar (faqat o'quvchi roli va aktiv bo'lganlar)
         $students = User::find()
             ->innerJoin('{{%group_students}} gs', 'gs.student_id = {{%users}}.id')
-            ->where(['gs.group_id' => $lesson->group_id, 'gs.status' => GroupStudent::STATUS_ACTIVE])
+            ->where([
+                'gs.group_id' => $lesson->group_id,
+                'gs.status' => GroupStudent::STATUS_ACTIVE,
+                '{{%users}}.status' => User::STATUS_ACTIVE,
+                '{{%users}}.role' => User::ROLE_STUDENT,
+            ])
             ->orderBy(['name' => SORT_ASC])
             ->all();
 
@@ -188,6 +206,10 @@ class AttendanceController extends Controller
             throw new NotFoundHttpException("Guruh topilmadi.");
         }
 
+        if ($user && $user->role === User::ROLE_TEACHER && $group->teacher_id !== $user->id) {
+            throw new \yii\web\ForbiddenHttpException("Siz faqat o'z guruhingizga dars ochishingiz mumkin.");
+        }
+
         $date = !empty($body['date']) ? $body['date'] : date('Y-m-d');
         $rawTopic = trim((string)($body['topic'] ?? ''));
         $topic = !empty($rawTopic) ? $rawTopic : "Bugungi dars (" . date('d.m.Y', strtotime($date)) . ")";
@@ -224,9 +246,13 @@ class AttendanceController extends Controller
         $lessonId = (int) ($body['lesson_id'] ?? 0);
         $records = $body['attendance'] ?? []; // [{student_id: 1, status: 'present', note: '', score: 95, feedback: ''}]
 
-        $lesson = Lesson::findOne($lessonId);
+        $lesson = Lesson::find()->with('group')->where(['id' => $lessonId])->one();
         if (!$lesson) {
             throw new NotFoundHttpException("Dars topilmadi.");
+        }
+
+        if ($user && $user->role === User::ROLE_TEACHER && $lesson->group && $lesson->group->teacher_id !== $user->id) {
+            throw new \yii\web\ForbiddenHttpException("Siz faqat o'z guruhingiz davomatini belgilashingiz mumkin.");
         }
 
         $markedBy = $user ? $user->id : null;
@@ -289,6 +315,11 @@ class AttendanceController extends Controller
                 $sc->graded_at = time();
                 if ($sc->save(false)) {
                     $savedScoresCount++;
+                }
+            } elseif ($assessment && isset($item['score']) && ($item['score'] === '' || $item['score'] === null)) {
+                $sc = AssessmentScore::findOne(['assessment_id' => $assessment->id, 'student_id' => $studentId]);
+                if ($sc) {
+                    $sc->delete();
                 }
             }
         }

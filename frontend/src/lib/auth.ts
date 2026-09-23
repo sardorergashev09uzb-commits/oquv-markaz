@@ -96,6 +96,7 @@ export const getNavItems = (role: string): NavItem[] => {
     { label: 'Davomat',       href: '/attendance',     icon: 'ClipboardCheck' },
     { label: 'Dars jadvali',  href: '/schedule',       icon: 'Calendar' },
     { label: 'Imtihonlar',    href: '/exams',          icon: 'Award' },
+    { label: 'Oylik hisobot', href: '/reports',        icon: 'PieChart' },
     { label: 'Uy vazifalari', href: '/homework',       icon: 'FileText' },
     { label: 'E\'lonlar',     href: '/announcements',  icon: 'Megaphone' },
     { label: 'Profil',        href: '/profile',        icon: 'User' },

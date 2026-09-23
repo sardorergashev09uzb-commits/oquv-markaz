@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
@@ -38,12 +39,16 @@ interface MyAttendanceItem {
   note: string;
 }
 
-export default function AttendancePage() {
+function AttendanceContent() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const urlGroupId = searchParams.get('group_id');
+  const urlLessonId = searchParams.get('lesson_id');
+
   const { isStudent: isUserStudent, isLoading: isUserLoading } = useCurrentUser();
 
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
-  const [selectedLessonId, setSelectedLessonId] = useState<number | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(urlGroupId || '');
+  const [selectedLessonId, setSelectedLessonId] = useState<number | null>(urlLessonId ? Number(urlLessonId) : null);
   const [students, setStudents] = useState<StudentAttendance[]>([]);
   const [saveMessage, setSaveMessage] = useState<string>('');
 
@@ -77,11 +82,16 @@ export default function AttendancePage() {
     enabled: !isUserStudent,
   });
 
+  // URL yoki birinchi guruhni tanlash
   useEffect(() => {
-    if (!isUserStudent && !selectedGroupId && groupsData && groupsData.length > 0) {
-      setSelectedGroupId(String(groupsData[0].id));
+    if (!isUserStudent && !selectedGroupId) {
+      if (urlGroupId) {
+        setSelectedGroupId(urlGroupId);
+      } else if (groupsData && groupsData.length > 0) {
+        setSelectedGroupId(String(groupsData[0].id));
+      }
     }
-  }, [groupsData, selectedGroupId, isUserStudent]);
+  }, [groupsData, selectedGroupId, isUserStudent, urlGroupId]);
 
   // 2. Fetch lessons for selected group (Teacher/Admin)
   const { data: lessonsData, isLoading: isLessonsLoading } = useQuery({
@@ -100,7 +110,9 @@ export default function AttendancePage() {
     if (!isUserStudent) {
       const currentLessons = lessonsData || [];
       if (currentLessons.length > 0) {
-        if (!selectedLessonId || !currentLessons.some((l: LessonItem) => l.id === selectedLessonId)) {
+        if (urlLessonId && currentLessons.some((l: LessonItem) => l.id === Number(urlLessonId))) {
+          setSelectedLessonId(Number(urlLessonId));
+        } else if (!selectedLessonId || !currentLessons.some((l: LessonItem) => l.id === selectedLessonId)) {
           setSelectedLessonId(currentLessons[0].id);
         }
       } else {
@@ -110,7 +122,7 @@ export default function AttendancePage() {
         setStudents([]);
       }
     }
-  }, [lessonsData, selectedLessonId, isUserStudent]);
+  }, [lessonsData, selectedLessonId, isUserStudent, urlLessonId]);
 
   // 3. Fetch attendance for selected lesson (Teacher/Admin)
   const { data: lessonAttendanceData, isLoading: isAttendanceLoading } = useQuery({
@@ -191,6 +203,7 @@ export default function AttendancePage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['lesson-attendance', selectedLessonId] });
+      queryClient.invalidateQueries({ queryKey: ['lessons', selectedGroupId] });
       setSaveMessage(data?.message || "Davomat va baholar muvaffaqiyatli saqlandi!");
       setTimeout(() => setSaveMessage(''), 4000);
     },
@@ -415,9 +428,9 @@ export default function AttendancePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Davomat Tizimi</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Davomat va Baholash Tizimi</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Darslar bo&apos;yicha o&apos;quvchilar qatnashuvini belgilash va kuzatish
+            Darslar bo&apos;yicha o&apos;quvchilar qatnashuvi va kunlik ballarini kiritish
           </p>
         </div>
 
@@ -467,6 +480,25 @@ export default function AttendancePage() {
         </div>
       </div>
 
+      {/* Mobile Lesson Selector (ekran kichik bo'lganda 36 ta darsni pastga surmaslik uchun qulay dropdown) */}
+      {selectedGroupId && lessons.length > 0 && (
+        <div className="lg:hidden bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 shadow-sm space-y-2">
+          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+            Darsni tanlang ({lessons.length} ta dars mavjud):
+          </label>
+          <CustomSelect
+            value={selectedLessonId ? String(selectedLessonId) : ''}
+            onChange={(val) => setSelectedLessonId(Number(val))}
+            placeholder="Darsni tanlang..."
+            searchable={lessons.length > 5}
+            options={lessons.map((l) => ({
+              value: String(l.id),
+              label: `${l.topic} (${l.started_at ? l.started_at.substring(0, 10) : ''}) - ${l.status === 'completed' ? '✓ Bajarildi' : 'Reja'}`,
+            }))}
+          />
+        </div>
+      )}
+
       {/* Save Success Alert */}
       {saveMessage && (
         <div className="p-4 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-2xl text-green-800 dark:text-green-300 text-sm flex items-center gap-2 animate-fade-in">
@@ -478,10 +510,10 @@ export default function AttendancePage() {
       {/* Main Container: Lessons on Left, Attendance Table on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
-        {/* Left: Lessons List */}
-        <div className="lg:col-span-1 bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col">
+        {/* Left: Lessons List (Desktop view) */}
+        <div className="hidden lg:flex lg:col-span-1 bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex-col">
           <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3 mb-3">
-            <h2 className="font-bold text-gray-800 dark:text-gray-200 text-sm">Darslar tarixi</h2>
+            <h2 className="font-bold text-gray-800 dark:text-gray-200 text-sm">Darslar ro&apos;yxati</h2>
             <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">
               {lessons.length} ta
             </span>
@@ -503,14 +535,15 @@ export default function AttendancePage() {
               </button>
             </div>
           ) : (
-            <div className="space-y-1.5 overflow-y-auto max-h-[500px] pr-1">
+            <div className="space-y-1.5 overflow-y-auto max-h-[550px] pr-1">
               {lessons.map((lesson) => {
                 const isSelected = lesson.id === selectedLessonId;
+                const isCompleted = lesson.status === 'completed';
                 return (
                   <button
                     key={lesson.id}
                     onClick={() => setSelectedLessonId(lesson.id)}
-                    className={`w-full text-left p-3 rounded-xl transition text-xs flex flex-col gap-1 border ${
+                    className={`w-full text-left p-3 rounded-xl transition text-xs flex flex-col gap-1 border cursor-pointer ${
                       isSelected
                         ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 shadow-xs'
                         : 'bg-white dark:bg-gray-900 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800/60 text-gray-700 dark:text-gray-300'
@@ -518,8 +551,12 @@ export default function AttendancePage() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-bold truncate max-w-[140px]">{lesson.topic}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 uppercase font-semibold">
-                        {lesson.status}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                        isCompleted
+                          ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                          : 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300'
+                      }`}>
+                        {isCompleted ? '✓ Bajarildi' : 'Reja'}
                       </span>
                     </div>
                     <span className="text-[11px] text-gray-400">
@@ -532,10 +569,10 @@ export default function AttendancePage() {
           )}
         </div>
 
-        {/* Right: Attendance Table */}
+        {/* Right: Attendance & Grading Panel */}
         <div className="lg:col-span-3 space-y-4">
           {selectedLessonId && currentLesson ? (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 space-y-6">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 sm:p-6 space-y-6">
 
               {/* Lesson Info Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-5">
@@ -547,7 +584,7 @@ export default function AttendancePage() {
                     <h2 className="text-lg font-bold text-gray-900 dark:text-white">{currentLesson.topic}</h2>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
-                    Boshlanish vaqti: {currentLesson.started_at}
+                    Sana: {currentLesson.started_at ? currentLesson.started_at.substring(0, 16) : '-'}
                   </p>
                 </div>
 
@@ -555,7 +592,7 @@ export default function AttendancePage() {
                   <button
                     type="button"
                     onClick={handleMarkAllPresent}
-                    className="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-semibold transition"
+                    className="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-semibold transition cursor-pointer"
                   >
                     Hamma keldi
                   </button>
@@ -563,10 +600,10 @@ export default function AttendancePage() {
                   <button
                     type="button"
                     onClick={() => handleSetAllScores(100)}
-                    className="px-3 py-2 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-semibold transition flex items-center gap-1"
+                    className="px-3 py-2 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-semibold transition flex items-center gap-1 cursor-pointer"
                   >
                     <Award className="w-3.5 h-3.5" />
-                    <span>Hammaga 100 ball</span>
+                    <span>Hammaga 100</span>
                   </button>
 
                   <button
@@ -586,7 +623,7 @@ export default function AttendancePage() {
               </div>
 
               {/* Attendance & Grading Mini Summary Badges */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3 text-xs">
                 <div className="p-3 bg-green-50/70 dark:bg-emerald-950/30 border border-green-100 dark:border-emerald-900/50 rounded-xl flex items-center justify-between">
                   <span className="text-green-700 dark:text-emerald-400 font-medium">Kelganlar:</span>
                   <strong className="text-green-800 dark:text-emerald-300 text-sm font-bold">{presentCount} ta</strong>
@@ -603,7 +640,7 @@ export default function AttendancePage() {
                   <span className="text-blue-700 dark:text-blue-400 font-medium">Sababli:</span>
                   <strong className="text-blue-800 dark:text-blue-300 text-sm font-bold">{excusedCount} ta</strong>
                 </div>
-                <div className="p-3 bg-purple-50/70 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/50 rounded-xl flex items-center justify-between">
+                <div className="p-3 bg-purple-50/70 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/50 rounded-xl flex items-center justify-between col-span-2 sm:col-span-1">
                   <span className="text-purple-700 dark:text-purple-400 font-medium flex items-center gap-1">
                     <Award className="w-3.5 h-3.5" />
                     O&apos;rtacha:
@@ -614,130 +651,237 @@ export default function AttendancePage() {
                 </div>
               </div>
 
-              {/* Students Attendance Table */}
               {isAttendanceLoading ? (
                 <div className="py-16 flex items-center justify-center">
                   <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
                 </div>
               ) : students.length === 0 ? (
                 <div className="py-12 text-center text-gray-400 text-sm">
-                  Ushbu guruhda o&apos;quvchilar yo&apos;q.
+                  Ushbu guruhda faol o&apos;quvchilar yo&apos;q.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider border-b border-gray-100 dark:border-gray-800">
-                      <tr>
-                        <th className="px-4 py-3">O&apos;quvchi</th>
-                        <th className="px-4 py-3 text-center">Davomat</th>
-                        <th className="px-4 py-3 text-center">Kunlik Ball (0-100)</th>
-                        <th className="px-4 py-3">Izoh / Sabab</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {students.map((student) => (
-                        <tr key={student.student_id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition">
-                          <td className="px-4 py-3.5">
-                            <p className="font-semibold text-gray-900 dark:text-white">{student.student_name}</p>
+                <>
+                  {/* MOBILE VIEW (sm:hidden): Sensorli kartochkalar */}
+                  <div className="sm:hidden space-y-3">
+                    {students.map((student) => (
+                      <div
+                        key={student.student_id}
+                        className="p-4 bg-gray-50/70 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 rounded-2xl space-y-3"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-bold text-gray-900 dark:text-white text-sm">
+                              {student.student_name}
+                            </p>
                             <p className="text-xs text-gray-400">{student.phone}</p>
-                          </td>
+                          </div>
+                          {renderStatusBadge(student.status)}
+                        </div>
 
-                          {/* Status Toggle Buttons */}
-                          <td className="px-4 py-3.5 text-center">
-                            <div className="inline-flex rounded-xl p-1 bg-gray-100 dark:bg-gray-800 gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handleStatusChange(student.student_id, 'present')}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                                  student.status === 'present'
-                                    ? 'bg-emerald-600 text-white shadow-xs'
-                                    : 'text-gray-600 dark:text-gray-300 hover:text-emerald-700'
-                                }`}
-                              >
-                                Keldi
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleStatusChange(student.student_id, 'absent')}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                                  student.status === 'absent'
-                                    ? 'bg-rose-600 text-white shadow-xs'
-                                    : 'text-gray-600 dark:text-gray-300 hover:text-rose-700'
-                                }`}
-                              >
-                                Kelmadi
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleStatusChange(student.student_id, 'late')}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                                  student.status === 'late'
-                                    ? 'bg-amber-500 text-white shadow-xs'
-                                    : 'text-gray-600 dark:text-gray-300 hover:text-amber-700'
-                                }`}
-                              >
-                                Kechikdi
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleStatusChange(student.student_id, 'excused')}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                                  student.status === 'excused'
-                                    ? 'bg-blue-600 text-white shadow-xs'
-                                    : 'text-gray-600 dark:text-gray-300 hover:text-blue-700'
-                                }`}
-                              >
-                                Sababli
-                              </button>
-                            </div>
-                          </td>
+                        {/* Status 4-button grid */}
+                        <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-700">
+                          <button
+                            type="button"
+                            onClick={() => handleStatusChange(student.student_id, 'present')}
+                            className={`py-1.5 rounded-lg text-xs font-bold transition text-center cursor-pointer ${
+                              student.status === 'present'
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'text-gray-600 dark:text-gray-300'
+                            }`}
+                          >
+                            Keldi
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleStatusChange(student.student_id, 'absent')}
+                            className={`py-1.5 rounded-lg text-xs font-bold transition text-center cursor-pointer ${
+                              student.status === 'absent'
+                                ? 'bg-rose-600 text-white shadow-xs'
+                                : 'text-gray-600 dark:text-gray-300'
+                            }`}
+                          >
+                            Kelmadi
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleStatusChange(student.student_id, 'late')}
+                            className={`py-1.5 rounded-lg text-xs font-bold transition text-center cursor-pointer ${
+                              student.status === 'late'
+                                ? 'bg-amber-500 text-white shadow-xs'
+                                : 'text-gray-600 dark:text-gray-300'
+                            }`}
+                          >
+                            Kechikdi
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleStatusChange(student.student_id, 'excused')}
+                            className={`py-1.5 rounded-lg text-xs font-bold transition text-center cursor-pointer ${
+                              student.status === 'excused'
+                                ? 'bg-blue-600 text-white shadow-xs'
+                                : 'text-gray-600 dark:text-gray-300'
+                            }`}
+                          >
+                            Sababli
+                          </button>
+                        </div>
 
-                          {/* Daily Grade / Ball (0-100) */}
-                          <td className="px-4 py-3.5 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={student.score ?? ''}
-                                onChange={(e) => handleScoreChange(student.student_id, e.target.value)}
-                                placeholder="Ball"
-                                className="w-20 px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold text-center text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white dark:focus:bg-gray-900 transition"
-                              />
-                              <div className="hidden xl:flex items-center gap-1">
-                                {[100, 85, 70].map((preset) => (
-                                  <button
-                                    key={preset}
-                                    type="button"
-                                    onClick={() => handleScoreChange(student.student_id, String(preset))}
-                                    className="px-1.5 py-0.5 text-[10px] font-semibold bg-gray-100 hover:bg-purple-100 dark:bg-gray-800 dark:hover:bg-purple-950/50 text-gray-600 dark:text-gray-300 rounded border border-gray-200 dark:border-gray-700 transition cursor-pointer"
-                                  >
-                                    {preset}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          </td>
+                        {/* Ball & Presets */}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={student.score ?? ''}
+                            onChange={(e) => handleScoreChange(student.student_id, e.target.value)}
+                            placeholder="Ball (0-100)"
+                            className="w-24 px-3 py-1.5 bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-center text-gray-900 dark:text-white"
+                          />
+                          <div className="flex items-center gap-1">
+                            {[100, 85, 70, 50].map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                onClick={() => handleScoreChange(student.student_id, String(preset))}
+                                className="px-2 py-1 text-[11px] font-bold bg-white dark:bg-gray-850 hover:bg-purple-100 dark:hover:bg-purple-950/50 text-gray-700 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700"
+                              >
+                                {preset}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
 
-                          {/* Note input */}
-                          <td className="px-4 py-3.5">
-                            <input
-                              type="text"
-                              value={student.note}
-                              onChange={(e) => handleNoteChange(student.student_id, e.target.value)}
-                              placeholder="Sababi yoki izoh..."
-                              className="w-full px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 transition"
-                            />
-                          </td>
+                        {/* Note */}
+                        <input
+                          type="text"
+                          value={student.note}
+                          onChange={(e) => handleNoteChange(student.student_id, e.target.value)}
+                          placeholder="Sababi yoki izoh..."
+                          className="w-full px-3 py-1.5 bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-200"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* DESKTOP VIEW (hidden sm:block): Keng va toza jadval */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider border-b border-gray-100 dark:border-gray-800">
+                        <tr>
+                          <th className="px-4 py-3">O&apos;quvchi</th>
+                          <th className="px-4 py-3 text-center">Davomat</th>
+                          <th className="px-4 py-3 text-center">Kunlik Ball (0-100)</th>
+                          <th className="px-4 py-3">Izoh / Sabab</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                        {students.map((student) => (
+                          <tr key={student.student_id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition">
+                            <td className="px-4 py-3.5">
+                              <p className="font-semibold text-gray-900 dark:text-white">{student.student_name}</p>
+                              <p className="text-xs text-gray-400">{student.phone}</p>
+                            </td>
+
+                            {/* Status Toggle Buttons */}
+                            <td className="px-4 py-3.5 text-center">
+                              <div className="inline-flex rounded-xl p-1 bg-gray-100 dark:bg-gray-800 gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleStatusChange(student.student_id, 'present')}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                    student.status === 'present'
+                                      ? 'bg-emerald-600 text-white shadow-xs'
+                                      : 'text-gray-600 dark:text-gray-300 hover:text-emerald-700'
+                                  }`}
+                                >
+                                  Keldi
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStatusChange(student.student_id, 'absent')}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                    student.status === 'absent'
+                                      ? 'bg-rose-600 text-white shadow-xs'
+                                      : 'text-gray-600 dark:text-gray-300 hover:text-rose-700'
+                                  }`}
+                                >
+                                  Kelmadi
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStatusChange(student.student_id, 'late')}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                    student.status === 'late'
+                                      ? 'bg-amber-500 text-white shadow-xs'
+                                      : 'text-gray-600 dark:text-gray-300 hover:text-amber-700'
+                                  }`}
+                                >
+                                  Kechikdi
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStatusChange(student.student_id, 'excused')}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                    student.status === 'excused'
+                                      ? 'bg-blue-600 text-white shadow-xs'
+                                      : 'text-gray-600 dark:text-gray-300 hover:text-blue-700'
+                                  }`}
+                                >
+                                  Sababli
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* Daily Grade / Ball (0-100) */}
+                            <td className="px-4 py-3.5 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  value={student.score ?? ''}
+                                  onChange={(e) => handleScoreChange(student.student_id, e.target.value)}
+                                  placeholder="Ball"
+                                  className="w-20 px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold text-center text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white dark:focus:bg-gray-900 transition"
+                                />
+                                <div className="hidden xl:flex items-center gap-1">
+                                  {[100, 85, 70].map((preset) => (
+                                    <button
+                                      key={preset}
+                                      type="button"
+                                      onClick={() => handleScoreChange(student.student_id, String(preset))}
+                                      className="px-1.5 py-0.5 text-[10px] font-semibold bg-gray-100 hover:bg-purple-100 dark:bg-gray-800 dark:hover:bg-purple-950/50 text-gray-600 dark:text-gray-300 rounded border border-gray-200 dark:border-gray-700 transition cursor-pointer"
+                                    >
+                                      {preset}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Note input */}
+                            <td className="px-4 py-3.5">
+                              <input
+                                type="text"
+                                value={student.note}
+                                onChange={(e) => handleNoteChange(student.student_id, e.target.value)}
+                                placeholder="Sababi yoki izoh..."
+                                className="w-full px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 transition"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
 
               {/* Bottom save bar */}
-              <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end">
+              <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <span className="text-xs text-gray-400 font-medium">
+                  Jami: {students.length} nafar o&apos;quvchi
+                </span>
                 <button
                   type="button"
                   disabled={saveMutation.isPending}
@@ -861,5 +1005,20 @@ export default function AttendancePage() {
       )}
 
     </div>
+  );
+}
+
+export default function AttendancePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-24 flex flex-col items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
+          <p className="text-xs text-gray-400">Yuklanmoqda...</p>
+        </div>
+      }
+    >
+      <AttendanceContent />
+    </Suspense>
   );
 }

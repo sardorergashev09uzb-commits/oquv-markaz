@@ -9,6 +9,8 @@ import {
   ArrowDownRight, Loader2, Award, Phone, ShieldAlert, BookOpen, GraduationCap, Check
 } from 'lucide-react';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { useCurrentUser } from '@/lib/useCurrentUser';
+import { canManage } from '@/lib/auth';
 
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => {
   const d = new Date();
@@ -19,6 +21,9 @@ const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => {
 });
 
 export default function ReportsPage() {
+  const { isTeacher: isUserTeacher, isStudent: isUserStudent, role: userRole, isLoading: isUserLoading } = useCurrentUser();
+  const isManager = canManage(userRole);
+
   const [activeTab, setActiveTab] = useState<'monthly_group' | 'finance' | 'attendance' | 'risk' | 'teachers'>('monthly_group');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
@@ -63,16 +68,17 @@ export default function ReportsPage() {
       const res = await api.get('/api/reports/overview');
       return res.data;
     },
+    enabled: isManager,
   });
 
-  // 2. Finance data
+  // 2. Finance data (Faqat rahbar va menejerlar uchun)
   const { data: finance, isLoading: isFinanceLoading } = useQuery({
     queryKey: ['report-finance'],
     queryFn: async () => {
       const res = await api.get('/api/reports/finance');
       return res.data;
     },
-    enabled: activeTab === 'finance',
+    enabled: isManager && activeTab === 'finance',
   });
 
   // 3. Attendance data
@@ -95,14 +101,14 @@ export default function ReportsPage() {
     enabled: activeTab === 'risk',
   });
 
-  // 5. Teachers KPI data
+  // 5. Teachers KPI data (Faqat rahbar va menejerlar uchun)
   const { data: teachersData, isLoading: isTeachersLoading } = useQuery({
     queryKey: ['report-teachers'],
     queryFn: async () => {
       const res = await api.get('/api/reports/teachers');
       return res.data;
     },
-    enabled: activeTab === 'teachers',
+    enabled: isManager && activeTab === 'teachers',
   });
 
   // CSV Export utility
@@ -184,107 +190,181 @@ export default function ReportsPage() {
 
       {/* KPI Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Revenue */}
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between text-gray-500 text-xs font-semibold uppercase">
-            <span>Oylik Tushum</span>
-            <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
-              <DollarSign className="w-4 h-4" />
-            </span>
-          </div>
-          <div className="text-2xl font-bold text-gray-900 mt-2">
-            {isOverviewLoading ? '...' : formatCurrency(overview?.month_revenue)}
-          </div>
-          <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-            <span>Xarajat:</span>
-            <span className="font-semibold text-rose-600">{formatCurrency(overview?.month_expense)}</span>
-          </div>
-        </div>
+        {isManager ? (
+          <>
+            {/* Revenue */}
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+              <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase">
+                <span>Oylik Tushum</span>
+                <span className="p-1.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg">
+                  <DollarSign className="w-4 h-4" />
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
+                {isOverviewLoading ? '...' : formatCurrency(overview?.month_revenue)}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
+                <span>Xarajat:</span>
+                <span className="font-semibold text-rose-600 dark:text-rose-400">{formatCurrency(overview?.month_expense)}</span>
+              </div>
+            </div>
 
-        {/* Net Profit */}
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between text-gray-500 text-xs font-semibold uppercase">
-            <span>Sof Foyda (Shu oy)</span>
-            <span className={`p-1.5 rounded-lg ${
-              (overview?.month_net_profit || 0) >= 0 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
-            }`}>
-              <TrendingUp className="w-4 h-4" />
-            </span>
-          </div>
-          <div className={`text-2xl font-bold mt-2 ${
-            (overview?.month_net_profit || 0) >= 0 ? 'text-blue-600' : 'text-red-600'
-          }`}>
-            {isOverviewLoading ? '...' : formatCurrency(overview?.month_net_profit)}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">
-            Tushumdan barcha xarajatlar chegirilgan
-          </div>
-        </div>
+            {/* Net Profit */}
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+              <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase">
+                <span>Sof Foyda (Shu oy)</span>
+                <span className={`p-1.5 rounded-lg ${
+                  (overview?.month_net_profit || 0) >= 0 ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400' : 'bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400'
+                }`}>
+                  <TrendingUp className="w-4 h-4" />
+                </span>
+              </div>
+              <div className={`text-2xl font-bold mt-2 ${
+                (overview?.month_net_profit || 0) >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'
+              }`}>
+                {isOverviewLoading ? '...' : formatCurrency(overview?.month_net_profit)}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Tushumdan barcha xarajatlar chegirilgan
+              </div>
+            </div>
 
-        {/* Attendance Rate */}
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between text-gray-500 text-xs font-semibold uppercase">
-            <span>Markaz Davomati</span>
-            <span className="p-1.5 bg-purple-50 text-purple-600 rounded-lg">
-              <CheckCircle2 className="w-4 h-4" />
-            </span>
-          </div>
-          <div className="text-2xl font-bold text-gray-900 mt-2">
-            {isOverviewLoading ? '...' : `${overview?.avg_attendance_rate || 0}%`}
-          </div>
-          <div className="text-xs text-emerald-600 font-medium mt-1">
-            Barcha guruhlar bo&apos;yicha o&apos;rtacha
-          </div>
-        </div>
+            {/* Attendance Rate */}
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+              <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase">
+                <span>Markaz Davomati</span>
+                <span className="p-1.5 bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 rounded-lg">
+                  <CheckCircle2 className="w-4 h-4" />
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
+                {isOverviewLoading ? '...' : `${overview?.avg_attendance_rate || 0}%`}
+              </div>
+              <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">
+                Barcha guruhlar bo&apos;yicha o&apos;rtacha
+              </div>
+            </div>
 
-        {/* Risk Students */}
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between text-gray-500 text-xs font-semibold uppercase">
-            <span>Xavf Ostidagi O&apos;quvchilar</span>
-            <span className="p-1.5 bg-amber-50 text-amber-600 rounded-lg">
-              <AlertTriangle className="w-4 h-4" />
-            </span>
-          </div>
-          <div className="text-2xl font-bold text-amber-600 mt-2">
-            {isOverviewLoading ? '...' : `${overview?.risk_students_count || 0} nafar`}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">
-            Ketib qolish yoki qarzdorlik xavfi
-          </div>
-        </div>
+            {/* Risk Students */}
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+              <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase">
+                <span>Xavf Ostidagi O&apos;quvchilar</span>
+                <span className="p-1.5 bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 rounded-lg">
+                  <AlertTriangle className="w-4 h-4" />
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-2">
+                {isOverviewLoading ? '...' : `${overview?.risk_students_count || 0} nafar`}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Ketib qolish yoki qarzdorlik xavfi
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Teacher: Mening Guruhlarim */}
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+              <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase">
+                <span>Mening Guruhlarim</span>
+                <span className="p-1.5 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-lg">
+                  <BookOpen className="w-4 h-4" />
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
+                {groupsData?.length || 0} ta
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                Siz biriktirilgan faol guruhlar
+              </div>
+            </div>
+
+            {/* Teacher: O'tilgan Darslar */}
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+              <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase">
+                <span>Shu Oydagi Darslar</span>
+                <span className="p-1.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg">
+                  <Calendar className="w-4 h-4" />
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">
+                {monthlyGroupData?.stats ? `${monthlyGroupData.stats.conducted_lessons} / ${monthlyGroupData.stats.planned_lessons || monthlyGroupData.stats.total_lessons} ta` : '—'}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                O&apos;tilgan vs rejalashtirilgan
+              </div>
+            </div>
+
+            {/* Teacher: Guruh Davomati */}
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+              <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase">
+                <span>Guruh Davomati</span>
+                <span className="p-1.5 bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 rounded-lg">
+                  <CheckCircle2 className="w-4 h-4" />
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-2">
+                {monthlyGroupData?.stats ? `${monthlyGroupData.stats.overall_attendance_rate}%` : '—'}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                Tanlangan guruh oylik ko&apos;rsatkichi
+              </div>
+            </div>
+
+            {/* Teacher: O'rtacha Ball */}
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+              <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase">
+                <span>O&apos;rtacha Ball</span>
+                <span className="p-1.5 bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 rounded-lg">
+                  <Award className="w-4 h-4" />
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-2">
+                {monthlyGroupData?.stats?.overall_average_score !== null && monthlyGroupData?.stats?.overall_average_score !== undefined
+                  ? `${monthlyGroupData.stats.overall_average_score} ball`
+                  : '—'}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                Oylik imtihon va dars ballari
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 print:hidden">
+      <div className="border-b border-gray-200 dark:border-gray-800 print:hidden overflow-x-auto">
         <nav className="flex space-x-6">
           <button
             onClick={() => setActiveTab('monthly_group')}
-            className={`pb-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition cursor-pointer ${
+            className={`pb-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition cursor-pointer whitespace-nowrap ${
               activeTab === 'monthly_group'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
             }`}
           >
             <BookOpen className="w-4 h-4" />
             Oylik Guruh Hisoboti
           </button>
-          <button
-            onClick={() => setActiveTab('finance')}
-            className={`pb-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition ${
-              activeTab === 'finance'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <DollarSign className="w-4 h-4" />
-            Moliya & Balans
-          </button>
+          {isManager && (
+            <button
+              onClick={() => setActiveTab('finance')}
+              className={`pb-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition cursor-pointer whitespace-nowrap ${
+                activeTab === 'finance'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              <DollarSign className="w-4 h-4" />
+              Moliya & Balans
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('attendance')}
-            className={`pb-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition ${
+            className={`pb-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition cursor-pointer whitespace-nowrap ${
               activeTab === 'attendance'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
             }`}
           >
             <CheckCircle2 className="w-4 h-4" />
@@ -292,31 +372,33 @@ export default function ReportsPage() {
           </button>
           <button
             onClick={() => setActiveTab('risk')}
-            className={`pb-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition relative ${
+            className={`pb-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition cursor-pointer whitespace-nowrap relative ${
               activeTab === 'risk'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
             }`}
           >
             <ShieldAlert className="w-4 h-4 text-amber-500" />
             Xavf Ostidagi O&apos;quvchilar
             {(overview?.risk_students_count || 0) > 0 && (
-              <span className="bg-amber-100 text-amber-800 text-[11px] px-2 py-0.5 rounded-full font-bold">
+              <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[11px] px-2 py-0.5 rounded-full font-bold">
                 {overview.risk_students_count}
               </span>
             )}
           </button>
-          <button
-            onClick={() => setActiveTab('teachers')}
-            className={`pb-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition ${
-              activeTab === 'teachers'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Award className="w-4 h-4" />
-            O&apos;qituvchilar KPI
-          </button>
+          {isManager && (
+            <button
+              onClick={() => setActiveTab('teachers')}
+              className={`pb-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition cursor-pointer whitespace-nowrap ${
+                activeTab === 'teachers'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              <Award className="w-4 h-4" />
+              O&apos;qituvchilar KPI
+            </button>
+          )}
         </nav>
       </div>
 
@@ -324,11 +406,11 @@ export default function ReportsPage() {
       {activeTab === 'monthly_group' && (
         <div className="space-y-6">
           {/* Filter Bar */}
-          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 print:hidden">
+          <div className="bg-white dark:bg-gray-900 p-4 sm:p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 print:hidden">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
               {/* Group Select */}
               <div className="w-full sm:w-64">
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Guruhni tanlang:</label>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Guruhni tanlang:</label>
                 <CustomSelect
                   value={selectedGroupId}
                   onChange={(val) => setSelectedGroupId(val)}
@@ -344,7 +426,7 @@ export default function ReportsPage() {
 
               {/* Month Select */}
               <div className="w-full sm:w-56">
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Hisobot oyi:</label>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Hisobot oyi:</label>
                 <CustomSelect
                   value={selectedMonth}
                   onChange={(val) => setSelectedMonth(val)}
@@ -355,64 +437,64 @@ export default function ReportsPage() {
             </div>
 
             {monthlyGroupData?.group && (
-              <div className="text-left md:text-right border-t md:border-t-0 pt-3 md:pt-0 border-gray-100">
+              <div className="text-left md:text-right border-t md:border-t-0 pt-3 md:pt-0 border-gray-100 dark:border-gray-800">
                 <span className="text-xs text-gray-400 block font-medium">Biriktirilgan o&apos;qituvchi:</span>
-                <span className="text-sm font-bold text-gray-800">{monthlyGroupData.group.teacher_name}</span>
-                <span className="text-xs text-blue-600 block font-medium mt-0.5">{monthlyGroupData.group.course_name}</span>
+                <span className="text-sm font-bold text-gray-800 dark:text-gray-200">{monthlyGroupData.group.teacher_name}</span>
+                <span className="text-xs text-blue-600 dark:text-blue-400 block font-medium mt-0.5">{monthlyGroupData.group.course_name}</span>
               </div>
             )}
           </div>
 
           {isMonthlyGroupLoading ? (
-            <div className="p-16 text-center text-gray-500 flex flex-col items-center justify-center bg-white rounded-2xl border border-gray-100">
+            <div className="p-16 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
               Guruh bo&apos;yicha oylik hisobot hisoblanmoqda...
             </div>
           ) : !monthlyGroupData?.group ? (
-            <div className="p-12 text-center text-gray-400 bg-white rounded-2xl border border-gray-100">
+            <div className="p-12 text-center text-gray-400 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">
               Guruh tanlanmagan yoki ma&apos;lumot topilmadi.
             </div>
           ) : (
             <>
               {/* Group Monthly Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
                   <span className="text-xs text-gray-400 font-medium uppercase">O&apos;quvchilar</span>
-                  <div className="text-2xl font-extrabold text-gray-900 mt-1">
+                  <div className="text-2xl font-extrabold text-gray-900 dark:text-white mt-1">
                     {monthlyGroupData.stats.total_students} nafar
                   </div>
                   <span className="text-[11px] text-gray-400 block mt-0.5">Faol qatnashuvchilar</span>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
                   <span className="text-xs text-gray-400 font-medium uppercase">O&apos;tilgan Darslar</span>
-                  <div className="text-2xl font-extrabold text-blue-600 mt-1">
-                    {monthlyGroupData.stats.total_lessons} ta
+                  <div className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">
+                    {monthlyGroupData.stats.conducted_lessons ?? monthlyGroupData.stats.total_lessons} / {monthlyGroupData.stats.planned_lessons ?? monthlyGroupData.stats.total_lessons} ta
                   </div>
-                  <span className="text-[11px] text-gray-400 block mt-0.5">Ushbu oy davomida</span>
+                  <span className="text-[11px] text-gray-400 block mt-0.5">O&apos;tilgan vs reja</span>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
                   <span className="text-xs text-gray-400 font-medium uppercase">Guruh Davomati</span>
-                  <div className="text-2xl font-extrabold text-emerald-600 mt-1">
+                  <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
                     {monthlyGroupData.stats.overall_attendance_rate}%
                   </div>
-                  <span className="text-[11px] text-emerald-600 font-medium block mt-0.5">
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium block mt-0.5">
                     {monthlyGroupData.stats.overall_attendance_rate >= 80 ? "Yuqori davomat" : "Nazorat talab"}
                   </span>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
                   <span className="text-xs text-gray-400 font-medium uppercase">O&apos;rtacha Ball</span>
-                  <div className="text-2xl font-extrabold text-purple-600 mt-1">
+                  <div className="text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-1">
                     {monthlyGroupData.stats.overall_average_score !== null ? `${monthlyGroupData.stats.overall_average_score}` : '—'}
                   </div>
                   <span className="text-[11px] text-gray-400 block mt-0.5">Muntazam test/baholar</span>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
                   <span className="text-xs text-gray-400 font-medium uppercase">Qarzdorlik</span>
-                  <div className={`text-2xl font-extrabold mt-1 ${monthlyGroupData.stats.total_debt > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                  <div className={`text-2xl font-extrabold mt-1 ${monthlyGroupData.stats.total_debt > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                     {formatCurrency(monthlyGroupData.stats.total_debt)}
                   </div>
                   <span className="text-[11px] text-gray-400 block mt-0.5">
@@ -421,18 +503,18 @@ export default function ReportsPage() {
                 </div>
               </div>
 
-              {/* Detailed Students Table */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between">
+              {/* Detailed Students Table & Mobile Cards */}
+              <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+                <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                   <div>
-                    <h3 className="text-base font-bold text-gray-900">
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white">
                       {monthlyGroupData.group.name} — Oylik Natijalar ({selectedMonth})
                     </h3>
                     <p className="text-xs text-gray-400 mt-0.5">
                       Har bir o&apos;quvchining davomati, oylik baholari va to&apos;lov holati
                     </p>
                   </div>
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-bold">
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold">
                     {monthlyGroupData.students.length} ta o&apos;quvchi
                   </span>
                 </div>
@@ -442,95 +524,184 @@ export default function ReportsPage() {
                     Ushbu guruhda o&apos;quvchilar ro&apos;yxati mavjud emas.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
-                        <tr>
-                          <th className="px-4 py-3.5">#</th>
-                          <th className="px-4 py-3.5">O&apos;quvchi</th>
-                          <th className="px-4 py-3.5 text-center">Davomat (Darslar)</th>
-                          <th className="px-4 py-3.5 text-center">Davomat %</th>
-                          <th className="px-4 py-3.5 text-center">Oylik Baho</th>
-                          <th className="px-4 py-3.5">Kurs To&apos;lovi</th>
-                          <th className="px-4 py-3.5">Qarz</th>
-                          <th className="px-4 py-3.5 text-center">Xulosa</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {monthlyGroupData.students.map((student: any, idx: number) => {
-                          return (
-                            <tr key={student.student_id} className="hover:bg-gray-50/70 transition">
-                              <td className="px-4 py-3.5 text-xs text-gray-400 font-semibold">{idx + 1}</td>
-                              <td className="px-4 py-3.5">
-                                <p className="font-bold text-gray-900">{student.student_name}</p>
-                                <p className="text-xs text-gray-400">{student.phone}</p>
-                              </td>
-                              <td className="px-4 py-3.5 text-center font-semibold text-gray-700">
-                                {student.present_count} / {student.total_lessons}
-                              </td>
-                              <td className="px-4 py-3.5 text-center">
-                                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${
-                                  student.attendance_rate >= 85
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : student.attendance_rate >= 70
-                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
-                                }`}>
-                                  {student.attendance_rate}%
+                  <>
+                    {/* MOBILE VIEW (sm:hidden): Sensorli kartochkalar */}
+                    <div className="sm:hidden p-4 space-y-3">
+                      {monthlyGroupData.students.map((student: any) => (
+                        <div
+                          key={student.student_id}
+                          className="p-4 bg-gray-50/70 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 rounded-2xl space-y-2.5"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="font-bold text-gray-900 dark:text-white text-sm">{student.student_name}</p>
+                              <p className="text-xs text-gray-400">{student.phone}</p>
+                            </div>
+                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                              student.conclusion === "A'lochi" || student.conclusion === "A'lo"
+                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                                : student.conclusion === "Yaxshi"
+                                ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                                : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                            }`}>
+                              {student.conclusion}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-gray-100 dark:border-gray-800">
+                            <div>
+                              <span className="text-gray-400 block text-[11px]">Davomat:</span>
+                              <span className="font-bold text-gray-800 dark:text-gray-200">
+                                {student.present_count} / {student.conducted_lessons || student.total_lessons} ta ({student.attendance_rate}%)
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400 block text-[11px]">O&apos;rtacha baho:</span>
+                              <span className="font-bold text-purple-600 dark:text-purple-400">
+                                {student.average_score !== null ? `${student.average_score} ball` : '—'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {isManager ? (
+                            <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-100 dark:border-gray-800">
+                              <div>
+                                <span className="text-gray-400 block text-[11px]">To&apos;lov holati:</span>
+                                <span className={`font-semibold ${student.debt > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                  {student.debt > 0 ? `${formatCurrency(student.debt)} qarz` : "To'langan"}
                                 </span>
-                              </td>
-                              <td className="px-4 py-3.5 text-center font-bold">
-                                {student.average_score !== null ? (
-                                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold ${
-                                    student.average_score >= 80
-                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                      : student.average_score >= 60
-                                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                      : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              </div>
+                              <span className="text-[11px] text-gray-400">
+                                To&apos;langan: {formatCurrency(student.paid_amount)}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-100 dark:border-gray-800">
+                              <span className="text-gray-400 text-[11px]">To&apos;lov:</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                student.debt > 0
+                                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400'
+                                  : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                              }`}>
+                                {student.debt > 0 ? 'Qarzdorlik bor' : "To'langan"}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* DESKTOP VIEW (hidden sm:block): Jadval */}
+                    <div className="hidden sm:block overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider border-b border-gray-100 dark:border-gray-800">
+                          <tr>
+                            <th className="px-4 py-3.5">#</th>
+                            <th className="px-4 py-3.5">O&apos;quvchi</th>
+                            <th className="px-4 py-3.5 text-center">Davomat (Darslar)</th>
+                            <th className="px-4 py-3.5 text-center">Davomat %</th>
+                            <th className="px-4 py-3.5 text-center">Oylik Baho</th>
+                            {isManager ? (
+                              <>
+                                <th className="px-4 py-3.5">Kurs To&apos;lovi</th>
+                                <th className="px-4 py-3.5">Qarz</th>
+                              </>
+                            ) : (
+                              <th className="px-4 py-3.5 text-center">To&apos;lov holati</th>
+                            )}
+                            <th className="px-4 py-3.5 text-center">Xulosa</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                          {monthlyGroupData.students.map((student: any, idx: number) => {
+                            return (
+                              <tr key={student.student_id} className="hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition">
+                                <td className="px-4 py-3.5 text-xs text-gray-400 font-semibold">{idx + 1}</td>
+                                <td className="px-4 py-3.5">
+                                  <p className="font-bold text-gray-900 dark:text-white">{student.student_name}</p>
+                                  <p className="text-xs text-gray-400">{student.phone}</p>
+                                </td>
+                                <td className="px-4 py-3.5 text-center font-semibold text-gray-700 dark:text-gray-300">
+                                  {student.present_count} / {student.conducted_lessons || student.total_lessons}
+                                </td>
+                                <td className="px-4 py-3.5 text-center">
+                                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${
+                                    student.attendance_rate >= 85
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                                      : student.attendance_rate >= 70
+                                      ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                                      : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
                                   }`}>
-                                    {student.average_score} ball
+                                    {student.attendance_rate}%
                                   </span>
+                                </td>
+                                <td className="px-4 py-3.5 text-center font-bold">
+                                  {student.average_score !== null ? (
+                                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold ${
+                                      student.average_score >= 80
+                                        ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800'
+                                        : student.average_score >= 60
+                                        ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                                        : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                                    }`}>
+                                      {student.average_score} ball
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                                  )}
+                                </td>
+                                {isManager ? (
+                                  <>
+                                    <td className="px-4 py-3.5 text-xs">
+                                      <p className="font-semibold text-gray-800 dark:text-gray-200">
+                                        {formatCurrency(student.paid_amount)}
+                                      </p>
+                                      <span className="text-[11px] text-gray-400">
+                                        Reja: {formatCurrency(student.plan_amount)}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3.5 text-xs font-bold">
+                                      {student.debt > 0 ? (
+                                        <span className="text-rose-600 dark:text-rose-400">
+                                          {formatCurrency(student.debt)}
+                                        </span>
+                                      ) : (
+                                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                                          <Check className="w-3.5 h-3.5" />
+                                          Qarz yo&apos;q
+                                        </span>
+                                      )}
+                                    </td>
+                                  </>
                                 ) : (
-                                  <span className="text-gray-300 text-xs">—</span>
+                                  <td className="px-4 py-3.5 text-center text-xs">
+                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                      student.debt > 0
+                                        ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400'
+                                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                                    }`}>
+                                      {student.debt > 0 ? 'Qarz bor' : "To'langan"}
+                                    </span>
+                                  </td>
                                 )}
-                              </td>
-                              <td className="px-4 py-3.5 text-xs">
-                                <p className="font-semibold text-gray-800">
-                                  {formatCurrency(student.paid_amount)}
-                                </p>
-                                <span className="text-[11px] text-gray-400">
-                                  Reja: {formatCurrency(student.plan_amount)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3.5 text-xs font-bold">
-                                {student.debt > 0 ? (
-                                  <span className="text-rose-600">
-                                    {formatCurrency(student.debt)}
+                                <td className="px-4 py-3.5 text-center">
+                                  <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${
+                                    student.conclusion === "A'lochi" || student.conclusion === "A'lo"
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                                      : student.conclusion === "Yaxshi"
+                                      ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                                      : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                                  }`}>
+                                    {student.conclusion}
                                   </span>
-                                ) : (
-                                  <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                                    <Check className="w-3.5 h-3.5" />
-                                    Qarz yo&apos;q
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3.5 text-center">
-                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${
-                                  student.conclusion === "A'lochi" || student.conclusion === "A'lo"
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : student.conclusion === "Yaxshi"
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
-                                }`}>
-                                  {student.conclusion}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
             </>

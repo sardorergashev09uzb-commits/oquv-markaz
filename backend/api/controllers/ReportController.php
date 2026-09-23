@@ -81,6 +81,11 @@ class ReportController extends Controller
      */
     public function actionFinance(): array
     {
+        $user = Yii::$app->user->identity;
+        if ($user && in_array($user->role, [User::ROLE_TEACHER, User::ROLE_STUDENT])) {
+            throw new \yii\web\ForbiddenHttpException("Moliya hisoboti faqat rahbar va menejerlar uchun.");
+        }
+
         // 1. Oxirgi 6 oylik trend
         $monthlyTrend = [];
         for ($i = 5; $i >= 0; $i--) {
@@ -229,9 +234,18 @@ class ReportController extends Controller
      */
     public function actionRiskStudents(): array
     {
-        $students = User::find()
-            ->where(['role' => User::ROLE_STUDENT, 'status' => User::STATUS_ACTIVE])
-            ->all();
+        $user = Yii::$app->user->identity;
+        if ($user && $user->role === User::ROLE_STUDENT) {
+            throw new \yii\web\ForbiddenHttpException("Ruxsat berilmagan.");
+        }
+
+        $query = User::find()->where(['role' => User::ROLE_STUDENT, 'status' => User::STATUS_ACTIVE]);
+        if ($user && $user->role === User::ROLE_TEACHER) {
+            $teacherGroupIds = Group::find()->where(['teacher_id' => $user->id])->select('id')->column();
+            $query->innerJoin('{{%group_students}} tgs', 'tgs.student_id = {{%users}}.id')
+                  ->andWhere(['tgs.group_id' => $teacherGroupIds, 'tgs.status' => GroupStudent::STATUS_ACTIVE]);
+        }
+        $students = $query->all();
 
         $riskList = [];
 
@@ -333,9 +347,16 @@ class ReportController extends Controller
      */
     public function actionTeachers(): array
     {
-        $teachers = User::find()
-            ->where(['role' => User::ROLE_TEACHER, 'status' => User::STATUS_ACTIVE])
-            ->all();
+        $user = Yii::$app->user->identity;
+        if ($user && $user->role === User::ROLE_STUDENT) {
+            throw new \yii\web\ForbiddenHttpException("Ruxsat berilmagan.");
+        }
+
+        $query = User::find()->where(['role' => User::ROLE_TEACHER, 'status' => User::STATUS_ACTIVE]);
+        if ($user && $user->role === User::ROLE_TEACHER) {
+            $query->andWhere(['id' => $user->id]);
+        }
+        $teachers = $query->all();
 
         $result = [];
 
@@ -406,11 +427,16 @@ class ReportController extends Controller
      */
     public function actionMonthlyGroupSummary(): array
     {
+        $user = Yii::$app->user->identity;
         $groupId = (int) Yii::$app->request->get('group_id');
         $month = Yii::$app->request->get('month') ?: date('Y-m');
 
         if (!$groupId) {
-            $firstGroup = Group::findOne(['status' => Group::STATUS_ACTIVE]);
+            if ($user && $user->role === User::ROLE_TEACHER) {
+                $firstGroup = Group::findOne(['teacher_id' => $user->id, 'status' => Group::STATUS_ACTIVE]);
+            } else {
+                $firstGroup = Group::findOne(['status' => Group::STATUS_ACTIVE]);
+            }
             $groupId = $firstGroup ? $firstGroup->id : 0;
         }
 
@@ -424,7 +450,11 @@ class ReportController extends Controller
             ];
         }
 
-        // Oy bo'yicha o'tkazilgan darslar
+        if ($user && $user->role === User::ROLE_TEACHER && $group->teacher_id !== $user->id) {
+            throw new \yii\web\ForbiddenHttpException("Siz faqat o'zingizning guruhlaringiz hisobotini ko'rishingiz mumkin.");
+        }
+
+        // Oy bo'yicha rejalashtirilgan va o'tkazilgan darslar
         $lessons = Lesson::find()
             ->where(['group_id' => $groupId])
             ->andWhere(['like', 'started_at', $month])
@@ -432,12 +462,36 @@ class ReportController extends Controller
             ->all();
 
         $lessonIds = array_map(fn($l) => $l->id, $lessons);
-        $totalLessons = count($lessons);
+        $totalPlannedLessons = count($lessons);
 
-        // Faol o'quvchilar
+        // O'tilgan (bajarilgan yoki davomat qilingan) darslar
+        $conductedLessonsCount = 0;
+        $conductedLessonIds = [];
+        if (!empty($lessonIds)) {
+            $attLessonIds = Attendance::find()
+                ->where(['lesson_id' => $lessonIds])
+                ->select('lesson_id')
+                ->distinct()
+                ->column();
+
+            $completedLessonIds = Lesson::find()
+                ->where(['id' => $lessonIds, 'status' => Lesson::STATUS_COMPLETED])
+                ->select('id')
+                ->column();
+
+            $conductedLessonIds = array_unique(array_merge($attLessonIds, $completedLessonIds));
+            $conductedLessonsCount = count($conductedLessonIds);
+        }
+
+        // Faol o'quvchilar (faqat o'quvchi roli va aktiv bo'lganlar)
         $students = User::find()
             ->innerJoin('{{%group_students}} gs', 'gs.student_id = {{%users}}.id')
-            ->where(['gs.group_id' => $groupId, 'gs.status' => GroupStudent::STATUS_ACTIVE])
+            ->where([
+                'gs.group_id' => $groupId,
+                'gs.status' => GroupStudent::STATUS_ACTIVE,
+                '{{%users}}.status' => User::STATUS_ACTIVE,
+                '{{%users}}.role' => User::ROLE_STUDENT,
+            ])
             ->orderBy(['name' => SORT_ASC])
             ->all();
 
@@ -450,7 +504,6 @@ class ReportController extends Controller
 
         $studentRows = [];
         $totalPresentOverall = 0;
-        $totalPossibleOverall = $totalLessons * count($students);
         $totalDebtSum = 0;
         $totalCollectedSum = 0;
         $totalExpectedSum = 0;
@@ -478,7 +531,9 @@ class ReportController extends Controller
             }
 
             $effectivePresent = $presentCount + $lateCount;
-            $attRate = $totalLessons > 0 ? round(($effectivePresent / $totalLessons) * 100, 1) : 100;
+            $attRate = $conductedLessonsCount > 0
+                ? round(($effectivePresent / $conductedLessonsCount) * 100, 1)
+                : ($totalPlannedLessons > 0 ? round(($effectivePresent / $totalPlannedLessons) * 100, 1) : 100);
             $totalPresentOverall += $effectivePresent;
 
             // 2. Baholar
@@ -537,23 +592,26 @@ class ReportController extends Controller
             }
 
             $studentRows[] = [
-                'student_id'     => $student->id,
-                'student_name'   => $student->name,
-                'phone'          => $student->phone,
-                'total_lessons'  => $totalLessons,
-                'present_count'  => $effectivePresent,
-                'absent_count'   => $absentCount,
-                'excused_count'  => $excusedCount,
-                'attendance_rate'=> $attRate,
-                'average_score'  => $avgScore,
-                'plan_amount'    => $planAmount,
-                'paid_amount'    => $paidAmount,
-                'debt'           => $debt,
-                'payment_status' => $paymentStatus,
-                'conclusion'     => $conclusion,
+                'student_id'        => $student->id,
+                'student_name'      => $student->name,
+                'phone'             => $student->phone,
+                'total_lessons'     => $conductedLessonsCount > 0 ? $conductedLessonsCount : $totalPlannedLessons,
+                'planned_lessons'   => $totalPlannedLessons,
+                'conducted_lessons' => $conductedLessonsCount,
+                'present_count'     => $effectivePresent,
+                'absent_count'      => $absentCount,
+                'excused_count'     => $excusedCount,
+                'attendance_rate'   => $attRate,
+                'average_score'     => $avgScore,
+                'plan_amount'       => $planAmount,
+                'paid_amount'       => $paidAmount,
+                'debt'              => $debt,
+                'payment_status'    => $paymentStatus,
+                'conclusion'        => $conclusion,
             ];
         }
 
+        $totalPossibleOverall = ($conductedLessonsCount > 0 ? $conductedLessonsCount : ($totalPlannedLessons > 0 ? $totalPlannedLessons : 1)) * count($students);
         $overallAttendanceRate = $totalPossibleOverall > 0
             ? round(($totalPresentOverall / $totalPossibleOverall) * 100, 1)
             : 100;
@@ -575,7 +633,9 @@ class ReportController extends Controller
             'month' => $month,
             'stats' => [
                 'total_students'          => count($students),
-                'total_lessons'           => $totalLessons,
+                'planned_lessons'         => $totalPlannedLessons,
+                'conducted_lessons'       => $conductedLessonsCount,
+                'total_lessons'           => $conductedLessonsCount > 0 ? $conductedLessonsCount : $totalPlannedLessons,
                 'overall_attendance_rate' => $overallAttendanceRate,
                 'overall_average_score'   => $overallAvgScore,
                 'total_expected'          => $totalExpectedSum,
