@@ -31,10 +31,21 @@ class RoomController extends Controller
      */
     public function actionIndex(): array
     {
-        $rooms = Room::find()
-            ->where(['status' => Room::STATUS_ACTIVE])
-            ->orderBy(['id' => SORT_ASC])
-            ->all();
+        $request = Yii::$app->request;
+        $search = $request->get('search');
+        $status = $request->get('status');
+
+        $query = Room::find();
+
+        if ($search) {
+            $query->andWhere(['like', 'name', $search]);
+        }
+
+        if ($status !== null && $status !== '') {
+            $query->andWhere(['status' => (int) $status]);
+        }
+
+        $rooms = $query->orderBy(['id' => SORT_ASC])->all();
 
         return [
             'items' => $rooms,

@@ -2,12 +2,15 @@
 
 import { use, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import {
   BookOpen, Users, GraduationCap, DoorOpen, Clock, Calendar,
-  ChevronLeft, PlusCircle, Trash2, Loader2, AlertCircle, Phone, Mail
+  ChevronLeft, PlusCircle, Trash2, Loader2, AlertCircle, Phone, Mail,
+  Pencil, AlertTriangle, X
 } from 'lucide-react';
 import Link from 'next/link';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface StudentInGroup {
   membership_id: number;
@@ -33,6 +36,7 @@ interface LessonInGroup {
 export default function GroupDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const groupId = resolvedParams.id;
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<'students' | 'lessons'>('students');
@@ -52,6 +56,24 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [addError, setAddError] = useState('');
 
+  // ─── Edit Modal State ──────────────────────────────────────────────────────
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    course_id: '',
+    teacher_id: '',
+    room_id: '',
+    days: 'Dush-Chor-Jum',
+    time: '14:00 - 16:00',
+    max_students: 16,
+    start_date: '',
+    status: 'active',
+  });
+  const [editFormError, setEditFormError] = useState('');
+
+  // ─── Delete Modal State ────────────────────────────────────────────────────
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
   // 1. Fetch Group Details & Students & Lessons
   const { data, isLoading, isError } = useQuery({
     queryKey: ['group', groupId],
@@ -70,7 +92,32 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     },
   });
 
-  // 3. Add student mutation
+  // 3. Dropdowns for edit
+  const { data: coursesData } = useQuery({
+    queryKey: ['courses-dropdown'],
+    queryFn: async () => {
+      const resp = await api.get('/api/courses');
+      return resp.data?.items || [];
+    },
+  });
+
+  const { data: teachersData } = useQuery({
+    queryKey: ['teachers-dropdown'],
+    queryFn: async () => {
+      const resp = await api.get('/api/teachers');
+      return resp.data?.items || [];
+    },
+  });
+
+  const { data: roomsData } = useQuery({
+    queryKey: ['rooms-dropdown'],
+    queryFn: async () => {
+      const resp = await api.get('/api/rooms');
+      return resp.data?.items || [];
+    },
+  });
+
+  // 4. Add student mutation
   const addStudentMutation = useMutation({
     mutationFn: async (studentId: number) => {
       const resp = await api.post(`/api/groups/${groupId}/add-student`, {
@@ -89,7 +136,7 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     },
   });
 
-  // 4. Remove student mutation
+  // 5. Remove student mutation
   const removeStudentMutation = useMutation({
     mutationFn: async (studentId: number) => {
       const resp = await api.post(`/api/groups/${groupId}/remove-student`, {
@@ -103,7 +150,7 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     },
   });
 
-  // 5. Generate lessons mutation
+  // 6. Generate lessons mutation
   const generateLessonsMutation = useMutation({
     mutationFn: async () => {
       const resp = await api.post(`/api/groups/${groupId}/generate-lessons`, {
@@ -114,6 +161,57 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group', groupId] });
       queryClient.invalidateQueries({ queryKey: ['groups'] });
+    },
+  });
+
+  // 7. Update group mutation
+  const updateGroupMutation = useMutation({
+    mutationFn: async (payload: typeof editFormData) => {
+      const scheduleArray = payload.days.split('-').map((d) => ({
+        day: d.trim(),
+        time: payload.time,
+      }));
+
+      const body = {
+        name: payload.name,
+        course_id: Number(payload.course_id),
+        teacher_id: Number(payload.teacher_id),
+        room_id: payload.room_id ? Number(payload.room_id) : null,
+        schedule: scheduleArray,
+        start_date: payload.start_date,
+        max_students: Number(payload.max_students),
+        status: payload.status,
+      };
+
+      const resp = await api.put(`/api/groups/${groupId}`, body);
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      setIsEditModalOpen(false);
+      setEditFormError('');
+    },
+    onError: (err: { response?: { data?: { errors?: Record<string, string[]> } } }) => {
+      const errors = err.response?.data?.errors;
+      if (errors) {
+        setEditFormError(Object.values(errors).flat().join(', '));
+      } else {
+        setEditFormError("Guruhni yangilashda xatolik yuz berdi");
+      }
+    },
+  });
+
+  // 8. Delete group mutation
+  const deleteGroupMutation = useMutation({
+    mutationFn: async () => {
+      const resp = await api.delete(`/api/groups/${groupId}`);
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      setIsDeleteModalOpen(false);
+      router.push('/groups');
     },
   });
 
@@ -129,7 +227,7 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     return (
       <div className="py-20 text-center">
         <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-        <p className="text-gray-700 font-semibold">Guruh topilmadi</p>
+        <p className="text-gray-700 dark:text-gray-300 font-semibold">Guruh topilmadi</p>
         <Link href="/groups" className="mt-4 inline-block text-sm text-blue-600 hover:underline">
           &larr; Guruhlar ro&apos;yxatiga qaytish
         </Link>
@@ -147,6 +245,39 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
 
   const completedLessonsCount = lessons.filter((l) => l.status === 'completed').length;
   const progressPercent = lessons.length > 0 ? Math.round((completedLessonsCount / lessons.length) * 100) : 0;
+
+  const courses = coursesData || [];
+  const teachers = teachersData || [];
+  const rooms = roomsData || [];
+
+  const handleOpenEdit = () => {
+    const firstSchedule = group.schedule && group.schedule.length > 0 ? group.schedule[0] : null;
+    const daysStr = group.schedule && group.schedule.length > 0 ? group.schedule.map((s: { day: string }) => s.day).join('-') : 'Dush-Chor-Jum';
+    const timeStr = firstSchedule ? firstSchedule.time : '14:00 - 16:00';
+
+    setEditFormData({
+      name: group.name || '',
+      course_id: String(group.course_id || ''),
+      teacher_id: String(group.teacher_id || ''),
+      room_id: group.room_id ? String(group.room_id) : '',
+      days: daysStr,
+      time: timeStr,
+      max_students: group.max_students || 16,
+      start_date: group.start_date || new Date().toISOString().split('T')[0],
+      status: group.status || 'active',
+    });
+    setEditFormError('');
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editFormData.name || !editFormData.course_id || !editFormData.teacher_id) {
+      setEditFormError("Guruh nomi, kursi va o'qituvchisi tanlanishi shart");
+      return;
+    }
+    updateGroupMutation.mutate(editFormData);
+  };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -183,6 +314,29 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
               <span className="text-xs font-semibold px-3 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 rounded-full border border-emerald-200 dark:border-emerald-800">
                 {completedLessonsCount} / {lessons.length} dars ({progressPercent}%)
               </span>
+            )}
+
+            {!isUserStudent && (
+              <div className="flex items-center gap-1.5 ml-2">
+                <button
+                  type="button"
+                  onClick={handleOpenEdit}
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 rounded-xl text-xs font-semibold transition cursor-pointer"
+                  title="Guruhni tahrirlash"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Tahrirlash</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-semibold transition cursor-pointer"
+                  title="Guruhni arxivlash"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Arxivlash</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -251,51 +405,54 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
         </button>
       </div>
 
-      {/* Tab Content: Students */}
+      {/* Tab 1: Students */}
       {activeTab === 'students' && (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 pb-4">
             <div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">Guruh O&apos;quvchilari</h2>
-              <p className="text-xs text-gray-400">Ushbu guruhda o&apos;qiyotgan faol o&apos;quvchilar ro&apos;yxati</p>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white">Guruh O&apos;quvchilari Ro&apos;yxati</h2>
+              <p className="text-xs text-gray-400">Guruh tarkibidagi o&apos;quvchilar va ularning holati</p>
             </div>
 
-            {/* Add student dropdown */}
+            {/* Add student dropdown form */}
             {!isUserStudent && availableStudents.length > 0 && (
-              <div className="flex items-center gap-2">
-                <select
-                  value={selectedStudentId}
-                  onChange={(e) => setSelectedStudentId(e.target.value)}
-                  className="px-3 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-xs text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">O&apos;quvchini tanlang...</option>
-                  {availableStudents.map((s: { id: number; name: string; phone: string }) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.phone})
-                    </option>
-                  ))}
-                </select>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                <div className="w-full sm:w-64">
+                  <CustomSelect
+                    value={selectedStudentId}
+                    onChange={(val) => setSelectedStudentId(val)}
+                    placeholder="O'quvchini tanlang..."
+                    searchable={availableStudents.length > 5}
+                    options={availableStudents.map((s: { id: number; name: string; phone: string }) => ({
+                      value: String(s.id),
+                      label: s.name,
+                      subLabel: s.phone,
+                    }))}
+                  />
+                </div>
                 <button
                   disabled={!selectedStudentId || addStudentMutation.isPending}
                   onClick={() => selectedStudentId && addStudentMutation.mutate(Number(selectedStudentId))}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer"
                 >
                   {addStudentMutation.isPending ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
                     <PlusCircle className="w-3.5 h-3.5" />
                   )}
-                  <span>Guruhga qo&apos;shish</span>
+                  <span>Qo&apos;shish</span>
                 </button>
               </div>
             )}
           </div>
 
-          {addError && <p className="text-xs text-red-600">{addError}</p>}
+          {addError && (
+            <p className="text-xs text-red-600">{addError}</p>
+          )}
 
-          {activeStudents.length === 0 ? (
-            <div className="py-10 text-center text-gray-400 text-sm">
-              Ushbu guruhda hozircha o&apos;quvchilar yo&apos;q.
+          {students.length === 0 ? (
+            <div className="py-8 text-center text-gray-400 text-sm">
+              Bu guruhda hozircha o&apos;quvchilar yo&apos;q.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -305,46 +462,58 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
                     <th className="px-4 py-3">O&apos;quvchi</th>
                     <th className="px-4 py-3">Telefon</th>
                     <th className="px-4 py-3">Qo&apos;shilgan sana</th>
-                    {!isUserStudent && (
-                      <th className="px-4 py-3 text-right">Amal</th>
-                    )}
+                    <th className="px-4 py-3">Holati</th>
+                    {!isUserStudent && <th className="px-4 py-3 text-right">Amal</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {activeStudents.map((s) => (
-                    <tr key={s.membership_id} className="hover:bg-gray-50/70 dark:hover:bg-gray-750 transition">
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 flex items-center justify-center font-bold text-xs">
-                            {s.name.charAt(0)}
+                  {students.map((student) => (
+                    <tr key={student.membership_id} className="hover:bg-gray-50/70 dark:hover:bg-gray-750 transition">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 flex items-center justify-center font-bold text-xs">
+                            {student.name.charAt(0)}
                           </div>
-                          <Link
-                            href={`/students/${s.student_id}`}
-                            className="font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition"
-                          >
-                            {s.name}
-                          </Link>
+                          <div>
+                            <Link
+                              href={`/students/${student.student_id}`}
+                              className="font-semibold text-gray-900 dark:text-white hover:text-blue-600 transition"
+                            >
+                              {student.name}
+                            </Link>
+                            {student.email && (
+                              <p className="text-[11px] text-gray-400">{student.email}</p>
+                            )}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 text-xs">
-                        {s.phone}
+                      <td className="px-4 py-3 text-gray-600 dark:text-gray-300 text-xs">
+                        {student.phone}
                       </td>
-                      <td className="px-4 py-3.5 text-gray-500 dark:text-gray-400 text-xs">
-                        {s.enrolled_at}
+                      <td className="px-4 py-3 text-gray-500 text-xs">
+                        {student.enrolled_at}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${
+                          student.status === 'active'
+                            ? 'bg-green-100 dark:bg-emerald-950/60 text-green-700 dark:text-emerald-300'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                        }`}>
+                          {student.status === 'active' ? 'O\'qimoqda' : 'Tark etgan'}
+                        </span>
                       </td>
                       {!isUserStudent && (
-                        <td className="px-4 py-3.5 text-right">
-                          <button
-                            onClick={() => {
-                              if (confirm(`${s.name} ni ushbu guruhdan chiqarishni xohlaysizmi?`)) {
-                                removeStudentMutation.mutate(s.student_id);
-                              }
-                            }}
-                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition cursor-pointer"
-                            title="Guruhdan chiqarish"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <td className="px-4 py-3 text-right">
+                          {student.status === 'active' && (
+                            <button
+                              onClick={() => removeStudentMutation.mutate(student.student_id)}
+                              disabled={removeStudentMutation.isPending}
+                              className="text-gray-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
+                              title="Guruhdan chiqarish"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </td>
                       )}
                     </tr>
@@ -356,46 +525,40 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
         </div>
       )}
 
-      {/* Tab Content: Lessons Schedule */}
+      {/* Tab 2: Lessons */}
       {activeTab === 'lessons' && (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-700 pb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 pb-4">
             <div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">Darslar Jadvali va O&apos;quv Rejasi</h2>
-              <p className="text-xs text-gray-400">
-                Guruh uchun rejalashtirilgan barcha darslar ketma-ketligi
-              </p>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white">Darslar Jadvali va Reja</h2>
+              <p className="text-xs text-gray-400">Guruh darslari, mavzulari va o&apos;tkazilish vaqtlari</p>
             </div>
 
-            <div className="flex items-center gap-3">
-              {!isUserStudent && (
-                <Link
-                  href={`/attendance?group_id=${groupId}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition"
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Davomatga o&apos;tish</span>
-                </Link>
-              )}
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/attendance?group_id=${groupId}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 dark:bg-violet-950/50 hover:bg-violet-100 text-violet-700 dark:text-violet-300 rounded-xl text-xs font-semibold transition"
+              >
+                <span>Davomatga o&apos;tish</span>
+              </Link>
 
-              {!isUserStudent && lessons.length === 0 && (
+              {!isUserStudent && (
                 <button
                   onClick={() => generateLessonsMutation.mutate()}
                   disabled={generateLessonsMutation.isPending}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition cursor-pointer"
                 >
                   {generateLessonsMutation.isPending ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
-                    <BookOpen className="w-3.5 h-3.5" />
+                    <PlusCircle className="w-3.5 h-3.5" />
                   )}
-                  <span>Rejani shakllantirish</span>
+                  <span>Rejani yangilash</span>
                 </button>
               )}
             </div>
           </div>
 
-          {/* Progress bar */}
           {lessons.length > 0 && (
             <div className="bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 space-y-2">
               <div className="flex items-center justify-between text-xs font-medium text-gray-600 dark:text-gray-300">
@@ -488,6 +651,217 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal: Guruhni Tahrirlash (Edit) */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in border dark:border-gray-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="font-bold text-gray-900 dark:text-white">Guruh ma&apos;lumotlarini tahrirlash</h3>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+              {editFormError && (
+                <div className="p-3 bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-900 rounded-xl text-red-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{editFormError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                  Guruh nomi *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                    Kurs *
+                  </label>
+                  <select
+                    required
+                    value={editFormData.course_id}
+                    onChange={(e) => setEditFormData({ ...editFormData, course_id: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  >
+                    <option value="">Kursni tanlang...</option>
+                    {courses.map((c: { id: number; name: string }) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                    O&apos;qituvchi *
+                  </label>
+                  <select
+                    required
+                    value={editFormData.teacher_id}
+                    onChange={(e) => setEditFormData({ ...editFormData, teacher_id: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  >
+                    <option value="">O&apos;qituvchini tanlang...</option>
+                    {teachers.map((t: { id: number; name: string }) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                    Dars xonasi
+                  </label>
+                  <select
+                    value={editFormData.room_id}
+                    onChange={(e) => setEditFormData({ ...editFormData, room_id: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  >
+                    <option value="">Xonani tanlang...</option>
+                    {rooms.map((r: { id: number; name: string }) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                    Maksimal o&apos;quvchilar soni
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={editFormData.max_students}
+                    onChange={(e) => setEditFormData({ ...editFormData, max_students: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                    Hafta kunlari
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.days}
+                    onChange={(e) => setEditFormData({ ...editFormData, days: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                    Dars vaqti
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.time}
+                    onChange={(e) => setEditFormData({ ...editFormData, time: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                    Holati
+                  </label>
+                  <select
+                    value={editFormData.status}
+                    onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  >
+                    <option value="active">Faol (Active)</option>
+                    <option value="completed">Yakunlangan (Completed)</option>
+                    <option value="cancelled">Bekor qilingan (Cancelled)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateGroupMutation.isPending}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer"
+                >
+                  {updateGroupMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>Saqlash</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Guruhni O'chirish / Arxivlash tasdig'i */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700 p-6 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                Guruhni o&apos;chirishni tasdiqlaysizmi?
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                <strong className="text-gray-800 dark:text-gray-200">&quot;{group.name}&quot;</strong> guruhi arxiv holatiga o&apos;tkaziladi va faol guruhlar ro&apos;yxatidan olib tashlanadi.
+              </p>
+            </div>
+
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={deleteGroupMutation.isPending}
+                onClick={() => deleteGroupMutation.mutate()}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer"
+              >
+                {deleteGroupMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>Ha, arxivlash</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
