@@ -19,10 +19,17 @@ function LoginContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const trimmedLogin = login.trim();
+    if (!trimmedLogin || !password) {
+      setError('Login va parolni kiriting');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { data } = await api.post('/api/auth/login', { login, password });
+      const { data } = await api.post('/api/auth/login', { login: trimmedLogin, password });
       setTokens(data.access_token, data.refresh_token);
 
       // Cookie ham qo'yamiz (proxy va server layout uchun)
@@ -32,10 +39,22 @@ function LoginContent() {
       window.location.href = redirect;
     } catch (err: unknown) {
       console.error('Login error:', err);
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Login yoki parol noto\'g\'ri';
-      setError(message);
+      const axiosErr = err as {
+        response?: { data?: { message?: string }; status?: number };
+        message?: string;
+        code?: string;
+      };
+
+      if (!axiosErr?.response) {
+        // Tarmoq xatosi, server o'chiq yoki HTTPS brauzer Mixed Content blokirovkasi
+        setError(
+          "Backend serverga ulanib bo'lmadi! Server ishga tushirilganligini yoki internet aloqasini tekshiring."
+        );
+      } else {
+        const message =
+          axiosErr.response?.data?.message || 'Login yoki parol noto\'g\'ri';
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }

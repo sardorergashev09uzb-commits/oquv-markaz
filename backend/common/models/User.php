@@ -104,12 +104,25 @@ class User extends ActiveRecord implements IdentityInterface
 
     public static function findByPhone(string $phone): ?self
     {
-        return static::findOne(['phone' => $phone, 'status' => self::STATUS_ACTIVE]);
+        $phone = trim($phone);
+        $user = static::findOne(['phone' => $phone, 'status' => self::STATUS_ACTIVE]);
+        if (!$user) {
+            $clean = preg_replace('/[^\d+]/', '', $phone);
+            if ($clean && $clean !== $phone) {
+                $user = static::findOne(['phone' => $clean, 'status' => self::STATUS_ACTIVE]);
+            }
+        }
+        return $user;
     }
 
     public static function findByEmail(string $email): ?self
     {
-        return static::findOne(['email' => $email, 'status' => self::STATUS_ACTIVE]);
+        $email = trim($email);
+        $lower = mb_strtolower($email);
+        return static::find()
+            ->where(['status' => self::STATUS_ACTIVE])
+            ->andWhere(['or', ['email' => $email], ['email' => $lower]])
+            ->one();
     }
 
     public function validatePassword(string $password): bool

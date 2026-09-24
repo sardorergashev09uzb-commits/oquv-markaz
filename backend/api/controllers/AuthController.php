@@ -57,7 +57,7 @@ class AuthController extends Controller
 
         // Phone yoki email orqali topish
         $user = str_contains($login, '@')
-            ? User::findByEmail($login)
+            ? User::findByEmail(mb_strtolower($login))
             : User::findByPhone($login);
 
         if (!$user || !$user->validatePassword($password)) {
