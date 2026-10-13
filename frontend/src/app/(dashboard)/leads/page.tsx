@@ -385,13 +385,13 @@ export default function LeadsPage() {
 
       {/* Modal: Yangi Lid Qo'shish */}
       {isNewLeadModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
               <h3 className="font-bold text-gray-900">Yangi lid (ariza) qo&apos;shish</h3>
               <button
                 onClick={() => setIsNewLeadModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition"
+                className="text-gray-400 hover:text-gray-600 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -402,7 +402,7 @@ export default function LeadsPage() {
                 e.preventDefault();
                 createLeadMutation.mutate();
               }}
-              className="p-6 space-y-4"
+              className="p-6 space-y-4 overflow-y-auto flex-1"
             >
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -482,18 +482,18 @@ export default function LeadsPage() {
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white py-3 border-t border-gray-100 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsNewLeadModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition"
+                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
                   disabled={createLeadMutation.isPending}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   {createLeadMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>Saqlash</span>
@@ -506,13 +506,13 @@ export default function LeadsPage() {
 
       {/* Modal: Lidni O'quvchiga Aylantirish (Conversion) */}
       {isConvertModalOpen && selectedLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
               <h3 className="font-bold text-gray-900">O&apos;quvchiga aylantirish</h3>
               <button
                 onClick={() => setIsConvertModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition"
+                className="text-gray-400 hover:text-gray-600 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -523,7 +523,7 @@ export default function LeadsPage() {
                 e.preventDefault();
                 convertMutation.mutate();
               }}
-              className="p-6 space-y-4"
+              className="p-6 space-y-4 overflow-y-auto flex-1"
             >
               <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-xs space-y-1">
                 <p className="font-bold text-emerald-900">{selectedLead.name}</p>
@@ -551,18 +551,18 @@ export default function LeadsPage() {
                 </select>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white py-3 border-t border-gray-100 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsConvertModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition"
+                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
                   disabled={convertMutation.isPending}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   {convertMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>O&apos;quvchi qilish</span>
@@ -575,13 +575,13 @@ export default function LeadsPage() {
 
       {/* Modal: Faoliyat / Qo'ng'iroq Qayd Etish */}
       {isActivityModalOpen && selectedLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
               <h3 className="font-bold text-gray-900">Qo&apos;ng&apos;iroq / Faoliyat qayd etish</h3>
               <button
                 onClick={() => setIsActivityModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition"
+                className="text-gray-400 hover:text-gray-600 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -592,7 +592,7 @@ export default function LeadsPage() {
                 e.preventDefault();
                 addActivityMutation.mutate();
               }}
-              className="p-6 space-y-4"
+              className="p-6 space-y-4 overflow-y-auto flex-1"
             >
               <div>
                 <p className="text-xs text-gray-500">Mijoz:</p>
@@ -629,18 +629,18 @@ export default function LeadsPage() {
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white py-3 border-t border-gray-100 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsActivityModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition"
+                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
                   disabled={addActivityMutation.isPending || !activityData.note}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   {addActivityMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>Qayd etish</span>

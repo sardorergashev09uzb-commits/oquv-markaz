@@ -428,16 +428,16 @@ export default function HomeworkPage() {
 
       {/* Modal 1: Student Submit Homework */}
       {selectedHwForSubmit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-750">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg my-auto max-h-[92vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-750 flex-shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">Uy vazifasini topshirish</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{selectedHwForSubmit.title}</p>
               </div>
               <button
                 onClick={() => setSelectedHwForSubmit(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -448,7 +448,7 @@ export default function HomeworkPage() {
                 e.preventDefault();
                 submitMutation.mutate();
               }}
-              className="p-6 space-y-4"
+              className="p-6 space-y-4 overflow-y-auto flex-1"
             >
               {submitError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center gap-2">
@@ -510,18 +510,18 @@ export default function HomeworkPage() {
                 </p>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setSelectedHwForSubmit(null)}
-                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-750 transition"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-750 transition cursor-pointer"
                 >
                   Yopish
                 </button>
                 <button
                   type="submit"
                   disabled={submitMutation.isPending || (!submitComment.trim() && !submitFileUrl.trim())}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   {submitMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   <Send className="w-4 h-4" />
@@ -535,10 +535,10 @@ export default function HomeworkPage() {
 
       {/* Modal 2: Teacher Review Submissions & Grading Drawer */}
       {selectedHwForReview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl my-auto max-h-[92vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50/80 dark:bg-gray-750">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50/80 dark:bg-gray-750 flex-shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base">
                   Topshiriqlarni tekshirish: {selectedHwForReview.title}
@@ -729,23 +729,23 @@ export default function HomeworkPage() {
 
       {/* Modal 3: Teacher Creates New Homework */}
       {!isStudent && isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden border dark:border-gray-700">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden border dark:border-gray-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
               <h3 className="font-bold text-gray-900 dark:text-gray-100">Yangi uy vazifasi berish</h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleCreateSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
               {formError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{formError}</span>
+                <div className="p-3 bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-900 rounded-xl text-red-700 dark:text-rose-300 text-xs flex items-start gap-2 break-words">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span className="flex-1 break-words leading-relaxed">{formError}</span>
                 </div>
               )}
 
@@ -843,18 +843,18 @@ export default function HomeworkPage() {
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-750 transition"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-750 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>Saqlash</span>

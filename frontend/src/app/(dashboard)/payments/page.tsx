@@ -536,13 +536,13 @@ export default function PaymentsPage() {
 
       {/* Modal: To'lov qabul qilish (Faqat Admin/Manager uchun) */}
       {!isUserStudent && isPayModalOpen && selectedPlan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100 dark:border-gray-800 animate-fade-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800 animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
               <h3 className="font-bold text-gray-900 dark:text-white">To&apos;lov qabul qilish</h3>
               <button
                 onClick={() => setIsPayModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -553,12 +553,12 @@ export default function PaymentsPage() {
                 e.preventDefault();
                 payMutation.mutate();
               }}
-              className="p-6 space-y-4"
+              className="p-6 space-y-4 overflow-y-auto flex-1"
             >
               {payError && (
-                <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{payError}</span>
+                <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-xs flex items-start gap-2 break-words">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span className="flex-1 break-words leading-relaxed">{payError}</span>
                 </div>
               )}
 
@@ -612,9 +612,9 @@ export default function PaymentsPage() {
                       type="button"
                       key={m}
                       onClick={() => setPayMethod(m)}
-                      className={`py-2 rounded-xl border font-bold uppercase transition ${
+                      className={`py-2 rounded-xl border font-bold uppercase transition cursor-pointer ${
                         payMethod === m
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                           ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                           : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                     >
@@ -637,18 +637,18 @@ export default function PaymentsPage() {
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-900 py-3 border-t border-gray-100 dark:border-gray-800 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsPayModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
                   disabled={payMutation.isPending || payAmount <= 0}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   {payMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>Qabul qilish</span>

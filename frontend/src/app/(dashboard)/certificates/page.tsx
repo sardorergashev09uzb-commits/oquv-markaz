@@ -300,16 +300,16 @@ export default function CertificatesPage() {
 
       {/* Modal 1: Generate Certificate */}
       {isGenerateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl my-auto max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-5 bg-gray-50 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2 text-gray-900 font-bold">
                 <Award className="w-5 h-5 text-blue-600" />
                 Sertifikat Generatsiya Qilish
               </div>
               <button
                 onClick={() => setIsGenerateModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -328,12 +328,12 @@ export default function CertificatesPage() {
                   final_score: formData.final_score ? Number(formData.final_score) : undefined,
                 });
               }}
-              className="p-5 space-y-4"
+              className="p-5 space-y-4 overflow-y-auto flex-1"
             >
               {formError && (
-                <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  {formError}
+                <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg flex items-start gap-2 break-words">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="flex-1 break-words leading-relaxed">{formError}</span>
                 </div>
               )}
 
@@ -391,18 +391,18 @@ export default function CertificatesPage() {
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2">
+              <div className="pt-3 flex items-center justify-end gap-2 sticky bottom-0 bg-white py-3 border-t border-gray-100 -mx-5 -mb-5 px-5 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsGenerateModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
                   disabled={generateMutation.isPending}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 shadow-sm disabled:opacity-50"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
                 >
                   {generateMutation.isPending ? (
                     <>
@@ -519,22 +519,22 @@ export default function CertificatesPage() {
 
       {/* Modal 3: Public QR Verifier Dialog */}
       {verifyModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl my-auto max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-5 bg-gray-50 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2 font-bold text-gray-900">
                 <ShieldCheck className="w-5 h-5 text-emerald-600" />
                 Sertifikatni Haqiqiyligini Tekshirish
               </div>
               <button
                 onClick={() => setVerifyModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                   Sertifikat Raqami (CERT-YYYY-XXXXXX)

@@ -1345,9 +1345,9 @@ export default function ReportsPage() {
 
       {/* Salary Payment & Calculation Modal */}
       {isSalaryModalOpen && selectedTeacher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-750">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg my-auto max-h-[92vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-750 flex-shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base">
                   O&apos;qituvchiga oylik maosh to&apos;lash
@@ -1358,17 +1358,17 @@ export default function ReportsPage() {
               </div>
               <button
                 onClick={() => setIsSalaryModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               {salaryErrorMsg && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                  <span>{salaryErrorMsg}</span>
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-start gap-2 break-words">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span className="flex-1 break-words leading-relaxed">{salaryErrorMsg}</span>
                 </div>
               )}
               {salarySuccessMsg && (
@@ -1582,11 +1582,11 @@ export default function ReportsPage() {
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsSalaryModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-750 transition"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-750 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
@@ -1594,7 +1594,7 @@ export default function ReportsPage() {
                   type="button"
                   disabled={paySalaryMutation.isPending || paidAmount <= 0}
                   onClick={() => paySalaryMutation.mutate()}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-xs"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-xs cursor-pointer"
                 >
                   {paySalaryMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   <Check className="w-4 h-4" />

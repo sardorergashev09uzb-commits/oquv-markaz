@@ -123,9 +123,16 @@ class Group extends ActiveRecord
             'end_date',
             'max_students',
             'students_count' => function () {
-                return (int) $this->getStudents()
-                    ->where(['{{%users}}.status' => User::STATUS_ACTIVE])
-                    ->andWhere(['{{%group_students}}.status' => GroupStudent::STATUS_ACTIVE])
+                if ($this->isNewRecord || empty($this->id)) {
+                    return 0;
+                }
+                return (int) GroupStudent::find()
+                    ->innerJoinWith('student')
+                    ->where([
+                        '{{%group_students}}.group_id' => $this->id,
+                        '{{%group_students}}.status' => GroupStudent::STATUS_ACTIVE,
+                        '{{%users}}.status' => User::STATUS_ACTIVE,
+                    ])
                     ->count();
             },
             'lessons_count' => function () {
