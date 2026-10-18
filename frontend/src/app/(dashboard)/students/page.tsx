@@ -36,8 +36,8 @@ export default function StudentsPage() {
   const [formData, setFormData] = useState({
     name: '',
     phone: '+998',
-    email: '',
-    password: '',
+    parent_phone: '',
+    group_id: '',
   });
   const [formError, setFormError] = useState('');
 
@@ -47,11 +47,22 @@ export default function StudentsPage() {
   const [editFormData, setEditFormData] = useState({
     name: '',
     phone: '',
-    email: '',
     status: 10,
-    password: '',
   });
   const [editFormError, setEditFormError] = useState('');
+
+  // Guruhlar ro'yxatini yuklash (o'quvchini biriktirish uchun)
+  const { data: groupsData } = useQuery({
+    queryKey: ['groups-dropdown'],
+    queryFn: async () => {
+      try {
+        const resp = await api.get('/api/groups', { params: { per_page: 100, status: 1 } });
+        return resp.data?.items || [];
+      } catch {
+        return [];
+      }
+    },
+  });
 
   // Arxivlash state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -81,14 +92,21 @@ export default function StudentsPage() {
   // Create student mutation
   const createMutation = useMutation({
     mutationFn: async (payload: typeof formData) => {
-      const resp = await api.post('/api/students', payload);
+      const resp = await api.post('/api/students', {
+        name: payload.name,
+        phone: payload.phone,
+        parent_phone: payload.parent_phone || undefined,
+        group_id: payload.group_id ? Number(payload.group_id) : undefined,
+        password: 'Student123!',
+      });
       return resp.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
       setIsModalOpen(false);
-      setFormData({ name: '', phone: '+998', email: '', password: '' });
+      setFormData({ name: '', phone: '+998', parent_phone: '', group_id: '' });
       setFormError('');
     },
     onError: (err: any) => {
@@ -209,9 +227,7 @@ export default function StudentsPage() {
     setEditFormData({
       name: student.name,
       phone: student.phone,
-      email: student.email || '',
       status: student.status,
-      password: '',
     });
     setEditFormError('');
     setIsEditModalOpen(true);
@@ -268,8 +284,8 @@ export default function StudentsPage() {
               setFormData({
                 name: '',
                 phone: '+998',
-                email: '',
-                password: '',
+                parent_phone: '',
+                group_id: '',
               });
               setFormError('');
               setIsModalOpen(true);
@@ -508,7 +524,7 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Telefon raqami (Login) *
+                  Telefon raqami *
                 </label>
                 <input
                   type="text"
@@ -522,15 +538,36 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Boshlang&apos;ich parol (ixtiyoriy)
+                  Ota-onasi / Aloqa uchun 2-telefon (ixtiyoriy)
                 </label>
                 <input
                   type="text"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Standart: Student123!"
+                  value={formData.parent_phone}
+                  onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })}
+                  placeholder="+998 91 987 65 43"
                   className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Xabarlar va to&apos;lov eslatmalari uchun ota-onasining raqami
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Guruhga biriktirish (ixtiyoriy)
+                </label>
+                <select
+                  value={formData.group_id}
+                  onChange={(e) => setFormData({ ...formData, group_id: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                >
+                  <option value="">Guruh tanlanmagan (Keyinroq biriktirish)</option>
+                  {(groupsData || []).map((grp: any) => (
+                    <option key={grp.id} value={grp.id}>
+                      {grp.name} ({grp.course_name || 'Kurs'} • {grp.teacher_name || 'O\'qituvchi'})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
@@ -604,8 +641,6 @@ export default function StudentsPage() {
                 />
               </div>
 
-
-
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Holati
@@ -618,20 +653,6 @@ export default function StudentsPage() {
                   <option value={10}>Faol o&apos;quvchi</option>
                   <option value={0}>Arxiv / Nofaol</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-                  <KeyRound className="w-3.5 h-3.5 text-gray-400" />
-                  <span>Yangi parol o&apos;rnatish (ixtiyoriy)</span>
-                </label>
-                <input
-                  type="text"
-                  value={editFormData.password}
-                  onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })}
-                  placeholder="O'zgartirish kerak bo'lsa yangi parol yozing"
-                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                />
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">

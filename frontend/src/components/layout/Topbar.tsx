@@ -204,17 +204,7 @@ export function Topbar({ title }: { title?: string }) {
       <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 relative z-30 transition-colors">
         {/* Left: Dynamic Page Title */}
         <div className="flex items-center gap-3">
-          {/* Creative Bento App Launcher button (mobile & desktop) */}
-          <button
-            type="button"
-            onClick={() => setShowAppHub(true)}
-            className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-950/60 hover:text-blue-600 dark:hover:text-blue-400 flex items-center justify-center transition text-gray-700 dark:text-gray-300"
-            title="Barcha bo'limlar"
-          >
-            <LayoutGrid className="w-5 h-5" />
-          </button>
-
-          <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white tracking-tight truncate max-w-[200px] sm:max-w-none">
+          <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white tracking-tight truncate max-w-[240px] sm:max-w-none">
             {currentTitle}
           </h1>
         </div>
@@ -348,59 +338,6 @@ export function Topbar({ title }: { title?: string }) {
         <div className="fixed top-16 right-4 z-50 p-3 px-4 bg-emerald-600 text-white text-xs font-semibold rounded-2xl shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
           <CheckCircle className="w-4 h-4 shrink-0 text-white" />
           <span>Barcha ma&apos;lumotlar bazadan yangilandi!</span>
-        </div>
-      )}
-
-      {/* ─── Creative App Hub Modal (Bento Launcher) ────────────────── */}
-      {showAppHub && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-gray-200 dark:border-gray-800 space-y-5 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
-                  <LayoutGrid className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                    Ilovalar Markazi
-                  </h3>
-                  <p className="text-[11px] text-gray-400">Markaz xizmatlari va bo&apos;limlari</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAppHub(false)}
-                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* App Grid */}
-            <div className="grid grid-cols-3 gap-3">
-              {appModules.map((mod) => {
-                const Icon = mod.icon;
-                return (
-                  <button
-                    key={mod.href}
-                    type="button"
-                    onClick={() => {
-                      setShowAppHub(false);
-                      router.push(mod.href);
-                    }}
-                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 hover:bg-blue-50 dark:hover:bg-blue-950/40 border border-gray-100 dark:border-gray-800 transition active:scale-95 group cursor-pointer"
-                  >
-                    <div className={`w-11 h-11 rounded-2xl ${mod.color} text-white flex items-center justify-center shadow-md shadow-blue-500/10 mb-1.5 transition-transform group-hover:scale-105`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 text-center leading-tight">
-                      {mod.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
       )}
     </>

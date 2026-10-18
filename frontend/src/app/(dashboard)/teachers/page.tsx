@@ -33,7 +33,6 @@ export default function TeachersPage() {
   const [formData, setFormData] = useState({
     name: '',
     phone: '+998',
-    email: '',
     password: '',
   });
   const [formError, setFormError] = useState('');
@@ -44,7 +43,6 @@ export default function TeachersPage() {
   const [editFormData, setEditFormData] = useState({
     name: '',
     phone: '',
-    email: '',
     status: 10,
     password: '',
   });
@@ -83,7 +81,7 @@ export default function TeachersPage() {
       queryClient.invalidateQueries({ queryKey: ['teachers'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
       setIsModalOpen(false);
-      setFormData({ name: '', phone: '+998', email: '', password: '' });
+      setFormData({ name: '', phone: '+998', password: '' });
       setFormError('');
     },
     onError: (err: { response?: { data?: { errors?: Record<string, string[]> } } }) => {
@@ -197,7 +195,6 @@ export default function TeachersPage() {
     setEditFormData({
       name: teacher.name,
       phone: teacher.phone,
-      email: teacher.email || '',
       status: teacher.status,
       password: '',
     });
