@@ -533,6 +533,46 @@ export default function ExamsPage() {
                 </div>
               </div>
 
+              {/* Quick Bulk Scoring Bar */}
+              {scores.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gray-50/70 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">Tezkor baholash:</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setScores((prev) => prev.map((s) => ({ ...s, score: currentExam.max_score })))}
+                      className="px-2.5 py-1 bg-white dark:bg-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg font-bold transition cursor-pointer"
+                    >
+                      Barchaga 100% ({currentExam.max_score})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScores((prev) => prev.map((s) => ({ ...s, score: Math.round(currentExam.max_score * 0.85) })))}
+                      className="px-2.5 py-1 bg-white dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg font-bold transition cursor-pointer"
+                    >
+                      85% ({Math.round(currentExam.max_score * 0.85)})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScores((prev) => prev.map((s) => ({ ...s, score: Math.round(currentExam.max_score * 0.70) })))}
+                      className="px-2.5 py-1 bg-white dark:bg-gray-700 hover:bg-amber-50 dark:hover:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-lg font-bold transition cursor-pointer"
+                    >
+                      70% ({Math.round(currentExam.max_score * 0.70)})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScores((prev) => prev.map((s) => ({ ...s, score: '' })))}
+                      className="px-2.5 py-1 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-lg transition cursor-pointer"
+                    >
+                      Tozalash
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Scores Table */}
               {isDetailsLoading ? (
                 <div className="py-16 flex items-center justify-center">
@@ -548,43 +588,91 @@ export default function ExamsPage() {
                     <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider border-b border-gray-100 dark:border-gray-800">
                       <tr>
                         <th className="px-4 py-3">O&apos;quvchi</th>
-                        <th className="px-4 py-3 w-36">Ball (/{currentExam.max_score})</th>
+                        <th className="px-4 py-3 min-w-[220px]">Ball (/{currentExam.max_score})</th>
+                        <th className="px-4 py-3 w-32">Bahosi</th>
                         <th className="px-4 py-3">Izoh / Fikr</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {scores.map((item) => (
-                        <tr key={item.student_id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition">
-                          <td className="px-4 py-3.5">
-                            <p className="font-semibold text-gray-900 dark:text-white">{item.student_name}</p>
-                          </td>
+                      {scores.map((item) => {
+                        const numScore = item.score !== '' && item.score !== null ? Number(item.score) : null;
+                        const pct = numScore !== null ? Math.round((numScore / currentExam.max_score) * 100) : null;
 
-                          {/* Score Input */}
-                          <td className="px-4 py-3.5">
-                            <input
-                              type="number"
-                              min="0"
-                              max={currentExam.max_score}
-                              step="0.5"
-                              value={item.score}
-                              onChange={(e) => handleScoreChange(item.student_id, e.target.value)}
-                              placeholder="0"
-                              className="w-28 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-bold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 text-center"
-                            />
-                          </td>
+                        return (
+                          <tr key={item.student_id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition">
+                            <td className="px-4 py-3.5">
+                              <p className="font-semibold text-gray-900 dark:text-white">{item.student_name}</p>
+                            </td>
 
-                          {/* Feedback Input */}
-                          <td className="px-4 py-3.5">
-                            <input
-                              type="text"
-                              value={item.feedback}
-                              onChange={(e) => handleFeedbackChange(item.student_id, e.target.value)}
-                              placeholder="Fikr yoki tavsiya yozing..."
-                              className="w-full px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 transition"
-                            />
-                          </td>
-                        </tr>
-                      ))}
+                            {/* Score Input + Presets */}
+                            <td className="px-4 py-3.5">
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={currentExam.max_score}
+                                  step="0.5"
+                                  value={item.score}
+                                  onChange={(e) => handleScoreChange(item.student_id, e.target.value)}
+                                  placeholder="0"
+                                  className="w-20 px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-bold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 text-center"
+                                />
+                                <div className="flex items-center gap-1">
+                                  {[1, 0.85, 0.7, 0.5].map((multiplier) => {
+                                    const val = Math.round(currentExam.max_score * multiplier);
+                                    return (
+                                      <button
+                                        key={multiplier}
+                                        type="button"
+                                        onClick={() => handleScoreChange(item.student_id, String(val))}
+                                        className="text-[11px] px-1.5 py-1 bg-gray-100 dark:bg-gray-750 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-gray-700 dark:text-gray-300 rounded border border-gray-200 dark:border-gray-700 transition cursor-pointer font-medium"
+                                      >
+                                        {val}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Grade Badge */}
+                            <td className="px-4 py-3.5">
+                              {pct === null ? (
+                                <span className="text-[11px] text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-md font-medium">
+                                  Baholanmagan
+                                </span>
+                              ) : pct >= 86 ? (
+                                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/50 dark:text-emerald-300 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-800 inline-block">
+                                  A&apos;lo ({pct}%)
+                                </span>
+                              ) : pct >= 71 ? (
+                                <span className="text-[11px] font-bold text-blue-700 bg-blue-50 dark:bg-blue-950/50 dark:text-blue-300 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800 inline-block">
+                                  Yaxshi ({pct}%)
+                                </span>
+                              ) : pct >= 50 ? (
+                                <span className="text-[11px] font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/50 dark:text-amber-300 px-2.5 py-1 rounded-md border border-amber-200 dark:border-amber-800 inline-block">
+                                  Qoniqarli ({pct}%)
+                                </span>
+                              ) : (
+                                <span className="text-[11px] font-bold text-rose-700 bg-rose-50 dark:bg-rose-950/50 dark:text-rose-300 px-2.5 py-1 rounded-md border border-rose-200 dark:border-rose-800 inline-block">
+                                  Qoniqarsiz ({pct}%)
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Feedback Input */}
+                            <td className="px-4 py-3.5">
+                              <input
+                                type="text"
+                                value={item.feedback}
+                                onChange={(e) => handleFeedbackChange(item.student_id, e.target.value)}
+                                placeholder="Fikr yoki tavsiya yozing..."
+                                className="w-full px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-900 transition"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

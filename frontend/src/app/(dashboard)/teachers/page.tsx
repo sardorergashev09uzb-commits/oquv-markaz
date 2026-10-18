@@ -137,8 +137,16 @@ export default function TeachersPage() {
   // Restore teacher mutation (Faollashtirish)
   const restoreMutation = useMutation({
     mutationFn: async (id: number) => {
-      const resp = await api.post(`/api/teachers/${id}/restore`);
-      return resp.data;
+      try {
+        const resp = await api.post(`/api/teachers/${id}/restore`);
+        return resp.data;
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          const fallback = await api.put(`/api/teachers/${id}`, { status: 10 });
+          return fallback.data;
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teachers'] });
@@ -152,8 +160,16 @@ export default function TeachersPage() {
   // Force Delete teacher mutation (Butunlay o'chirish)
   const forceDeleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const resp = await api.delete(`/api/teachers/${id}/force`);
-      return resp.data;
+      try {
+        const resp = await api.delete(`/api/teachers/${id}/force`);
+        return resp.data;
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          const fallback = await api.delete(`/api/teachers/${id}`, { params: { force: 1 } });
+          return fallback.data;
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teachers'] });

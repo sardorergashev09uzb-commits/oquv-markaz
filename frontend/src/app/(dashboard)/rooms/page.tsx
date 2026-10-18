@@ -121,8 +121,16 @@ export default function RoomsPage() {
   // Restore Room Mutation (Unarchive)
   const restoreMutation = useMutation({
     mutationFn: async (id: number) => {
-      const resp = await api.post(`/api/rooms/${id}/restore`);
-      return resp.data;
+      try {
+        const resp = await api.post(`/api/rooms/${id}/restore`);
+        return resp.data;
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          const fallback = await api.put(`/api/rooms/${id}`, { status: 1 });
+          return fallback.data;
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
@@ -136,8 +144,16 @@ export default function RoomsPage() {
   // Force Delete Room Mutation (Permanent)
   const forceDeleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const resp = await api.delete(`/api/rooms/${id}/force`);
-      return resp.data;
+      try {
+        const resp = await api.delete(`/api/rooms/${id}/force`);
+        return resp.data;
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          const fallback = await api.delete(`/api/rooms/${id}`, { params: { force: 1 } });
+          return fallback.data;
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });

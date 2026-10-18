@@ -7,7 +7,7 @@ import api from '@/lib/api';
 import {
   BookOpen, Plus, Search, Users, Calendar, DoorOpen,
   GraduationCap, Loader2, X, AlertCircle, Clock,
-  Pencil, Trash2, ArrowRight, AlertTriangle, RotateCcw
+  Pencil, Trash2, ArrowRight, AlertTriangle, RotateCcw, Sparkles
 } from 'lucide-react';
 import { useCurrentUser } from '@/lib/useCurrentUser';
 import { CustomSelect } from '@/components/ui/CustomSelect';
@@ -229,8 +229,16 @@ export default function GroupsPage() {
   // ─── Restore Group Mutation (Unarchive) ────────────────────────────────────
   const restoreMutation = useMutation({
     mutationFn: async (id: number) => {
-      const resp = await api.post(`/api/groups/${id}/restore`);
-      return resp.data;
+      try {
+        const resp = await api.post(`/api/groups/${id}/restore`);
+        return resp.data;
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          const fallback = await api.put(`/api/groups/${id}`, { status: 'active' });
+          return fallback.data;
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groups'] });
@@ -244,8 +252,16 @@ export default function GroupsPage() {
   // ─── Force Delete Group Mutation (Permanent) ───────────────────────────────
   const forceDeleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const resp = await api.delete(`/api/groups/${id}/force`);
-      return resp.data;
+      try {
+        const resp = await api.delete(`/api/groups/${id}/force`);
+        return resp.data;
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          const fallback = await api.delete(`/api/groups/${id}`, { params: { force: 1 } });
+          return fallback.data;
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groups'] });
@@ -621,186 +637,264 @@ export default function GroupsPage() {
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
-                  Guruh nomi *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Masalan: Front-end React 12"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                />
-              </div>
+              {/* 1. Asosiy: Kurs va O'qituvchi */}
+              <div className="bg-blue-50/50 dark:bg-blue-950/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-900/50 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  1. Kurs va O&apos;qituvchi
+                </h4>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
-                    Kursni tanlang *
-                  </label>
-                  <CustomSelect
-                    value={formData.course_id}
-                    onChange={(val) => {
-                      const selectedCourse = courses.find((c: any) => String(c.id) === String(val));
-                      const autoName = (!formData.name.trim() || courses.some((c: any) => formData.name.startsWith(c.name))) && selectedCourse
-                        ? `${selectedCourse.name} (${formData.time.split(' - ')[0] || '14:00'})`
-                        : formData.name;
-                      setFormData({ ...formData, course_id: val, name: autoName });
-                    }}
-                    placeholder="Kursni tanlang..."
-                    searchable
-                    options={courses.map((c: any) => ({
-                      value: String(c.id),
-                      label: `${c.name}${c.level ? ` (${c.level})` : ''}${c.price ? ` — ${Number(c.price).toLocaleString('uz-UZ')} so'm` : ''}`,
-                    }))}
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                      Kursni tanlang *
+                    </label>
+                    <CustomSelect
+                      value={formData.course_id}
+                      onChange={(val) => {
+                        const selectedCourse = courses.find((c: any) => String(c.id) === String(val));
+                        const autoName = selectedCourse
+                          ? `${selectedCourse.name} (${formData.time.split(' - ')[0] || '14:00'})`
+                          : formData.name;
+                        setFormData({
+                          ...formData,
+                          course_id: val,
+                          name: (!formData.name.trim() || courses.some((c: any) => formData.name.startsWith(c.name))) ? autoName : formData.name,
+                          duration_months: selectedCourse?.duration_months || formData.duration_months,
+                        });
+                      }}
+                      placeholder="Kursni tanlang..."
+                      searchable
+                      options={courses.map((c: any) => ({
+                        value: String(c.id),
+                        label: `${c.name}${c.level ? ` (${c.level})` : ''}${c.price ? ` — ${Number(c.price).toLocaleString('uz-UZ')} so'm` : ''}`,
+                      }))}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                      O&apos;qituvchi *
+                    </label>
+                    <CustomSelect
+                      value={formData.teacher_id}
+                      onChange={(val) => setFormData({ ...formData, teacher_id: val })}
+                      placeholder="O'qituvchini tanlang..."
+                      searchable
+                      options={teachers.map((t: any) => ({
+                        value: String(t.id),
+                        label: `${t.name}${t.phone ? ` (${t.phone})` : ''}`,
+                      }))}
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
-                    O&apos;qituvchi *
-                  </label>
-                  <CustomSelect
-                    value={formData.teacher_id}
-                    onChange={(val) => setFormData({ ...formData, teacher_id: val })}
-                    placeholder="O'qituvchini tanlang..."
-                    searchable
-                    options={teachers.map((t: any) => ({
-                      value: String(t.id),
-                      label: `${t.name}${t.phone ? ` (${t.phone})` : ''}`,
-                    }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
-                    Boshlanish sanasi *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200">
+                      Guruh nomi
+                    </label>
+                    <span className="text-[11px] text-gray-400">
+                      (Avtomatik shakllanadi yoki o&apos;zingiz yozing)
+                    </span>
+                  </div>
                   <input
-                    type="date"
-                    required
-                    value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
-                    Kurs davomiyligi (Darslar rejasi)
-                  </label>
-                  <CustomSelect
-                    value={String(formData.duration_months)}
-                    onChange={(val) => setFormData({ ...formData, duration_months: Number(val) })}
-                    placeholder="Davomiylik..."
-                    options={[
-                      { value: '1', label: '1 oy (12 ta dars)' },
-                      { value: '2', label: '2 oy (24 ta dars)' },
-                      { value: '3', label: '3 oy (36 ta dars — Standart)' },
-                      { value: '6', label: '6 oy (72 ta dars)' },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
-                    Dars xonasi
-                  </label>
-                  <CustomSelect
-                    value={formData.room_id}
-                    onChange={(val) => setFormData({ ...formData, room_id: val })}
-                    placeholder="Xonani tanlang (ixtiyoriy)..."
-                    searchable
-                    options={[
-                      { value: '', label: "Xonani tanlang (ixtiyoriy)..." },
-                      ...rooms.map((r: any) => ({
-                        value: String(r.id),
-                        label: `${r.name}${r.capacity ? ` (${r.capacity} o'rin)` : ''}`,
-                      })),
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
-                    Maksimal o&apos;quvchilar soni
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={formData.max_students}
-                    onChange={(e) => setFormData({ ...formData, max_students: Number(e.target.value) })}
+                    type="text"
+                    placeholder="Masalan: Front-end React 12 yoki avtomatik to'ladi"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
-                  Hafta kunlari
-                </label>
-                <input
-                  type="text"
-                  value={formData.days}
-                  onChange={(e) => setFormData({ ...formData, days: e.target.value })}
-                  placeholder="Dush-Chor-Jum"
-                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                />
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  {[
-                    { label: 'Toq kunlar (Dush-Chor-Jum)', val: 'Dush-Chor-Jum' },
-                    { label: 'Juft kunlar (Sesh-Pay-Shan)', val: 'Sesh-Pay-Shan' },
-                    { label: 'Dam olish (Shan-Yak)', val: 'Shan-Yak' },
-                  ].map((p) => (
-                    <button
-                      key={p.val}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, days: p.val })}
-                      className={`text-[11px] px-2 py-0.5 rounded-lg border transition cursor-pointer ${
-                        formData.days === p.val
-                          ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-400 text-blue-700 dark:text-blue-300 font-medium'
-                          : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
+              {/* 2. Dars Jadvali va Vaqti */}
+              <div className="bg-gray-50/70 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-200/70 dark:border-gray-700 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                  2. Dars kunlari va Vaqti
+                </h4>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                    Hafta kunlari
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {[
+                      { label: 'Toq kunlar (Dush-Chor-Jum)', val: 'Dush-Chor-Jum' },
+                      { label: 'Juft kunlar (Sesh-Pay-Shan)', val: 'Sesh-Pay-Shan' },
+                      { label: 'Dam olish kunlari (Shan-Yak)', val: 'Shan-Yak' },
+                      { label: 'Har kuni (Dush-Shan)', val: 'Dush-Sesh-Chor-Pay-Jum-Shan' },
+                    ].map((p) => (
+                      <button
+                        key={p.val}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, days: p.val })}
+                        className={`text-xs px-2.5 py-1 rounded-xl border transition cursor-pointer font-medium ${
+                          formData.days === p.val
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                            : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.days}
+                    onChange={(e) => setFormData({ ...formData, days: e.target.value })}
+                    placeholder="Dush-Chor-Jum"
+                    className="w-full px-3.5 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                    Dars vaqti
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {['09:00 - 11:00', '11:00 - 13:00', '14:00 - 16:00', '16:00 - 18:00', '18:30 - 20:30'].map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => {
+                          const selectedCourse = courses.find((c: any) => String(c.id) === String(formData.course_id));
+                          const autoName = selectedCourse
+                            ? `${selectedCourse.name} (${t.split(' - ')[0]})`
+                            : formData.name;
+                          setFormData({
+                            ...formData,
+                            time: t,
+                            name: (!formData.name.trim() || courses.some((c: any) => formData.name.startsWith(c.name))) ? autoName : formData.name,
+                          });
+                        }}
+                        className={`text-xs px-2.5 py-1 rounded-xl border transition cursor-pointer font-medium ${
+                          formData.time === t
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                            : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.time}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    placeholder="14:00 - 16:00"
+                    className="w-full px-3.5 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
-                  Dars vaqti
-                </label>
-                <input
-                  type="text"
-                  value={formData.time}
-                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                  placeholder="14:00 - 16:00"
-                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                />
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  {['09:00 - 11:00', '14:00 - 16:00', '16:00 - 18:00', '18:30 - 20:30'].map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, time: t })}
-                      className={`text-[11px] px-2 py-0.5 rounded-lg border transition cursor-pointer ${
-                        formData.time === t
-                          ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-400 text-blue-700 dark:text-blue-300 font-medium'
-                          : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
+              {/* 3. Muddat, Xona va Sig'im */}
+              <div className="bg-gray-50/70 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-200/70 dark:border-gray-700 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-blue-600" />
+                  3. Muddat, Xona va Sig&apos;im
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                      Boshlanish sanasi *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                      Kurs davomiyligi (Oylar)
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="1"
+                        max="36"
+                        value={formData.duration_months}
+                        onChange={(e) => setFormData({ ...formData, duration_months: Math.max(1, Number(e.target.value)) })}
+                        className="w-20 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-bold text-center text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      />
+                      <div className="flex flex-wrap gap-1 flex-1">
+                        {[1, 2, 3, 6, 9, 12].map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, duration_months: m })}
+                            className={`text-xs px-2 py-1.5 rounded-lg border transition cursor-pointer font-semibold ${
+                              formData.duration_months === m
+                                ? 'bg-indigo-600 border-indigo-600 text-white'
+                                : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100'
+                            }`}
+                          >
+                            {m} oy
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dinamik Hisob-kitob ko'rsatkichi */}
+                <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-xl text-xs text-indigo-900 dark:text-indigo-200 flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    Rejalashtirilgan: ~{Number(formData.duration_months || 3) * (formData.days.split('-').length || 3) * 4} ta dars
+                  </span>
+                  <span className="text-[11px] text-indigo-700 dark:text-indigo-300">
+                    Taxminiy yakun: {(() => {
+                      try {
+                        const d = new Date(formData.start_date || new Date());
+                        d.setMonth(d.getMonth() + Number(formData.duration_months || 3));
+                        return d.toLocaleDateString('uz-UZ', { day: 'numeric', month: 'long', year: 'numeric' });
+                      } catch {
+                        return '';
+                      }
+                    })()}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                      Dars xonasi
+                    </label>
+                    <CustomSelect
+                      value={formData.room_id}
+                      onChange={(val) => setFormData({ ...formData, room_id: val })}
+                      placeholder="Xonani tanlang (ixtiyoriy)..."
+                      searchable
+                      options={[
+                        { value: '', label: "Xonani tanlang (ixtiyoriy)..." },
+                        ...rooms.map((r: any) => ({
+                          value: String(r.id),
+                          label: `${r.name}${r.capacity ? ` (${r.capacity} o'rin)` : ''}`,
+                        })),
+                      ]}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                      Maksimal o&apos;quvchilar soni
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={formData.max_students}
+                      onChange={(e) => setFormData({ ...formData, max_students: Number(e.target.value) })}
+                      className="w-full px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    />
+                  </div>
                 </div>
               </div>
 

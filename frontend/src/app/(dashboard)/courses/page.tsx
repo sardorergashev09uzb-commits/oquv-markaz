@@ -143,8 +143,16 @@ export default function CoursesPage() {
   // Restore Course Mutation (Unarchive)
   const restoreMutation = useMutation({
     mutationFn: async (id: number) => {
-      const resp = await api.post(`/api/courses/${id}/restore`);
-      return resp.data;
+      try {
+        const resp = await api.post(`/api/courses/${id}/restore`);
+        return resp.data;
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          const fallback = await api.put(`/api/courses/${id}`, { status: 1 });
+          return fallback.data;
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['courses'] });
@@ -158,8 +166,16 @@ export default function CoursesPage() {
   // Force Delete Course Mutation (Permanent)
   const forceDeleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const resp = await api.delete(`/api/courses/${id}/force`);
-      return resp.data;
+      try {
+        const resp = await api.delete(`/api/courses/${id}/force`);
+        return resp.data;
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          const fallback = await api.delete(`/api/courses/${id}`, { params: { force: 1 } });
+          return fallback.data;
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['courses'] });
