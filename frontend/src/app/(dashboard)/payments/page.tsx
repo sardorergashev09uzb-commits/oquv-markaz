@@ -1,15 +1,17 @@
 'use client';
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
   CreditCard, Search, Plus, CheckCircle2, Clock, AlertCircle,
   X, Loader2, DollarSign, ArrowDownRight, ArrowUpRight, History,
-  ShieldAlert, BookOpen, Check, Wallet, Trash2
+  ShieldAlert, BookOpen, Check, Wallet, Trash2, Printer, Receipt,
+  UserCheck, AlertTriangle
 } from 'lucide-react';
 import { formatMoney } from '@/lib/utils';
-import { getCurrentUserFromToken, isStudent, isTeacher } from '@/lib/auth';
 import { useCurrentUser } from '@/lib/useCurrentUser';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import Link from 'next/link';
 
 interface PaymentPlanItem {
@@ -49,17 +51,30 @@ export default function PaymentsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // To'lov qabul qilish modali (faqat admin/manager uchun)
+  // To'lov qabul qilish modal holati (Admin / Manager)
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PaymentPlanItem | null>(null);
+
+  // Tezkor kassa to'lovi maydonlari (agar rejadan tanlanmagan bo'lsa)
+  const [quickStudentId, setQuickStudentId] = useState<string>('');
+  const [quickGroupId, setQuickGroupId] = useState<string>('');
+  const [quickMonth, setQuickMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
   const [payAmount, setPayAmount] = useState<number>(0);
   const [payMethod, setPayMethod] = useState<string>('cash');
   const [payNote, setPayNote] = useState<string>('');
   const [payError, setPayError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
 
+  // Kvitansiya (Chek) ko'rish modali
+  const [receiptTx, setReceiptTx] = useState<PaymentTransaction | null>(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+
   // 1. Fetch Payment Plans
-  const { data: plansData, isLoading: isPlansLoading } = useQuery({
+  const { data: plansResponse, isLoading: isPlansLoading } = useQuery({
     queryKey: ['payment-plans', search, statusFilter, isUserStudent],
     queryFn: async () => {
       const resp = await api.get('/api/payments', {
@@ -68,7 +83,7 @@ export default function PaymentsPage() {
           status: statusFilter || undefined,
         },
       });
-      return resp.data?.items || [];
+      return resp.data || { items: [], summary: null };
     },
     enabled: !isUserTeacher,
   });
@@ -83,33 +98,102 @@ export default function PaymentsPage() {
     enabled: !isUserTeacher,
   });
 
-  // Receive Payment Mutation (Admin only)
+  // 3. Tezkor kassa uchun barcha faol o'quvchilarni yuklash
+  const { data: studentsList = [] } = useQuery({
+    queryKey: ['quick-cashier-students'],
+    queryFn: async () => {
+      const resp = await api.get('/api/students', { params: { per_page: 300, status: 10 } });
+      return resp.data?.items || [];
+    },
+    enabled: !isUserStudent && !isUserTeacher && isPayModalOpen,
+  });
+
+  // 4. Tanlangan o'quvchining guruhlari va profili
+  const { data: selectedStudentInfo } = useQuery({
+    queryKey: ['quick-student-profile', quickStudentId],
+    queryFn: async () => {
+      if (!quickStudentId) return null;
+      const resp = await api.get(`/api/students/${quickStudentId}`);
+      return resp.data;
+    },
+    enabled: !!quickStudentId && isPayModalOpen && !selectedPlan,
+  });
+
+  // O'quvchi tanlanganda guruhni avtomatik to'ldirish
+  useEffect(() => {
+    if (selectedStudentInfo?.groups && selectedStudentInfo.groups.length > 0) {
+      const activeGroup = selectedStudentInfo.groups.find((g: any) => g.status === 'active') || selectedStudentInfo.groups[0];
+      if (activeGroup) {
+        setQuickGroupId(String(activeGroup.group_id));
+      }
+    } else {
+      setQuickGroupId('');
+    }
+  }, [selectedStudentInfo]);
+
+  // Receive Payment Mutation (Admin / Manager)
   const payMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedPlan) return;
-      const payload = {
-        plan_id: selectedPlan.id,
-        amount: Number(payAmount),
-        method: payMethod,
-        note: payNote || null,
-      };
+      let payload: any = {};
+      if (selectedPlan) {
+        payload = {
+          plan_id: selectedPlan.id,
+          amount: Number(payAmount),
+          method: payMethod,
+          note: payNote || null,
+        };
+      } else {
+        if (!quickStudentId) throw new Error("O'quvchini tanlang");
+        if (!quickGroupId) throw new Error("Guruhni tanlang");
+        payload = {
+          student_id: Number(quickStudentId),
+          group_id: Number(quickGroupId),
+          month: quickMonth,
+          amount: Number(payAmount),
+          method: payMethod,
+          note: payNote || null,
+        };
+      }
       const resp = await api.post('/api/payments', payload);
       return resp.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['payment-plans'] });
       queryClient.invalidateQueries({ queryKey: ['payment-history'] });
       queryClient.invalidateQueries({ queryKey: ['finance-summary'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+
       setIsPayModalOpen(false);
       setSelectedPlan(null);
+      setQuickStudentId('');
+      setQuickGroupId('');
       setPayAmount(0);
       setPayNote('');
+
       setSuccessMessage("To'lov muvaffaqiyatli qabul qilindi!");
-      setTimeout(() => setSuccessMessage(''), 4000);
+      setTimeout(() => setSuccessMessage(''), 5000);
+
+      // Agar chek ma'lumotlari qaytsa, chek ko'rsatish
+      if (data?.payment) {
+        const studentObj = studentsList.find((s: any) => s.id === Number(quickStudentId)) || (selectedPlan ? { name: selectedPlan.student_name } : null);
+        const groupObj = (selectedStudentInfo?.groups || []).find((g: any) => String(g.group_id) === String(quickGroupId)) || (selectedPlan ? { group_name: selectedPlan.group_name } : null);
+
+        setReceiptTx({
+          id: data.payment.id,
+          plan_id: data.payment.plan_id,
+          student_name: studentObj?.name || selectedPlan?.student_name || "O'quvchi",
+          group_name: groupObj?.group_name || selectedPlan?.group_name || 'Guruh',
+          amount: Number(data.payment.amount),
+          method: data.payment.method || payMethod,
+          paid_at: data.payment.paid_at || new Date().toISOString(),
+          note: data.payment.note || null,
+          received_by_name: currentUser?.name || 'Kassir',
+        });
+        setIsReceiptModalOpen(true);
+      }
     },
-    onError: () => {
-      setPayError("To'lovni saqlashda xatolik yuz berdi");
+    onError: (err: any) => {
+      setPayError(err.response?.data?.message || err.message || "To'lovni saqlashda xatolik yuz berdi");
     },
   });
 
@@ -132,8 +216,12 @@ export default function PaymentsPage() {
     },
   });
 
-  const openPayModal = (plan: PaymentPlanItem) => {
+  // Modalni mavjud reja orqali ochish
+  const openPayModalForPlan = (plan: PaymentPlanItem) => {
     setSelectedPlan(plan);
+    setQuickStudentId(String(plan.student_id));
+    setQuickGroupId(String(plan.group_id));
+    setQuickMonth(plan.month);
     setPayAmount(plan.remaining_amount || plan.amount);
     setPayMethod('cash');
     setPayNote('');
@@ -141,8 +229,24 @@ export default function PaymentsPage() {
     setIsPayModalOpen(true);
   };
 
-  // Filter plans based on role for client-side absolute privacy
-  const rawPlans: PaymentPlanItem[] = plansData || [];
+  // Modalni erkin kassa orqali ochish
+  const openQuickCashierModal = () => {
+    setSelectedPlan(null);
+    setQuickStudentId('');
+    setQuickGroupId('');
+    const d = new Date();
+    setQuickMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    setPayAmount(500000);
+    setPayMethod('cash');
+    setPayNote('');
+    setPayError('');
+    setIsPayModalOpen(true);
+  };
+
+  const rawPlans: PaymentPlanItem[] = plansResponse?.items || [];
+  const backendSummary = plansResponse?.summary || null;
+
+  // O'quvchi bo'lsa faqat o'zinikini filtrlash
   const plans = isUserStudent && currentUser
     ? rawPlans.filter((p) => p.student_id === currentUser.id || !p.student_id)
     : rawPlans;
@@ -152,10 +256,32 @@ export default function PaymentsPage() {
     ? rawHistory.filter((h) => h.student_id === currentUser.id || h.student_name === currentUser.name)
     : rawHistory;
 
-  // Student metrics
-  const totalDue = plans.reduce((acc, p) => acc + (p.amount || 0), 0);
-  const totalPaid = plans.reduce((acc, p) => acc + (p.paid_amount || 0), 0);
-  const totalRemaining = plans.reduce((acc, p) => acc + (p.remaining_amount || 0), 0);
+  // Moliyaviy ko'rsatkichlar
+  const totalDue = backendSummary?.total_billed ?? plans.reduce((acc, p) => acc + (p.amount || 0), 0);
+  const totalPaid = backendSummary?.total_paid ?? plans.reduce((acc, p) => acc + (p.paid_amount || 0), 0);
+  const totalRemaining = backendSummary?.total_remaining ?? plans.reduce((acc, p) => acc + (p.remaining_amount || 0), 0);
+  const countOverdue = backendSummary?.count_overdue ?? plans.filter(p => p.status === 'overdue').length;
+  const countPartial = backendSummary?.count_partial ?? plans.filter(p => p.status === 'partial').length;
+  const countPaid = backendSummary?.count_paid ?? plans.filter(p => p.status === 'paid').length;
+
+  // Student options for CustomSelect
+  const studentSelectOptions = useMemo(() => {
+    return (studentsList || []).map((s: any) => ({
+      value: String(s.id),
+      label: s.name,
+      subLabel: s.phone || `ID: #${s.id}`,
+    }));
+  }, [studentsList]);
+
+  // Group options for selected student
+  const studentGroupOptions: { value: string; label: string; subLabel?: string }[] = useMemo(() => {
+    if (!selectedStudentInfo?.groups) return [];
+    return selectedStudentInfo.groups.map((g: any) => ({
+      value: String(g.group_id),
+      label: `${g.group_name} (${g.course_name || 'Kurs'})`,
+      subLabel: g.teacher_name ? `Ustoz: ${g.teacher_name}` : undefined,
+    }));
+  }, [selectedStudentInfo]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -175,8 +301,8 @@ export default function PaymentsPage() {
         );
       case 'overdue':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
-            <AlertCircle className="w-3.5 h-3.5" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 animate-pulse">
+            <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
             Qarzdorlik
           </span>
         );
@@ -199,7 +325,7 @@ export default function PaymentsPage() {
     );
   }
 
-  // 1. Agar O'qituvchi bo'lsa:
+  // 1. O'qituvchi bo'lsa ruxsat yo'q
   if (isUserTeacher) {
     return (
       <div className="max-w-md mx-auto my-12 bg-white dark:bg-gray-900 rounded-3xl p-8 border border-gray-100 dark:border-gray-800 shadow-sm text-center space-y-4">
@@ -208,7 +334,7 @@ export default function PaymentsPage() {
         </div>
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">Ruxsat mavjud emas</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-          O&apos;quv markazi to&apos;lovlari va moliya bo&apos;limi faqat o&apos;quvchilar (o&apos;z to&apos;lovlari uchun) va ma&apos;muriyat xodimlari uchun mo&apos;ljallangan.
+          O&apos;quv markazi to&apos;lovlari va moliya bo&apos;limi faqat o&apos;quvchilar va ma&apos;muriyat xodimlari uchun mo&apos;ljallangan.
         </p>
         <Link
           href="/groups"
@@ -221,7 +347,6 @@ export default function PaymentsPage() {
     );
   }
 
-  // 2. Agar O'quvchi yoki Admin bo'lsa:
   return (
     <div className="space-y-6">
 
@@ -229,40 +354,104 @@ export default function PaymentsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-            {isUserStudent ? "Mening To'lovlarim va Balansim" : "To'lovlar Tizimi"}
+            {isUserStudent ? "Mening To'lovlarim va Balansim" : "To'lovlar & Kassa"}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {isUserStudent
-              ? "Guruhlaringiz bo'yicha oylik to'lovlar, to'langan summalar va cheklar"
-              : "O'quvchilarning oylik to'lovlari, qarzdorliklar va kvitansiyalar"}
+              ? "Guruhlaringiz bo'yicha to'lov rejalari, cheklar va balans"
+              : "Markaz to'lovlarini qabul qilish, kassa va qarzdorlik nazorati"}
           </p>
         </div>
 
-        {/* Tabs switcher */}
-        <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
-          <button
-            onClick={() => setActiveTab('plans')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
-              activeTab === 'plans'
-                ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-xs'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-            }`}
-          >
-            {isUserStudent ? "To'lov holati" : "To'lov rejalari"}
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-              activeTab === 'history'
-                ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-xs'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-            }`}
-          >
-            <History className="w-3.5 h-3.5" />
-            <span>Cheklar tarixi</span>
-          </button>
+        <div className="flex items-center gap-2.5">
+          {/* Quick Cashier Action Button for Admin/Manager */}
+          {!isUserStudent && (
+            <button
+              type="button"
+              onClick={openQuickCashierModal}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 shadow-sm cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>To&apos;lov qabul qilish</span>
+            </button>
+          )}
+
+          {/* Tabs switcher */}
+          <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+            <button
+              onClick={() => setActiveTab('plans')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'plans'
+                  ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-xs'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              {isUserStudent ? "To'lov holati" : "To'lov rejalari (Kassa)"}
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+                activeTab === 'history'
+                  ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-xs'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>Cheklar tarixi</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Financial Overview Cards for Admin / Manager */}
+      {!isUserStudent && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-400">Jami hisoblangan</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mt-0.5">{formatMoney(totalDue)}</p>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-400">Qabul qilingan summa</p>
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                <span className="text-lg sm:text-xl font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(totalPaid)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-400">Mavjud qarzdorlik</p>
+              <p className="text-lg sm:text-xl font-bold text-rose-600 dark:text-rose-400 mt-0.5">{formatMoney(totalRemaining)}</p>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-400">Qarzdor o&apos;quvchilar</p>
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                <span className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{countOverdue} nafar</span>
+                {countPartial > 0 && <span className="text-xs text-amber-600 font-semibold">(+{countPartial} qisman)</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Student Personal Summary Cards */}
       {isUserStudent && (
@@ -321,8 +510,8 @@ export default function PaymentsPage() {
 
           {/* Filter Bar (Only for Admin/Manager) */}
           {!isUserStudent && (
-            <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row gap-3 items-center justify-between">
-              <div className="relative w-full sm:w-80">
+            <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row gap-3 items-center justify-between">
+              <div className="relative w-full md:w-80">
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
@@ -333,18 +522,58 @@ export default function PaymentsPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              {/* Status Chips Filter */}
+              <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    statusFilter === ''
+                      ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
                 >
-                  <option value="">Barcha holatlar</option>
-                  <option value="overdue">Faqat qarzdorlar</option>
-                  <option value="partial">Qisman to&apos;langan</option>
-                  <option value="paid">To&apos;langan</option>
-                  <option value="pending">Kutilmoqda</option>
-                </select>
+                  Barchasi
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('overdue')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                    statusFilter === 'overdue'
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 hover:bg-rose-100'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                  <span>Qarzdorlar ({countOverdue})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('partial')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                    statusFilter === 'partial'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-100'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  <span>Qisman ({countPartial})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('paid')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                    statusFilter === 'paid'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span>To&apos;langan ({countPaid})</span>
+                </button>
               </div>
             </div>
           )}
@@ -375,72 +604,86 @@ export default function PaymentsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {plans.map((plan) => (
-                      <tr key={plan.id} className="hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition">
-                        {!isUserStudent && (
-                          <td className="px-6 py-4">
-                            <p className="font-semibold text-gray-900 dark:text-white">{plan.student_name}</p>
-                            <p className="text-xs text-gray-400">{plan.student_phone}</p>
-                          </td>
-                        )}
-
-                        <td className="px-6 py-4">
-                          <p className="font-semibold text-gray-900 dark:text-white text-xs">{plan.group_name}</p>
-                          <span className="text-[11px] text-gray-400 font-medium">{plan.month} oyi</span>
-                        </td>
-
-                        <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                          {formatMoney(plan.amount)}
-                        </td>
-
-                        <td className="px-6 py-4 font-semibold text-emerald-600 dark:text-emerald-400">
-                          {formatMoney(plan.paid_amount)}
-                        </td>
-
-                        <td className="px-6 py-4">
-                          {plan.remaining_amount > 0 ? (
-                            <span className="font-bold text-rose-600 dark:text-rose-400">
-                              {formatMoney(plan.remaining_amount)}
-                            </span>
-                          ) : (plan.overpaid_amount && plan.overpaid_amount > 0) ? (
-                            <div className="flex flex-col">
-                              <span className="text-xs text-emerald-600 font-semibold">To&apos;liq to&apos;langan</span>
-                              <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
-                                Haqdorlik: +{formatMoney(plan.overpaid_amount)}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-emerald-600 font-semibold">To&apos;liq to&apos;langan</span>
+                    {plans.map((plan) => {
+                      const isOverdue = plan.status === 'overdue' || plan.remaining_amount > 0;
+                      return (
+                        <tr
+                          key={plan.id}
+                          className={`transition ${
+                            plan.status === 'overdue'
+                              ? 'bg-rose-50/20 dark:bg-rose-950/10 hover:bg-rose-50/40'
+                              : 'hover:bg-gray-50/70 dark:hover:bg-gray-800/40'
+                          }`}
+                        >
+                          {!isUserStudent && (
+                            <td className="px-6 py-4">
+                              <p className="font-semibold text-gray-900 dark:text-white">{plan.student_name}</p>
+                              <p className="text-xs text-gray-400">{plan.student_phone}</p>
+                            </td>
                           )}
-                        </td>
 
-                        <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 font-medium">
-                          {plan.due_date || "-"}
-                        </td>
+                          <td className="px-6 py-4">
+                            <p className="font-semibold text-gray-900 dark:text-white text-xs">{plan.group_name}</p>
+                            <span className="text-[11px] text-gray-400 font-medium">{plan.month} oyi</span>
+                          </td>
 
-                        <td className="px-6 py-4">
-                          {getStatusBadge(plan.status)}
-                        </td>
+                          <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                            {formatMoney(plan.amount)}
+                          </td>
 
-                        {!isUserStudent && (
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-6 py-4 font-semibold text-emerald-600 dark:text-emerald-400">
+                            {formatMoney(plan.paid_amount)}
+                          </td>
+
+                          <td className="px-6 py-4">
                             {plan.remaining_amount > 0 ? (
-                              <button
-                                onClick={() => openPayModal(plan)}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition shadow-xs"
-                              >
-                                <CreditCard className="w-3.5 h-3.5" />
-                                <span>To&apos;lov olish</span>
-                              </button>
-                            ) : (
-                              <span className="text-xs text-emerald-600 font-semibold px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 rounded-md border border-emerald-100 dark:border-emerald-800">
-                                Yopilgan
+                              <span className={`font-bold flex items-center gap-1 ${
+                                plan.status === 'overdue' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
+                              }`}>
+                                {plan.status === 'overdue' && <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />}
+                                {formatMoney(plan.remaining_amount)}
                               </span>
+                            ) : (plan.overpaid_amount && plan.overpaid_amount > 0) ? (
+                              <div className="flex flex-col">
+                                <span className="text-xs text-emerald-600 font-semibold">To&apos;liq to&apos;langan</span>
+                                <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                                  Haqdorlik: +{formatMoney(plan.overpaid_amount)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-emerald-600 font-semibold">To&apos;liq to&apos;langan</span>
                             )}
                           </td>
-                        )}
-                      </tr>
-                    ))}
+
+                          <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 font-medium">
+                            {plan.due_date || "-"}
+                          </td>
+
+                          <td className="px-6 py-4">
+                            {getStatusBadge(plan.status)}
+                          </td>
+
+                          {!isUserStudent && (
+                            <td className="px-6 py-4 text-right">
+                              {plan.remaining_amount > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openPayModalForPlan(plan)}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition shadow-xs cursor-pointer"
+                                >
+                                  <CreditCard className="w-3.5 h-3.5" />
+                                  <span>To&apos;lov olish</span>
+                                </button>
+                              ) : (
+                                <span className="text-xs text-emerald-600 font-semibold px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 rounded-md border border-emerald-100 dark:border-emerald-800">
+                                  Yopilgan
+                                </span>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -465,20 +708,22 @@ export default function PaymentsPage() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider border-b border-gray-100 dark:border-gray-800">
                   <tr>
+                    <th className="px-6 py-3.5">Chek #</th>
                     {!isUserStudent && <th className="px-6 py-3.5">O&apos;quvchi</th>}
                     <th className="px-6 py-3.5">Guruh</th>
                     <th className="px-6 py-3.5">Summa</th>
                     <th className="px-6 py-3.5">To&apos;lov usuli</th>
                     <th className="px-6 py-3.5">Sana</th>
-                    <th className="px-6 py-3.5">Holat / Kvitansiya</th>
-                    {!isUserStudent && currentUser?.role === 'admin' && (
-                      <th className="px-6 py-3.5 text-right">Amal</th>
-                    )}
+                    <th className="px-6 py-3.5">Holat</th>
+                    <th className="px-6 py-3.5 text-right">Amal</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {history.map((tx) => (
                     <tr key={tx.id} className="hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition">
+                      <td className="px-6 py-4 font-mono text-xs font-bold text-gray-500">
+                        #{tx.id}
+                      </td>
                       {!isUserStudent && (
                         <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                           {tx.student_name}
@@ -508,23 +753,39 @@ export default function PaymentsPage() {
                         <CheckCircle2 className="w-4 h-4" />
                         <span>Tasdiqlangan</span>
                       </td>
-                      {!isUserStudent && currentUser?.role === 'admin' && (
-                        <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Chekni ko'rish tugmasi */}
                           <button
                             type="button"
-                            title="To'lovni bekor qilish"
-                            disabled={deletePaymentMutation.isPending}
+                            title="Chekni ko'rish / Chop etish"
                             onClick={() => {
-                              if (confirm(`Haqiqatan ham ${tx.student_name} ning ${formatMoney(tx.amount)} so'mlik to'lovini bekor qilmoqchimisiz? Bu to'lov o'chirilib, qarz qayta hisoblanadi.`)) {
-                                deletePaymentMutation.mutate(tx.id);
-                              }
+                              setReceiptTx(tx);
+                              setIsReceiptModalOpen(true);
                             }}
-                            className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
+                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition cursor-pointer"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Receipt className="w-4 h-4" />
                           </button>
-                        </td>
-                      )}
+
+                          {/* Bekor qilish (Faqat Admin) */}
+                          {!isUserStudent && currentUser?.role === 'admin' && (
+                            <button
+                              type="button"
+                              title="To'lovni bekor qilish"
+                              disabled={deletePaymentMutation.isPending}
+                              onClick={() => {
+                                if (confirm(`Haqiqatan ham ${tx.student_name} ning ${formatMoney(tx.amount)} so'mlik to'lovini bekor qilmoqchimisiz? Bu to'lov o'chirilib, qarz qayta hisoblanadi.`)) {
+                                  deletePaymentMutation.mutate(tx.id);
+                                }
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -534,13 +795,21 @@ export default function PaymentsPage() {
         </div>
       )}
 
-      {/* Modal: To'lov qabul qilish (Faqat Admin/Manager uchun) */}
-      {!isUserStudent && isPayModalOpen && selectedPlan && (
+      {/* Modal: To'lov qabul qilish (Kassa) */}
+      {!isUserStudent && isPayModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800 animate-fade-in">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg my-auto max-h-[92vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800 animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
-              <h3 className="font-bold text-gray-900 dark:text-white">To&apos;lov qabul qilish</h3>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">
+                  {selectedPlan ? "Reja bo'yicha to'lov olish" : "Kassa: Yangi to'lov qabul qilish"}
+                </h3>
+                <p className="text-xs text-gray-400">
+                  {selectedPlan ? `${selectedPlan.student_name} • ${selectedPlan.month}` : "O'quvchi va guruhni tanlab to'lovni kiriting"}
+                </p>
+              </div>
               <button
+                type="button"
                 onClick={() => setIsPayModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
               >
@@ -562,30 +831,104 @@ export default function PaymentsPage() {
                 </div>
               )}
 
-              {/* Student & Group Summary Box */}
-              <div className="p-3.5 bg-gray-50 dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-800 text-xs space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">O&apos;quvchi:</span>
-                  <strong className="text-gray-900 dark:text-white">{selectedPlan.student_name}</strong>
+              {/* Agar mavjud rejadan ochilgan bo'lsa */}
+              {selectedPlan ? (
+                <div className="p-3.5 bg-gray-50 dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-800 text-xs space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">O&apos;quvchi:</span>
+                    <strong className="text-gray-900 dark:text-white">{selectedPlan.student_name} ({selectedPlan.student_phone})</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Guruh:</span>
+                    <strong className="text-gray-900 dark:text-white">{selectedPlan.group_name}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">To&apos;lov oyi:</span>
+                    <strong className="text-gray-900 dark:text-white">{selectedPlan.month}</strong>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <span className="text-gray-500 font-semibold">Qoldiq qarz summasi:</span>
+                    <strong className="text-rose-600 dark:text-rose-400 font-bold text-sm">
+                      {formatMoney(selectedPlan.remaining_amount)}
+                    </strong>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Guruh:</span>
-                  <strong className="text-gray-900 dark:text-white">{selectedPlan.group_name}</strong>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Oy:</span>
-                  <strong className="text-gray-900 dark:text-white">{selectedPlan.month}</strong>
-                </div>
-                <div className="flex justify-between pt-1.5 border-t border-gray-200 dark:border-gray-700">
-                  <span className="text-gray-500">Qolgan summa:</span>
-                  <strong className="text-rose-600 font-bold">{formatMoney(selectedPlan.remaining_amount)}</strong>
-                </div>
-              </div>
+              ) : (
+                /* Erkin Kassa: O'quvchi va guruh tanlash */
+                <div className="space-y-3.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                      O&apos;quvchini tanlang *
+                    </label>
+                    <CustomSelect
+                      value={quickStudentId}
+                      onChange={(val) => {
+                        setQuickStudentId(val);
+                        setQuickGroupId('');
+                      }}
+                      options={studentSelectOptions}
+                      placeholder="O'quvchi ismi yoki telefoni bo'yicha qidiring..."
+                      searchable={true}
+                    />
+                  </div>
 
+                  {quickStudentId && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                          Guruh *
+                        </label>
+                        {studentGroupOptions.length > 0 ? (
+                          <select
+                            required
+                            value={quickGroupId}
+                            onChange={(e) => setQuickGroupId(e.target.value)}
+                            className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                          >
+                            <option value="">Guruhni tanlang...</option>
+                            {studentGroupOptions.map((g: { value: string; label: string }) => (
+                              <option key={g.value} value={g.value}>
+                                {g.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-700 dark:text-amber-400 text-xs">
+                            Bu o&apos;quvchi hali biron guruhga biriktirilmagan
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                          To&apos;lov oyi *
+                        </label>
+                        <input
+                          type="month"
+                          required
+                          value={quickMonth}
+                          onChange={(e) => setQuickMonth(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* To'lov summasi */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  To&apos;lov summasi (so&apos;m) *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    To&apos;lov summasi (so&apos;mda) *
+                  </label>
+                  {payAmount > 0 && (
+                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                      {formatMoney(payAmount)}
+                    </span>
+                  )}
+                </div>
+
                 <input
                   type="number"
                   required
@@ -595,35 +938,71 @@ export default function PaymentsPage() {
                   onChange={(e) => setPayAmount(Number(e.target.value))}
                   className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-base font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
-                {payAmount > selectedPlan.remaining_amount && (
-                  <p className="mt-1.5 text-xs text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-950/40 p-2 rounded-lg border border-blue-200 dark:border-blue-900">
-                    💡 Rejadan ortiqcha to&apos;lov: <strong>+{formatMoney(payAmount - selectedPlan.remaining_amount)}</strong> (Haqdorlik sifatida o&apos;quvchi hisobiga yoziladi)
+
+                {/* Tezkor summalar chiplari */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  {selectedPlan && selectedPlan.remaining_amount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPayAmount(selectedPlan.remaining_amount)}
+                      className="px-2.5 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-lg text-xs font-semibold hover:bg-rose-100 transition cursor-pointer"
+                    >
+                      To&apos;liq qarzni yopish ({formatMoney(selectedPlan.remaining_amount)})
+                    </button>
+                  )}
+                  {[200000, 300000, 400000, 500000, 600000, 1000000].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setPayAmount(amt)}
+                      className={`px-2 py-1 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                        payAmount === amt
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {amt >= 1000000 ? `${amt / 1000000} mln` : `${amt / 1000} ming`}
+                    </button>
+                  ))}
+                </div>
+
+                {selectedPlan && payAmount > selectedPlan.remaining_amount && (
+                  <p className="mt-2 text-xs text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-xl border border-blue-200 dark:border-blue-900">
+                    💡 Rejadan ortiqcha to&apos;lov: <strong>+{formatMoney(payAmount - selectedPlan.remaining_amount)}</strong> (Haqdorlik sifatida hisoblanadi)
                   </p>
                 )}
               </div>
 
+              {/* To'lov turi */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                   To&apos;lov usuli *
                 </label>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  {['cash', 'click', 'payme', 'card', 'bank'].map((m) => (
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-xs">
+                  {[
+                    { id: 'cash', label: 'Naqd pul' },
+                    { id: 'card', label: 'Karta' },
+                    { id: 'click', label: 'Click' },
+                    { id: 'payme', label: 'Payme' },
+                    { id: 'bank', label: 'Bank' },
+                  ].map((m) => (
                     <button
                       type="button"
-                      key={m}
-                      onClick={() => setPayMethod(m)}
-                      className={`py-2 rounded-xl border font-bold uppercase transition cursor-pointer ${
-                        payMethod === m
-                           ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      key={m.id}
+                      onClick={() => setPayMethod(m.id)}
+                      className={`py-2 px-1 rounded-xl border font-bold text-center transition cursor-pointer ${
+                        payMethod === m.id
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                           : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                     >
-                      {m}
+                      {m.label}
                     </button>
                   ))}
                 </div>
               </div>
 
+              {/* Izoh */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Izoh (ixtiyoriy)
@@ -637,6 +1016,7 @@ export default function PaymentsPage() {
                 />
               </div>
 
+              {/* Modal footer */}
               <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-900 py-3 border-t border-gray-100 dark:border-gray-800 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
@@ -651,10 +1031,105 @@ export default function PaymentsPage() {
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   {payMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>Qabul qilish</span>
+                  <span>To&apos;lovni tasdiqlash</span>
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Kvitansiya (Chek) ko'rish va chop etish */}
+      {isReceiptModalOpen && receiptTx && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-100 dark:border-gray-800 animate-fade-in p-6 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold">
+                  <Receipt className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-900 dark:text-white text-sm">To&apos;lov Cheki</h4>
+                  <p className="text-[11px] text-gray-400">#PAY-{receiptTx.id}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReceiptModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Printable Receipt Paper */}
+            <div id="payment-receipt-print" className="p-4 bg-gray-50 dark:bg-gray-800/60 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 space-y-3 text-xs">
+              <div className="text-center pb-2 border-b border-gray-200 dark:border-gray-700">
+                <p className="font-bold text-sm text-gray-900 dark:text-white">O&apos;QUV MARKAZI</p>
+                <p className="text-[11px] text-gray-400">To&apos;lov qabul qilindi</p>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-gray-500">O&apos;quvchi:</span>
+                <strong className="text-gray-900 dark:text-white text-right">{receiptTx.student_name}</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-gray-500">Guruh:</span>
+                <strong className="text-gray-900 dark:text-white">{receiptTx.group_name}</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-gray-500">To&apos;lov usuli:</span>
+                <span className="font-bold uppercase text-gray-900 dark:text-white">{receiptTx.method}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-gray-500">Sana:</span>
+                <span className="text-gray-700 dark:text-gray-300">
+                  {new Date(receiptTx.paid_at).toLocaleString('uz-UZ')}
+                </span>
+              </div>
+
+              {receiptTx.received_by_name && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Qabul qildi:</span>
+                  <span className="text-gray-700 dark:text-gray-300">{receiptTx.received_by_name}</span>
+                </div>
+              )}
+
+              {receiptTx.note && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Izoh:</span>
+                  <span className="text-gray-700 dark:text-gray-300 italic">{receiptTx.note}</span>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-between items-baseline">
+                <span className="font-bold text-gray-700 dark:text-gray-300 text-sm">To&apos;langan summa:</span>
+                <span className="font-black text-lg text-emerald-600 dark:text-emerald-400">
+                  {formatMoney(receiptTx.amount)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex-1 py-2.5 bg-gray-900 hover:bg-gray-800 text-white dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Chop etish (Print)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsReceiptModalOpen(false)}
+                className="px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-xl text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
+              >
+                Yopish
+              </button>
+            </div>
           </div>
         </div>
       )}
