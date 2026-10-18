@@ -238,6 +238,17 @@ class User extends ActiveRecord implements IdentityInterface
                 }
                 return 0;
             },
+            'courses_list' => function () {
+                if ($this->isTeacher()) {
+                    return \common\models\Course::find()
+                        ->innerJoin('{{%groups}} g', 'g.course_id = {{%courses}}.id')
+                        ->where(['g.teacher_id' => $this->id])
+                        ->select('{{%courses}}.name')
+                        ->distinct()
+                        ->column();
+                }
+                return [];
+            },
             'created_at',
         ];
     }

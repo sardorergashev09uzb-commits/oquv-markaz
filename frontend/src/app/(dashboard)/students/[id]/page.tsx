@@ -105,9 +105,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
   const [editFormData, setEditFormData] = useState({
     name: '',
     phone: '',
-    email: '',
     status: 10,
-    password: '',
   });
   const [editFormError, setEditFormError] = useState('');
 
@@ -359,9 +357,7 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
     setEditFormData({
       name: student.name || '',
       phone: student.phone || '',
-      email: student.email || '',
       status: student.status ?? 10,
-      password: '',
     });
     setEditFormError('');
     setIsEditModalOpen(true);
@@ -446,10 +442,12 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
             </div>
           </div>
           <div className="flex items-center gap-2.5 text-gray-600 dark:text-gray-300">
-            <Mail className="w-4 h-4 text-gray-400" />
+            <BookOpen className="w-4 h-4 text-blue-500" />
             <div>
-              <p className="text-xs text-gray-400 dark:text-gray-500">Email</p>
-              <p className="font-medium text-gray-800 dark:text-gray-200">{student.email || 'Kiritilmagan'}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Biriktirilgan guruhlar</p>
+              <p className="font-semibold text-gray-800 dark:text-gray-200">
+                {groups.length > 0 ? `${groups.length} ta guruhda o'qiydi` : "Guruhga birikmagan"}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2.5 text-gray-600 dark:text-gray-300">
@@ -861,19 +859,6 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Email manzili
-                </label>
-                <input
-                  type="email"
-                  value={editFormData.email}
-                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                  placeholder="student@example.com"
-                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Holati
                 </label>
                 <select
@@ -884,20 +869,6 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                   <option value={10}>Faol o&apos;quvchi</option>
                   <option value={0}>Arxiv / Nofaol</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-                  <KeyRound className="w-3.5 h-3.5 text-gray-400" />
-                  <span>Yangi parol o&apos;rnatish (ixtiyoriy)</span>
-                </label>
-                <input
-                  type="text"
-                  value={editFormData.password}
-                  onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })}
-                  placeholder="Parolni yangilamoqchi bo'lsangiz yozing"
-                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                />
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">

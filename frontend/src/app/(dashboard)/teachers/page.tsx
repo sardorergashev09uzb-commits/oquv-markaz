@@ -16,6 +16,7 @@ interface TeacherItem {
   phone: string;
   email: string | null;
   groups_count: number;
+  courses_list?: string[];
   status: number;
   created_at: number;
 }
@@ -315,6 +316,15 @@ export default function TeachersPage() {
                     <KeyRound className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     <span className="font-mono text-gray-500 dark:text-gray-400">Login: <strong className="text-gray-900 dark:text-gray-100">{teacher.phone}</strong></span>
                   </div>
+                  {teacher.courses_list && teacher.courses_list.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {teacher.courses_list.map((cName: string) => (
+                        <span key={cName} className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-100 dark:border-violet-900/40">
+                          {cName}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
