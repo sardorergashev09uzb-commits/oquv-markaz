@@ -584,6 +584,31 @@ export default function GroupsPage() {
                 </div>
               )}
 
+              {(courses.length === 0 || teachers.length === 0) && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-800 dark:text-amber-200 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-1">
+                    <p className="font-semibold">Diqqat:</p>
+                    {courses.length === 0 && (
+                      <p>
+                        Guruh yaratish uchun avval kamida bitta kurs qo&apos;shishingiz kerak.{' '}
+                        <Link href="/courses" className="underline font-bold text-amber-900 dark:text-amber-100">
+                          Kurslar bo&apos;limiga o&apos;tish &rarr;
+                        </Link>
+                      </p>
+                    )}
+                    {teachers.length === 0 && (
+                      <p>
+                        Guruh yaratish uchun kamida bitta o&apos;qituvchi mavjud bo&apos;lishi kerak.{' '}
+                        <Link href="/teachers" className="underline font-bold text-amber-900 dark:text-amber-100">
+                          O&apos;qituvchilar bo&apos;limiga o&apos;tish &rarr;
+                        </Link>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
                   Guruh nomi *

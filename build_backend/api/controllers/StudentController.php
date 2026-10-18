@@ -195,30 +195,39 @@ class StudentController extends Controller
         $body = Yii::$app->request->bodyParams;
 
         $student = new User();
-        $student->name = $body['name'] ?? null;
-        $student->phone = $body['phone'] ?? null;
-        $student->email = $body['email'] ?? null;
+        $student->name = !empty($body['name']) ? trim((string)$body['name']) : null;
+        $student->phone = !empty($body['phone']) ? trim((string)$body['phone']) : null;
+        $rawEmail = !empty($body['email']) ? trim((string)$body['email']) : null;
+        $student->email = $rawEmail ?: null;
         $student->role = User::ROLE_STUDENT;
         $student->status = isset($body['status']) ? (int) $body['status'] : User::STATUS_ACTIVE;
 
-        $rawPassword = $body['password'] ?? 'Student123!';
+        $rawPassword = !empty($body['password']) ? (string)$body['password'] : 'Student123!';
         $student->setPassword($rawPassword);
         $student->generateAuthKey();
 
         if (!$student->save()) {
             Yii::$app->response->statusCode = 422;
-            return ['errors' => $student->getErrors()];
+            $firstError = current($student->getFirstErrors()) ?: "O'quvchini saqlashda xatolik yuz berdi";
+            return [
+                'message' => $firstError,
+                'errors' => $student->getErrors(),
+            ];
         }
 
         // Agar guruh ID ko'rsatilgan bo'lsa, unga biriktirish
         if (!empty($body['group_id'])) {
             $group = Group::findOne($body['group_id']);
             if ($group) {
-                $gs = new GroupStudent();
-                $gs->group_id = $group->id;
-                $gs->student_id = $student->id;
-                $gs->enrolled_at = date('Y-m-d');
+                $gs = GroupStudent::findOne(['group_id' => $group->id, 'student_id' => $student->id]);
+                if (!$gs) {
+                    $gs = new GroupStudent();
+                    $gs->group_id = $group->id;
+                    $gs->student_id = $student->id;
+                    $gs->enrolled_at = date('Y-m-d');
+                }
                 $gs->status = GroupStudent::STATUS_ACTIVE;
+                $gs->left_at = null;
                 $gs->save(false);
             }
         }
@@ -241,9 +250,12 @@ class StudentController extends Controller
         }
 
         $body = Yii::$app->request->bodyParams;
-        if (isset($body['name'])) $student->name = $body['name'];
-        if (isset($body['phone'])) $student->phone = $body['phone'];
-        if (isset($body['email'])) $student->email = $body['email'];
+        if (isset($body['name'])) $student->name = trim((string)$body['name']);
+        if (isset($body['phone'])) $student->phone = trim((string)$body['phone']);
+        if (isset($body['email'])) {
+            $rawEmail = trim((string)$body['email']);
+            $student->email = $rawEmail !== '' ? $rawEmail : null;
+        }
         if (isset($body['status'])) $student->status = (int) $body['status'];
         if (!empty($body['password'])) {
             $student->setPassword($body['password']);
@@ -251,7 +263,11 @@ class StudentController extends Controller
 
         if (!$student->save()) {
             Yii::$app->response->statusCode = 422;
-            return ['errors' => $student->getErrors()];
+            $firstError = current($student->getFirstErrors()) ?: "O'quvchi ma'lumotlarini yangilashda xatolik yuz berdi";
+            return [
+                'message' => $firstError,
+                'errors' => $student->getErrors(),
+            ];
         }
 
         return [
@@ -278,6 +294,12 @@ class StudentController extends Controller
         // Soft delete yoki deaktivatsiya
         $student->status = User::STATUS_INACTIVE;
         $student->save(false);
+
+        // Guruhlardagi holatini ham 'left' qilish
+        GroupStudent::updateAll(
+            ['status' => GroupStudent::STATUS_LEFT, 'left_at' => date('Y-m-d')],
+            ['student_id' => $id, 'status' => GroupStudent::STATUS_ACTIVE]
+        );
 
         return ['message' => "O'quvchi muvaffaqiyatli arxivlandi"];
     }

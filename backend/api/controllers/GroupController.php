@@ -540,17 +540,21 @@ class GroupController extends Controller
         if ($gs) {
             $gs->status = GroupStudent::STATUS_ACTIVE;
             $gs->left_at = null;
+            $gs->save(false);
         } else {
             $gs = new GroupStudent();
             $gs->group_id = $id;
             $gs->student_id = $studentId;
             $gs->enrolled_at = date('Y-m-d');
             $gs->status = GroupStudent::STATUS_ACTIVE;
-        }
-
-        if (!$gs->save()) {
-            Yii::$app->response->statusCode = 422;
-            return ['errors' => $gs->getErrors()];
+            if (!$gs->save()) {
+                Yii::$app->response->statusCode = 422;
+                $firstError = current($gs->getFirstErrors()) ?: "O'quvchini guruhga qo'shishda xatolik";
+                return [
+                    'message' => $firstError,
+                    'errors' => $gs->getErrors(),
+                ];
+            }
         }
 
         return [
@@ -571,9 +575,7 @@ class GroupController extends Controller
             throw new NotFoundHttpException("O'quvchi bu guruhda mavjud emas.");
         }
 
-        $gs->status = GroupStudent::STATUS_LEFT;
-        $gs->left_at = date('Y-m-d');
-        $gs->save(false);
+        $gs->delete();
 
         return ['message' => "O'quvchi guruhdan chiqarildi"];
     }

@@ -127,6 +127,15 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
   });
   const [transferError, setTransferError] = useState('');
 
+  // ─── Add Student Modal State ──────────────────────────────────────────────
+  const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+  const [addStudentTab, setAddStudentTab] = useState<'existing' | 'new'>('existing');
+  const [newStudentData, setNewStudentData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+  });
+
   // 1. Fetch Group Details & Students & Lessons
   const { data, isLoading, isError } = useQuery({
     queryKey: ['group', groupId],
@@ -195,7 +204,7 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     enabled: activeTab === 'payments',
   });
 
-  // 5. Add student mutation
+  // 5. Add student mutation (existing student)
   const addStudentMutation = useMutation({
     mutationFn: async (studentId: number) => {
       const resp = await api.post(`/api/groups/${groupId}/add-student`, {
@@ -205,12 +214,39 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['students-all-dropdown'] });
       queryClient.invalidateQueries({ queryKey: ['groups'] });
       setSelectedStudentId('');
+      setIsAddStudentModalOpen(false);
       setAddError('');
     },
-    onError: () => {
-      setAddError("O'quvchini qo'shishda xatolik yuz berdi");
+    onError: (err: any) => {
+      setAddError(err.response?.data?.message || "O'quvchini qo'shishda xatolik yuz berdi");
+    },
+  });
+
+  // 5b. Create & Enroll student mutation (brand new student)
+  const createAndEnrollMutation = useMutation({
+    mutationFn: async (payload: { name: string; phone: string; email?: string }) => {
+      const resp = await api.post('/api/students', {
+        name: payload.name.trim(),
+        phone: payload.phone.trim(),
+        email: payload.email?.trim() || undefined,
+        group_id: Number(groupId),
+      });
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['students-all-dropdown'] });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      setNewStudentData({ name: '', phone: '', email: '' });
+      setIsAddStudentModalOpen(false);
+      setAddError('');
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(', ') : "O'quvchini qo'shishda xatolik yuz berdi");
+      setAddError(msg);
     },
   });
 
@@ -224,6 +260,7 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['students-all-dropdown'] });
       queryClient.invalidateQueries({ queryKey: ['groups'] });
     },
   });
@@ -628,36 +665,20 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
               <p className="text-xs text-gray-400">Guruh tarkibidagi o&apos;quvchilar va ularning holati</p>
             </div>
 
-            {/* Add student dropdown form & Excel export */}
+            {/* Add student button & Excel export */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-              {!isUserStudent && availableStudents.length > 0 && (
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <div className="w-full sm:w-64">
-                    <CustomSelect
-                      value={selectedStudentId}
-                      onChange={(val) => setSelectedStudentId(val)}
-                      placeholder="O'quvchini tanlang..."
-                      searchable={availableStudents.length > 5}
-                      options={availableStudents.map((s: { id: number; name: string; phone: string }) => ({
-                        value: String(s.id),
-                        label: s.name,
-                        subLabel: s.phone,
-                      }))}
-                    />
-                  </div>
-                  <button
-                    disabled={!selectedStudentId || addStudentMutation.isPending}
-                    onClick={() => selectedStudentId && addStudentMutation.mutate(Number(selectedStudentId))}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer"
-                  >
-                    {addStudentMutation.isPending ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <PlusCircle className="w-3.5 h-3.5" />
-                    )}
-                    <span>Qo&apos;shish</span>
-                  </button>
-                </div>
+              {!isUserStudent && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddError('');
+                    setIsAddStudentModalOpen(true);
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer shadow-sm"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>+ O&apos;quvchi qo&apos;shish</span>
+                </button>
               )}
 
               {students.length > 0 && (
@@ -732,27 +753,44 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
                       </td>
                       {!isUserStudent && (
                         <td className="px-4 py-3 text-right">
-                          {student.status === 'active' && (
-                            <div className="flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-1">
+                            {student.status === 'active' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenTransferModal(student.student_id, student.name)}
+                                  className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 transition cursor-pointer"
+                                  title="Boshqa guruhga ko'chirish"
+                                >
+                                  <ArrowRightLeft className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm(`${student.name}ni ushbu guruhdan chiqarishni tasdiqlaysizmi?`)) {
+                                      removeStudentMutation.mutate(student.student_id);
+                                    }
+                                  }}
+                                  disabled={removeStudentMutation.isPending}
+                                  className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
+                                  title="Guruhdan chiqarish"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            ) : (
                               <button
                                 type="button"
-                                onClick={() => handleOpenTransferModal(student.student_id, student.name)}
-                                className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 transition cursor-pointer"
-                                title="Boshqa guruhga ko'chirish"
+                                onClick={() => addStudentMutation.mutate(student.student_id)}
+                                disabled={addStudentMutation.isPending}
+                                className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-950/40 px-2 py-1 rounded-lg font-medium transition cursor-pointer"
+                                title="Guruhga qayta qo'shish"
                               >
-                                <ArrowRightLeft className="w-4 h-4" />
+                                <PlusCircle className="w-3.5 h-3.5" />
+                                <span>Qayta qo&apos;shish</span>
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => removeStudentMutation.mutate(student.student_id)}
-                                disabled={removeStudentMutation.isPending}
-                                className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
-                                title="Guruhdan chiqarish"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -1457,6 +1495,204 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: O'quvchi qo'shish */}
+      {isAddStudentModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in border dark:border-gray-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Guruhga o&apos;quvchi qo&apos;shish</h3>
+                <p className="text-xs text-gray-400">{group.name} guruhi uchun</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddStudentModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Tabs */}
+            <div className="flex border-b border-gray-100 dark:border-gray-700 px-6 pt-3 gap-4 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
+              <button
+                type="button"
+                onClick={() => {
+                  setAddStudentTab('existing');
+                  setAddError('');
+                }}
+                className={`pb-2.5 text-xs font-semibold border-b-2 transition cursor-pointer ${
+                  addStudentTab === 'existing'
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                Mavjud o&apos;quvchini tanlash ({availableStudents.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddStudentTab('new');
+                  setAddError('');
+                }}
+                className={`pb-2.5 text-xs font-semibold border-b-2 transition cursor-pointer ${
+                  addStudentTab === 'new'
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                + Yangi o&apos;quvchi kiritish
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              {addError && (
+                <div className="p-3 bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-900 rounded-xl text-red-700 dark:text-rose-300 text-xs flex items-start gap-2 break-words">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span className="flex-1 break-words leading-relaxed">{addError}</span>
+                </div>
+              )}
+
+              {addStudentTab === 'existing' ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!selectedStudentId) {
+                      setAddError("Iltimos, o'quvchini tanlang");
+                      return;
+                    }
+                    addStudentMutation.mutate(Number(selectedStudentId));
+                  }}
+                  className="space-y-4"
+                >
+                  {availableStudents.length === 0 ? (
+                    <div className="py-6 text-center text-gray-500 dark:text-gray-400 text-xs space-y-3">
+                      <p>Mavjud barcha o&apos;quvchilar ushbu guruhga biriktirilgan yoki tizimda boshqa o&apos;quvchi yo&apos;q.</p>
+                      <button
+                        type="button"
+                        onClick={() => setAddStudentTab('new')}
+                        className="px-3.5 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-xl font-medium transition cursor-pointer"
+                      >
+                        + Yangi o&apos;quvchi yaratish
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        O&apos;quvchini tanlang *
+                      </label>
+                      <CustomSelect
+                        value={selectedStudentId}
+                        onChange={(val) => {
+                          setSelectedStudentId(val);
+                          setAddError('');
+                        }}
+                        placeholder="Qidirish va tanlash..."
+                        searchable
+                        options={availableStudents.map((s: { id: number; name: string; phone: string }) => ({
+                          value: String(s.id),
+                          label: s.name,
+                          subLabel: s.phone,
+                        }))}
+                      />
+                    </div>
+                  )}
+
+                  <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddStudentModalOpen(false)}
+                      className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                    >
+                      Bekor qilish
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!selectedStudentId || addStudentMutation.isPending}
+                      className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                    >
+                      {addStudentMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                      <span>Guruhga qo&apos;shish</span>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newStudentData.name.trim() || !newStudentData.phone.trim()) {
+                      setAddError("F.I.SH. va Telefon raqamini to'ldiring");
+                      return;
+                    }
+                    createAndEnrollMutation.mutate(newStudentData);
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                      F.I.SH. (Ism va Familiya) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Masalan: Sardor Ergashev"
+                      value={newStudentData.name}
+                      onChange={(e) => setNewStudentData({ ...newStudentData, name: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                      Telefon raqami *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="+998 90 123 45 67"
+                      value={newStudentData.phone}
+                      onChange={(e) => setNewStudentData({ ...newStudentData, phone: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                      Email (ixtiyoriy)
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="student@example.uz"
+                      value={newStudentData.email}
+                      onChange={(e) => setNewStudentData({ ...newStudentData, email: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    />
+                  </div>
+
+                  <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddStudentModalOpen(false)}
+                      className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                    >
+                      Bekor qilish
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={createAndEnrollMutation.isPending}
+                      className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                    >
+                      {createAndEnrollMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                      <span>Saqlash va biriktirish</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       )}

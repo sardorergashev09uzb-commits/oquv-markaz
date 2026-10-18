@@ -91,9 +91,12 @@ export default function StudentsPage() {
       setFormData({ name: '', phone: '+998', email: '', password: '' });
       setFormError('');
     },
-    onError: (err: { response?: { data?: { errors?: Record<string, string[]> } } }) => {
+    onError: (err: any) => {
+      const message = err.response?.data?.message;
       const errors = err.response?.data?.errors;
-      if (errors) {
+      if (message) {
+        setFormError(message);
+      } else if (errors) {
         setFormError(Object.values(errors).flat().join(', '));
       } else {
         setFormError("O'quvchini saqlashda xatolik yuz berdi");
@@ -115,9 +118,12 @@ export default function StudentsPage() {
       setEditingStudent(null);
       setEditFormError('');
     },
-    onError: (err: { response?: { data?: { errors?: Record<string, string[]> } } }) => {
+    onError: (err: any) => {
+      const message = err.response?.data?.message;
       const errors = err.response?.data?.errors;
-      if (errors) {
+      if (message) {
+        setEditFormError(message);
+      } else if (errors) {
         setEditFormError(Object.values(errors).flat().join(', '));
       } else {
         setEditFormError("O'quvchi ma'lumotlarini yangilashda xatolik yuz berdi");

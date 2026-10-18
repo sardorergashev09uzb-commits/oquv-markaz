@@ -77,12 +77,11 @@ export const getNavItems = (role: string): NavItem[] => {
     { label: 'Dashboard',           href: '/dashboard',      icon: 'LayoutDashboard' },
     { label: 'Guruhlar',            href: '/groups',         icon: 'BookOpen' },
     { label: 'O\'quvchilar',        href: '/students',       icon: 'Users' },
-    { label: 'O\'qituvchilar',      href: '/teachers',       icon: 'GraduationCap' },
     { label: 'Davomat',             href: '/attendance',     icon: 'ClipboardCheck' },
-    { label: 'Dars jadvali',        href: '/schedule',       icon: 'Calendar' },
-    { label: 'Imtihonlar',          href: '/exams',          icon: 'Award' },
-    { label: 'Moliya & Hisobotlar', href: '/reports',        icon: 'BarChart3' },
-    { label: 'E\'lonlar',           href: '/announcements',  icon: 'Megaphone' },
+    { label: 'To\'lovlar & Kassa',  href: '/payments',       icon: 'CreditCard' },
+    { label: 'O\'qituvchilar',      href: '/teachers',       icon: 'GraduationCap' },
+    { label: 'Moliya & Hisobot',    href: '/reports',        icon: 'BarChart3' },
+    { label: 'Kurslar & Sozlamalar', href: '/courses',       icon: 'Settings' },
     { label: 'Profil',              href: '/profile',        icon: 'User' },
   ];
 
@@ -91,23 +90,16 @@ export const getNavItems = (role: string): NavItem[] => {
     { label: 'Guruhlarim',    href: '/groups',         icon: 'BookOpen' },
     { label: 'O\'quvchilar',  href: '/students',       icon: 'Users' },
     { label: 'Davomat',       href: '/attendance',     icon: 'ClipboardCheck' },
-    { label: 'Dars jadvali',  href: '/schedule',       icon: 'Calendar' },
-    { label: 'Imtihonlar',    href: '/exams',          icon: 'Award' },
-    { label: 'Oylik hisobot', href: '/reports',        icon: 'PieChart' },
-    { label: 'Uy vazifalari', href: '/homework',       icon: 'FileText' },
-    { label: 'E\'lonlar',     href: '/announcements',  icon: 'Megaphone' },
+    { label: 'Hisobot & Maosh', href: '/reports',      icon: 'BarChart3' },
     { label: 'Profil',        href: '/profile',        icon: 'User' },
   ];
 
   const studentNav: NavItem[] = [
     { label: 'Bosh sahifa',         href: '/dashboard',      icon: 'Home' },
     { label: 'Mening guruhlarim',   href: '/groups',         icon: 'BookOpen' },
-    { label: 'Dars jadvali',        href: '/schedule',       icon: 'Calendar' },
     { label: 'Davomatim',           href: '/attendance',     icon: 'ClipboardCheck' },
-    { label: 'Imtihonlarim',        href: '/exams',          icon: 'Award' },
-    { label: 'Uy vazifalari',       href: '/homework',       icon: 'FileText' },
-    { label: 'E\'lonlar',           href: '/announcements',  icon: 'Megaphone' },
-    { label: 'Profil & Sozlamalar', href: '/profile',        icon: 'User' },
+    { label: 'To\'lovlarim',        href: '/payments',       icon: 'CreditCard' },
+    { label: 'Profil',              href: '/profile',        icon: 'User' },
   ];
 
   if (isStudent(role)) return studentNav;
