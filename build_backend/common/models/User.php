@@ -112,6 +112,22 @@ class User extends ActiveRecord implements IdentityInterface
                 $user = static::findOne(['phone' => $clean, 'status' => self::STATUS_ACTIVE]);
             }
         }
+        if (!$user) {
+            $digits = preg_replace('/[^\d]/', '', $phone);
+            if (!empty($digits)) {
+                $variants = [$digits, '+' . $digits];
+                if (str_starts_with($digits, '998') && strlen($digits) === 12) {
+                    $variants[] = substr($digits, 3);
+                } elseif (strlen($digits) === 9) {
+                    $variants[] = '998' . $digits;
+                    $variants[] = '+998' . $digits;
+                }
+                $user = static::find()
+                    ->where(['status' => self::STATUS_ACTIVE])
+                    ->andWhere(['in', 'phone', $variants])
+                    ->one();
+            }
+        }
         return $user;
     }
 

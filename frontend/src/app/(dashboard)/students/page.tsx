@@ -354,11 +354,6 @@ export default function StudentsPage() {
                           >
                             {student.name}
                           </Link>
-                          {student.email && (
-                            <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
-                              <Mail className="w-3 h-3" /> {student.email}
-                            </p>
-                          )}
                         </div>
                       </div>
                     </td>
@@ -513,7 +508,7 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Telefon raqami *
+                  Telefon raqami (Login) *
                 </label>
                 <input
                   type="text"
@@ -521,19 +516,6 @@ export default function StudentsPage() {
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="+998 90 123 45 67"
-                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Email manzili (ixtiyoriy)
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="student@example.com"
                   className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
@@ -622,18 +604,7 @@ export default function StudentsPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Email manzili
-                </label>
-                <input
-                  type="email"
-                  value={editFormData.email}
-                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                  placeholder="student@example.com"
-                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                />
-              </div>
+
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">

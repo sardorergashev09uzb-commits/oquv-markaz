@@ -102,19 +102,24 @@ class TeacherController extends Controller
         $body = Yii::$app->request->bodyParams;
 
         $teacher = new User();
-        $teacher->name = $body['name'] ?? null;
-        $teacher->phone = $body['phone'] ?? null;
-        $teacher->email = $body['email'] ?? null;
+        $teacher->name = trim((string)($body['name'] ?? ''));
+        $teacher->phone = trim((string)($body['phone'] ?? ''));
+        $rawEmail = !empty($body['email']) ? trim((string)$body['email']) : null;
+        $teacher->email = $rawEmail ?: null;
         $teacher->role = User::ROLE_TEACHER;
         $teacher->status = isset($body['status']) ? (int) $body['status'] : User::STATUS_ACTIVE;
 
-        $rawPassword = $body['password'] ?? 'Teacher123!';
+        $rawPassword = !empty($body['password']) ? (string)$body['password'] : 'Teacher123!';
         $teacher->setPassword($rawPassword);
         $teacher->generateAuthKey();
 
         if (!$teacher->save()) {
             Yii::$app->response->statusCode = 422;
-            return ['errors' => $teacher->getErrors()];
+            $firstError = current($teacher->getFirstErrors()) ?: "O'qituvchini saqlashda xatolik yuz berdi";
+            return [
+                'message' => $firstError,
+                'errors' => $teacher->getErrors(),
+            ];
         }
 
         Yii::$app->response->statusCode = 201;
@@ -135,9 +140,12 @@ class TeacherController extends Controller
         }
 
         $body = Yii::$app->request->bodyParams;
-        if (isset($body['name'])) $teacher->name = $body['name'];
-        if (isset($body['phone'])) $teacher->phone = $body['phone'];
-        if (isset($body['email'])) $teacher->email = $body['email'];
+        if (isset($body['name'])) $teacher->name = trim((string)$body['name']);
+        if (isset($body['phone'])) $teacher->phone = trim((string)$body['phone']);
+        if (array_key_exists('email', $body)) {
+            $rawEmail = !empty($body['email']) ? trim((string)$body['email']) : null;
+            $teacher->email = $rawEmail ?: null;
+        }
         if (isset($body['status'])) $teacher->status = (int) $body['status'];
         if (!empty($body['password'])) {
             $teacher->setPassword($body['password']);
@@ -145,7 +153,11 @@ class TeacherController extends Controller
 
         if (!$teacher->save()) {
             Yii::$app->response->statusCode = 422;
-            return ['errors' => $teacher->getErrors()];
+            $firstError = current($teacher->getFirstErrors()) ?: "O'qituvchi ma'lumotlarini yangilashda xatolik yuz berdi";
+            return [
+                'message' => $firstError,
+                'errors' => $teacher->getErrors(),
+            ];
         }
 
         return [

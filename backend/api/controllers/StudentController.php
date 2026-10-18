@@ -364,7 +364,6 @@ class StudentController extends Controller
             $db->createCommand()->delete('{{%certificates}}', ['student_id' => $id])->execute();
             $db->createCommand()->delete('{{%student_documents}}', ['student_id' => $id])->execute();
             $db->createCommand()->delete('{{%group_students}}', ['student_id' => $id])->execute();
-            $db->createCommand()->update('{{%leads}}', ['student_id' => null], ['student_id' => $id])->execute();
 
             $student->delete();
             $transaction->commit();
