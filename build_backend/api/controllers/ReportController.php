@@ -82,8 +82,8 @@ class ReportController extends Controller
     public function actionFinance(): array
     {
         $user = Yii::$app->user->identity;
-        if (!$user || !in_array($user->role, [User::ROLE_ADMIN])) {
-            throw new \yii\web\ForbiddenHttpException("Moliya hisoboti faqat administrator uchun ruxsat etilgan.");
+        if (!$user || !in_array($user->role, [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_MANAGER], true)) {
+            throw new \yii\web\ForbiddenHttpException("Moliya hisoboti faqat administrator yoki menejer uchun ruxsat etilgan.");
         }
 
         // 1. Oxirgi 6 oylik trend

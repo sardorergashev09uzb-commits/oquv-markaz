@@ -77,6 +77,11 @@ export default function GroupsPage() {
   const [forceDeletingGroup, setForceDeletingGroup] = useState<GroupItem | null>(null);
   const [forceDeleteError, setForceDeleteError] = useState('');
 
+  // ─── Bulk Delete State ─────────────────────────────────────────────────────
+  const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   // ─── 1. Fetch Groups ───────────────────────────────────────────────────────
   const { data: groupsData, isLoading } = useQuery({
     queryKey: ['groups', search, courseFilter, statusFilter],
@@ -275,6 +280,29 @@ export default function GroupsPage() {
     },
   });
 
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    try {
+      for (const id of selectedGroupIds) {
+        try {
+          await api.delete(`/api/groups/${id}/force`);
+        } catch (e: any) {
+          if (e.response?.status === 404) {
+            await api.delete(`/api/groups/${id}`, { params: { force: 1 } });
+          }
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+      setSelectedGroupIds([]);
+      setIsBulkDeleteModalOpen(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
@@ -442,6 +470,32 @@ export default function GroupsPage() {
         </div>
       </div>
 
+      {/* Sinov guruhlarini tozalash banneri (agar banan/test guruhlari bo'lsa) */}
+      {!isUserStudent && (() => {
+        const bananGroups = groups.filter((g) => {
+          const n = g.name.toLowerCase();
+          return n.includes('banan') || n.includes('baban') || n.includes('test') || n.includes('vdbdnnsn');
+        });
+        if (bananGroups.length === 0) return null;
+        return (
+          <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs text-amber-900 dark:text-amber-200 shadow-xs">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                Tizimda <strong>{bananGroups.length} ta</strong> sinov tariqasida yaratilgan guruhlar (&quot;banan&quot; va boshqalar) mavjud.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedGroupIds(bananGroups.map((g) => g.id))}
+              className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold transition cursor-pointer shadow-xs"
+            >
+              Barcha sinov guruhlarini tanlash ({bananGroups.length} ta)
+            </button>
+          </div>
+        );
+      })()}
+
       {/* Groups Grid */}
       {isLoading ? (
         <div className="py-20 flex items-center justify-center">
@@ -462,16 +516,36 @@ export default function GroupsPage() {
           {groups.map((group) => (
             <div
               key={group.id}
-              className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition flex flex-col justify-between"
+              className={`bg-white dark:bg-gray-900 rounded-2xl p-5 border transition flex flex-col justify-between ${
+                selectedGroupIds.includes(group.id)
+                  ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-md'
+                  : 'border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md'
+              }`}
             >
               <div>
                 <div className="flex items-start justify-between gap-2">
-                  <Link
-                    href={`/groups/${group.id}`}
-                    className="font-bold text-gray-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 transition"
-                  >
-                    {group.name}
-                  </Link>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {!isUserStudent && (
+                      <input
+                        type="checkbox"
+                        checked={selectedGroupIds.includes(group.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedGroupIds((prev) => [...prev, group.id]);
+                          } else {
+                            setSelectedGroupIds((prev) => prev.filter((id) => id !== group.id));
+                          }
+                        }}
+                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
+                      />
+                    )}
+                    <Link
+                      href={`/groups/${group.id}`}
+                      className="font-bold text-gray-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 transition truncate"
+                    >
+                      {group.name}
+                    </Link>
+                  </div>
                   <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-semibold border capitalize ${
                     group.status === 'active'
                       ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
@@ -1169,6 +1243,77 @@ export default function GroupsPage() {
                 className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
               >
                 {forceDeleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>Ha, butunlay o&apos;chirish</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Bulk Action Bar */}
+      {selectedGroupIds.length > 0 && !isUserStudent && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-950/90 dark:bg-gray-900/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl border border-gray-700/80 flex items-center gap-4 animate-fade-in">
+          <span className="text-xs sm:text-sm font-semibold text-gray-200">
+            <strong className="text-white">{selectedGroupIds.length} ta</strong> guruh tanlandi
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedGroupIds(groups.map((g) => g.id))}
+            className="text-xs text-blue-400 hover:text-blue-300 underline font-medium cursor-pointer"
+          >
+            Barchasini tanlash
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedGroupIds([])}
+            className="text-xs text-gray-400 hover:text-gray-200 underline cursor-pointer"
+          >
+            Bekor qilish
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsBulkDeleteModalOpen(true)}
+            className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-md"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Tanlanganlarni o&apos;chirish</span>
+          </button>
+        </div>
+      )}
+
+      {/* Modal: Ommaviy O'chirish Tasdig'i */}
+      {isBulkDeleteModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700 p-6 space-y-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                Tanlangan {selectedGroupIds.length} ta guruhni butunlay o&apos;chirmoqchimisiz?
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Ushbu barcha tanlangan guruhlar va ularga tegishli dars jadvallari ma&apos;lumotlar bazasidan qaytarib bo&apos;lmaydigan qilib butunlay o&apos;chiriladi.
+              </p>
+            </div>
+
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={() => setIsBulkDeleteModalOpen(false)}
+                className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={handleBulkDelete}
+                className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+              >
+                {isBulkDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>Ha, butunlay o&apos;chirish</span>
               </button>
             </div>

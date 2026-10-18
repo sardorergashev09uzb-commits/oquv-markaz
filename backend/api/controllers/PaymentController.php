@@ -269,8 +269,8 @@ class PaymentController extends Controller
     public function actionDelete(int $id): array
     {
         $currentUser = Yii::$app->user->identity;
-        if (!$currentUser || $currentUser->role !== User::ROLE_ADMIN) {
-            throw new \yii\web\ForbiddenHttpException("Faqat administrator to'lovni bekor qila oladi.");
+        if (!$currentUser || !in_array($currentUser->role, [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_MANAGER], true)) {
+            throw new \yii\web\ForbiddenHttpException("Faqat administrator yoki menejer to'lovni bekor qila oladi.");
         }
 
         $payment = Payment::findOne($id);

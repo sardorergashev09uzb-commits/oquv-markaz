@@ -11,6 +11,12 @@ use common\models\GroupStudent;
 use common\models\Lesson;
 use common\models\Room;
 use common\models\User;
+use common\models\Attendance;
+use common\models\Assessment;
+use common\models\AssessmentScore;
+use common\models\Homework;
+use common\models\HomeworkSubmission;
+use common\models\PaymentPlan;
 use Yii;
 use yii\data\ActiveDataProvider;
 use yii\rest\Controller;
@@ -515,18 +521,38 @@ class GroupController extends Controller
         }
 
         $currentUser = Yii::$app->user->identity;
-        if ($currentUser && $currentUser->role !== User::ROLE_ADMIN) {
-            throw new ForbiddenHttpException("Faqat administrator guruhni bazadan butunlay o'chira oladi.");
+        if (!$currentUser || !in_array($currentUser->role, [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_MANAGER], true)) {
+            throw new ForbiddenHttpException("Faqat administrator yoki menejer guruhni bazadan butunlay o'chira oladi.");
         }
 
-        // Bog'liq darslar va jadvallarni tozalash
-        Lesson::deleteAll(['group_id' => $id]);
-        PaymentPlan::deleteAll(['group_id' => $id]);
-        GroupStudent::deleteAll(['group_id' => $id]);
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $lessonIds = Lesson::find()->select('id')->where(['group_id' => $id])->column();
+            if (!empty($lessonIds)) {
+                Attendance::deleteAll(['lesson_id' => $lessonIds]);
+                Lesson::deleteAll(['id' => $lessonIds]);
+            }
+            $assessmentIds = Assessment::find()->select('id')->where(['group_id' => $id])->column();
+            if (!empty($assessmentIds)) {
+                AssessmentScore::deleteAll(['assessment_id' => $assessmentIds]);
+                Assessment::deleteAll(['id' => $assessmentIds]);
+            }
+            $homeworkIds = Homework::find()->select('id')->where(['group_id' => $id])->column();
+            if (!empty($homeworkIds)) {
+                HomeworkSubmission::deleteAll(['homework_id' => $homeworkIds]);
+                Homework::deleteAll(['id' => $homeworkIds]);
+            }
+            PaymentPlan::deleteAll(['group_id' => $id]);
+            GroupStudent::deleteAll(['group_id' => $id]);
 
-        $group->delete();
+            $group->delete();
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            throw $e;
+        }
 
-        return ['message' => "Guruh va unga tegishli jadvallar bazadan butunlay o'chirildi"];
+        return ['message' => "Guruh va unga tegishli barcha ma'lumotlar bazadan butunlay o'chirildi"];
     }
 
     /**

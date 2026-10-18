@@ -37,7 +37,7 @@ class FinanceController extends Controller
         }
 
         $user = Yii::$app->user->identity;
-        if (!$user || $user->role !== User::ROLE_ADMIN) {
+        if (!$user || !in_array($user->role, [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_MANAGER], true)) {
             throw new ForbiddenHttpException("Moliya va xarajatlar ma'lumotlari faqat rahbar/administrator uchun ruxsat etilgan.");
         }
 
