@@ -194,6 +194,12 @@ return [
                 'GET    api/reports/risk-students'  => 'report/risk-students',
                 'GET    api/reports/teachers'       => 'report/teachers',
 
+                // Settings
+                'GET    api/settings'               => 'setting/index',
+                'POST   api/settings'               => 'setting/save',
+                'GET    settings'                   => 'setting/index',
+                'POST   settings'                   => 'setting/save',
+
                 // Catch-all for OPTIONS requests (CORS preflight)
                 'OPTIONS <path:.*>' => 'auth/options',
 

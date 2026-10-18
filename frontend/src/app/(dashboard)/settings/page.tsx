@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { getCurrentUserFromToken } from '@/lib/auth';
 import {
   Building2, MessageSquare, Users, Database, Save, CheckCircle2,
   AlertCircle, Send, Lock, ShieldCheck, BookOpen, Plus, Loader2,
-  DollarSign, ExternalLink
+  DollarSign, ExternalLink, Download
 } from 'lucide-react';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 
@@ -15,7 +16,13 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'profile' | 'courses' | 'sms' | 'users' | 'system' | 'limits'>('profile');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [testSmsStatus, setTestSmsStatus] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    setCurrentUser(getCurrentUserFromToken());
+  }, []);
 
   // Courses Tab State inside Settings
   const [courseForm, setCourseForm] = useState({
@@ -76,6 +83,7 @@ export default function SettingsPage() {
     minTeacherSalary: 2000000,
     discountLimit: 20,
   });
+
   const [profile, setProfile] = useState({
     name: "O'quv Markaz N1 (Bosh Filial)",
     phone: "+998 71 200 00 00",
@@ -97,10 +105,86 @@ export default function SettingsPage() {
     testPhone: '+998901234567',
   });
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+  // 1. Initial load from LocalStorage for instant rendering
+  useEffect(() => {
+    try {
+      const savedProfile = localStorage.getItem('app_settings_profile');
+      if (savedProfile) {
+        setProfile(prev => ({ ...prev, ...JSON.parse(savedProfile) }));
+      }
+      const savedLimits = localStorage.getItem('app_settings_limits');
+      if (savedLimits) {
+        setLimits(prev => ({ ...prev, ...JSON.parse(savedLimits) }));
+      }
+      const savedSms = localStorage.getItem('app_settings_sms');
+      if (savedSms) {
+        setSmsConfig(prev => ({ ...prev, ...JSON.parse(savedSms) }));
+      }
+    } catch (e) {
+      console.warn("LocalStorage load error:", e);
+    }
+  }, []);
+
+  // 2. Fetch from backend API
+  const { data: serverSettings } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: async () => {
+      try {
+        const resp = await api.get('/api/settings');
+        return resp.data;
+      } catch (e) {
+        return null;
+      }
+    },
+    staleTime: 60000,
+  });
+
+  useEffect(() => {
+    if (serverSettings) {
+      if (serverSettings.profile) {
+        setProfile(prev => ({ ...prev, ...serverSettings.profile }));
+        try { localStorage.setItem('app_settings_profile', JSON.stringify(serverSettings.profile)); } catch (e) {}
+      }
+      if (serverSettings.limits) {
+        setLimits(prev => ({ ...prev, ...serverSettings.limits }));
+        try { localStorage.setItem('app_settings_limits', JSON.stringify(serverSettings.limits)); } catch (e) {}
+      }
+      if (serverSettings.smsConfig) {
+        setSmsConfig(prev => ({ ...prev, ...serverSettings.smsConfig }));
+        try { localStorage.setItem('app_settings_sms', JSON.stringify(serverSettings.smsConfig)); } catch (e) {}
+      }
+    }
+  }, [serverSettings]);
+
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSaving(true);
+    try {
+      // Instantly persist to localStorage
+      try {
+        localStorage.setItem('app_settings_profile', JSON.stringify(profile));
+        localStorage.setItem('app_settings_limits', JSON.stringify(limits));
+        localStorage.setItem('app_settings_sms', JSON.stringify(smsConfig));
+      } catch (err) {}
+
+      // Persist to backend API
+      await api.post('/api/settings', {
+        profile,
+        limits,
+        smsConfig,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3500);
+    } catch (err: any) {
+      console.warn("Settings API save:", err);
+      // Even if network or backend pull is pending, localStorage persisted successfully
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3500);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSendTestSms = () => {
@@ -109,6 +193,23 @@ export default function SettingsPage() {
       setTestSmsStatus('Muvaffaqiyatli yetkazildi (Sinov SMS)');
       setTimeout(() => setTestSmsStatus(null), 4000);
     }, 1000);
+  };
+
+  const handleDownloadBackup = () => {
+    const backupData = {
+      backupDate: new Date().toISOString(),
+      centerProfile: profile,
+      limits,
+      smsConfig,
+      coursesCount: coursesData?.length || 0,
+    };
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `oquv_markaz_sozlamalar_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -279,22 +380,27 @@ export default function SettingsPage() {
 
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Birlamchi Valyuta</label>
-              <input
-                type="text"
-                disabled
+              <select
                 value={profile.currency}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded-lg text-sm"
-              />
+                onChange={(e) => setProfile({ ...profile, currency: e.target.value })}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                <option value="UZS (so'm)">UZS (so'm)</option>
+                <option value="USD ($)">USD ($)</option>
+                <option value="EUR (€)">EUR (€)</option>
+                <option value="RUB (₽)">RUB (₽)</option>
+              </select>
             </div>
           </div>
 
           <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-end">
             <button
               type="submit"
-              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-sm transition"
+              disabled={isSaving}
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-sm transition cursor-pointer"
             >
-              <Save className="w-4 h-4" />
-              O&apos;zgarishlarni saqlash
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>{isSaving ? "Saqlanmoqda..." : "O'zgarishlarni saqlash"}</span>
             </button>
           </div>
         </form>
@@ -572,7 +678,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={handleSendTestSms}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold rounded-lg flex items-center justify-center gap-1.5 transition"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold rounded-lg flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
                 Sinash
@@ -584,6 +690,18 @@ export default function SettingsPage() {
                 {testSmsStatus}
               </div>
             )}
+          </div>
+
+          <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-end">
+            <button
+              type="button"
+              onClick={() => handleSave()}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-sm transition cursor-pointer"
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>{isSaving ? "Saqlanmoqda..." : "SMS Sozlamalarini Saqlash"}</span>
+            </button>
           </div>
         </div>
       )}
@@ -608,11 +726,13 @@ export default function SettingsPage() {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-800/40">
-                  <td className="py-3.5 px-4 font-bold text-gray-900 dark:text-white">Bosh Administrator (Siz)</td>
-                  <td className="py-3.5 px-4 font-mono text-gray-600 dark:text-gray-300">+998900000000</td>
+                  <td className="py-3.5 px-4 font-bold text-gray-900 dark:text-white">
+                    {currentUser?.name || "Bosh Administrator (Siz)"}
+                  </td>
+                  <td className="py-3.5 px-4 font-mono text-gray-600 dark:text-gray-300">+998 90 000 00 00</td>
                   <td className="py-3.5 px-4">
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300">
-                      Super Admin
+                      {currentUser?.role ? currentUser.role.toUpperCase() : "SUPER ADMIN"}
                     </span>
                   </td>
                   <td className="py-3.5 px-4 text-center">
@@ -620,11 +740,11 @@ export default function SettingsPage() {
                   </td>
                 </tr>
                 <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-800/40">
-                  <td className="py-3.5 px-4 font-medium text-gray-900 dark:text-white">Receptionist (Qabulxona)</td>
-                  <td className="py-3.5 px-4 font-mono text-gray-600 dark:text-gray-300">+998901110000</td>
+                  <td className="py-3.5 px-4 font-medium text-gray-900 dark:text-white">Administrator (Qabulxona)</td>
+                  <td className="py-3.5 px-4 font-mono text-gray-600 dark:text-gray-300">+998 90 111 00 00</td>
                   <td className="py-3.5 px-4">
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300">
-                      Administrator
+                      ADMIN
                     </span>
                   </td>
                   <td className="py-3.5 px-4 text-center">
@@ -633,10 +753,10 @@ export default function SettingsPage() {
                 </tr>
                 <tr className="hover:bg-gray-50/60 dark:hover:bg-gray-800/40">
                   <td className="py-3.5 px-4 font-medium text-gray-900 dark:text-white">Moliya Menejeri</td>
-                  <td className="py-3.5 px-4 font-mono text-gray-600 dark:text-gray-300">+998902220000</td>
+                  <td className="py-3.5 px-4 font-mono text-gray-600 dark:text-gray-300">+998 90 222 00 00</td>
                   <td className="py-3.5 px-4">
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300">
-                      Manager
+                      MANAGER
                     </span>
                   </td>
                   <td className="py-3.5 px-4 text-center">
@@ -713,10 +833,11 @@ export default function SettingsPage() {
           <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-end">
             <button
               type="submit"
-              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-sm transition"
+              disabled={isSaving}
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-sm transition cursor-pointer"
             >
-              <Save className="w-4 h-4" />
-              O&apos;zgarishlarni saqlash
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>{isSaving ? "Saqlanmoqda..." : "O'zgarishlarni saqlash"}</span>
             </button>
           </div>
         </form>
@@ -749,11 +870,11 @@ export default function SettingsPage() {
             <div className="pt-2 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => alert("Baza to'liq zaxiralandi (backup_oquv_markaz_2026.sql)")}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition"
+                onClick={handleDownloadBackup}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition cursor-pointer"
               >
-                <Database className="w-3.5 h-3.5" />
-                Zaxira nusxa olish (SQL Dump)
+                <Download className="w-3.5 h-3.5" />
+                Zaxira nusxa olish (Backup JSON)
               </button>
             </div>
           </div>

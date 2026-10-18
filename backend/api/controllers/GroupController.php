@@ -17,6 +17,8 @@ use common\models\AssessmentScore;
 use common\models\Homework;
 use common\models\HomeworkSubmission;
 use common\models\PaymentPlan;
+use common\models\Payment;
+use common\models\Certificate;
 use Yii;
 use yii\data\ActiveDataProvider;
 use yii\rest\Controller;
@@ -527,24 +529,37 @@ class GroupController extends Controller
 
         $transaction = Yii::$app->db->beginTransaction();
         try {
+            // 1. Lessons, Attendance and Homework
             $lessonIds = Lesson::find()->select('id')->where(['group_id' => $id])->column();
             if (!empty($lessonIds)) {
                 Attendance::deleteAll(['lesson_id' => $lessonIds]);
+                $homeworkIds = Homework::find()->select('id')->where(['lesson_id' => $lessonIds])->column();
+                if (!empty($homeworkIds)) {
+                    HomeworkSubmission::deleteAll(['homework_id' => $homeworkIds]);
+                    Homework::deleteAll(['id' => $homeworkIds]);
+                }
                 Lesson::deleteAll(['id' => $lessonIds]);
             }
+
+            // 2. Assessments and Scores
             $assessmentIds = Assessment::find()->select('id')->where(['group_id' => $id])->column();
             if (!empty($assessmentIds)) {
                 AssessmentScore::deleteAll(['assessment_id' => $assessmentIds]);
                 Assessment::deleteAll(['id' => $assessmentIds]);
             }
-            $homeworkIds = Homework::find()->select('id')->where(['group_id' => $id])->column();
-            if (!empty($homeworkIds)) {
-                HomeworkSubmission::deleteAll(['homework_id' => $homeworkIds]);
-                Homework::deleteAll(['id' => $homeworkIds]);
+
+            // 3. Payment Plans and Payments
+            $planIds = PaymentPlan::find()->select('id')->where(['group_id' => $id])->column();
+            if (!empty($planIds)) {
+                Payment::deleteAll(['plan_id' => $planIds]);
+                PaymentPlan::deleteAll(['id' => $planIds]);
             }
-            PaymentPlan::deleteAll(['group_id' => $id]);
+
+            // 4. Certificates and Group Students
+            Certificate::deleteAll(['group_id' => $id]);
             GroupStudent::deleteAll(['group_id' => $id]);
 
+            // 5. Delete Group
             $group->delete();
             $transaction->commit();
         } catch (\Throwable $e) {
