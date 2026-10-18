@@ -1,23 +1,21 @@
 'use client';
 
 import {
-  Bell, Search, Sun, Moon, CheckCheck, Megaphone, Award,
-  CreditCard, AlertCircle, Info, X, LayoutGrid, Users,
-  BookOpen, DoorOpen, UserPlus, TrendingUp, Shield, Settings,
-  GraduationCap, FileText, CheckCircle, Calendar, ClipboardCheck, Star, RefreshCw
+  Bell, Sun, Moon, CheckCheck, Megaphone,
+  Settings, CheckCircle, RefreshCw
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { getCurrentUserFromToken, isStudent, isTeacher, canManage } from '@/lib/auth';
+import { getCurrentUserFromToken, canManage } from '@/lib/auth';
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':      'Boshqaruv Paneli',
   '/schedule':       'Dars Jadvali',
   '/attendance':     'Davomat Tizimi',
-  '/payments':       "To'lovlar Tizimi",
+  '/payments':       "To'lovlar & Kassa",
   '/groups':         'Guruhlar',
   '/students':       "O'quvchilar",
   '/teachers':       "O'qituvchilar",
@@ -156,46 +154,7 @@ export function Topbar({ title }: { title?: string }) {
   const items = notifData?.items || [];
   const unreadCount = notifData?.unread_count || 0;
 
-  // App Launcher modules list (Role-based)
-  let appModules = [
-    { href: '/students', label: "O'quvchilar", icon: GraduationCap, color: 'bg-blue-500' },
-    { href: '/teachers', label: "O'qituvchilar", icon: Users, color: 'bg-indigo-500' },
-    { href: '/groups', label: "Guruhlar", icon: BookOpen, color: 'bg-emerald-500' },
-    { href: '/attendance', label: "Davomat", icon: ClipboardCheck, color: 'bg-teal-500' },
-    { href: '/payments', label: "To'lovlar", icon: CreditCard, color: 'bg-rose-500' },
-    { href: '/finance', label: "Moliya", icon: TrendingUp, color: 'bg-emerald-600' },
-    { href: '/schedule', label: "Dars jadvali", icon: Calendar, color: 'bg-amber-500' },
-    { href: '/exams', label: "Imtihonlar", icon: Award, color: 'bg-purple-500' },
-    { href: '/courses', label: "Kurslar", icon: BookOpen, color: 'bg-violet-500' },
-    { href: '/rooms', label: "Auditoriyalar", icon: DoorOpen, color: 'bg-cyan-500' },
-    { href: '/leads', label: "CRM Leadlar", icon: UserPlus, color: 'bg-pink-500' },
-    { href: '/reports', label: "Hisobotlar", icon: Shield, color: 'bg-cyan-600' },
-    { href: '/announcements', label: "E'lonlar", icon: Megaphone, color: 'bg-orange-500' },
-    { href: '/settings', label: "Sozlamalar", icon: Settings, color: 'bg-slate-600' },
-  ];
 
-  if (isStudent(userRole)) {
-    appModules = [
-      { href: '/groups', label: "Guruhlarim", icon: BookOpen, color: 'bg-blue-500' },
-      { href: '/schedule', label: "Dars jadvali", icon: Calendar, color: 'bg-indigo-500' },
-      { href: '/attendance', label: "Davomatim", icon: ClipboardCheck, color: 'bg-teal-500' },
-      { href: '/payments', label: "To'lovlarim", icon: CreditCard, color: 'bg-emerald-500' },
-      { href: '/exams', label: "Imtihonlarim", icon: Award, color: 'bg-purple-500' },
-      { href: '/homework', label: "Uy vazifalari", icon: FileText, color: 'bg-amber-500' },
-      { href: '/announcements', label: "E'lonlar", icon: Megaphone, color: 'bg-rose-500' },
-      { href: '/certificates', label: "Sertifikatlar", icon: Star, color: 'bg-cyan-500' },
-    ];
-  } else if (isTeacher(userRole)) {
-    appModules = [
-      { href: '/groups', label: "Guruhlarim", icon: BookOpen, color: 'bg-blue-500' },
-      { href: '/students', label: "O'quvchilarim", icon: GraduationCap, color: 'bg-indigo-500' },
-      { href: '/attendance', label: "Davomat olish", icon: ClipboardCheck, color: 'bg-teal-500' },
-      { href: '/schedule', label: "Dars jadvali", icon: Calendar, color: 'bg-emerald-500' },
-      { href: '/exams', label: "Imtihonlar", icon: Award, color: 'bg-purple-500' },
-      { href: '/homework', label: "Uy vazifalari", icon: FileText, color: 'bg-amber-500' },
-      { href: '/announcements', label: "E'lonlar", icon: Megaphone, color: 'bg-rose-500' },
-    ];
-  }
 
   return (
     <>
