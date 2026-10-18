@@ -25,7 +25,7 @@ interface Student {
 export default function StudentsPage() {
   const queryClient = useQueryClient();
   const { isTeacher, isStudent } = useCurrentUser();
-  const canManageStudents = !isTeacher && !isStudent;
+  const canManageStudents = !isStudent;
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -247,7 +247,17 @@ export default function StudentsPage() {
         </div>
         {canManageStudents && (
           <button
-            onClick={() => setIsModalOpen(true)}
+            type="button"
+            onClick={() => {
+              setFormData({
+                name: '',
+                phone: '+998',
+                email: '',
+                password: '',
+              });
+              setFormError('');
+              setIsModalOpen(true);
+            }}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
@@ -450,11 +460,12 @@ export default function StudentsPage() {
 
       {/* Modal: Yangi o'quvchi */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in border dark:border-gray-700">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/60 overflow-y-auto">
+          <div className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-700 animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
               <h3 className="font-bold text-gray-900 dark:text-white">Yangi o&apos;quvchi qo&apos;shish</h3>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
               >
@@ -548,11 +559,12 @@ export default function StudentsPage() {
 
       {/* Modal: O'quvchini Tahrirlash (Edit) */}
       {isEditModalOpen && editingStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in border dark:border-gray-700">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/60 overflow-y-auto">
+          <div className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-700 animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
               <h3 className="font-bold text-gray-900 dark:text-white">O&apos;quvchi ma&apos;lumotlarini tahrirlash</h3>
               <button
+                type="button"
                 onClick={() => setIsEditModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
               >
@@ -659,7 +671,7 @@ export default function StudentsPage() {
 
       {/* Modal: O'quvchini Arxivlash Tasdig'i */}
       {isDeleteModalOpen && deletingStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700 p-6 space-y-4">
             <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
               <AlertTriangle className="w-6 h-6" />
@@ -698,7 +710,7 @@ export default function StudentsPage() {
 
       {/* Modal: O'quvchini Butunlay O'chirish Tasdig'i */}
       {isForceDeleteModalOpen && forceDeletingStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700 p-6 space-y-4">
             <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
               <Trash2 className="w-6 h-6" />

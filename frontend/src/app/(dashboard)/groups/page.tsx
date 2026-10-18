@@ -324,9 +324,14 @@ export default function GroupsPage() {
     }
     return true;
   });
-  const courses = coursesData || [];
-  const teachers = teachersData || [];
-  const rooms = roomsData || [];
+  const rawCourses = Array.isArray(coursesData) ? coursesData : (coursesData?.items || []);
+  const courses = Array.isArray(rawCourses) ? rawCourses : [];
+
+  const rawTeachers = Array.isArray(teachersData) ? teachersData : (teachersData?.items || []);
+  const teachers = Array.isArray(rawTeachers) ? rawTeachers : [];
+
+  const rawRooms = Array.isArray(roomsData) ? roomsData : (roomsData?.items || []);
+  const rooms = Array.isArray(rawRooms) ? rawRooms : [];
 
   return (
     <div className="space-y-6">
@@ -346,9 +351,10 @@ export default function GroupsPage() {
           </p>
         </div>
 
-        {/* Faqat Teacher va Admin ko'radi */}
-        {!isUserStudent && !isUserLoading && (
+        {/* Faqat O'quvchi bo'lmaganlar ko'radi */}
+        {!isUserStudent && (
           <button
+            type="button"
             onClick={() => {
               setFormData({
                 name: '',
@@ -564,13 +570,14 @@ export default function GroupsPage() {
 
       {/* Modal: Yangi Guruh Ochish */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in border dark:border-gray-700">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/60 overflow-y-auto">
+          <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-700 animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
               <h3 className="font-bold text-gray-900 dark:text-white">Yangi guruh ochish</h3>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -810,13 +817,14 @@ export default function GroupsPage() {
 
       {/* Modal: Guruhni Tahrirlash (Edit) */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in border dark:border-gray-700">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/60 overflow-y-auto">
+          <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-700 animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
               <h3 className="font-bold text-gray-900 dark:text-white">Guruh ma&apos;lumotlarini tahrirlash</h3>
               <button
+                type="button"
                 onClick={() => setIsEditModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -978,7 +986,7 @@ export default function GroupsPage() {
 
       {/* Modal: Guruhni O'chirish / Arxivlash tasdig'i */}
       {isDeleteModalOpen && deletingGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700 p-6 space-y-4">
             <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
               <AlertTriangle className="w-6 h-6" />
@@ -1017,7 +1025,7 @@ export default function GroupsPage() {
 
       {/* Modal: Guruhni Butunlay O'chirish Tasdig'i */}
       {isForceDeleteModalOpen && forceDeletingGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700 p-6 space-y-4">
             <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
               <Trash2 className="w-6 h-6" />

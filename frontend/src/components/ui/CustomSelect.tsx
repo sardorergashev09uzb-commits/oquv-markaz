@@ -25,7 +25,7 @@ interface CustomSelectProps {
 export function CustomSelect({
   value,
   onChange,
-  options,
+  options = [],
   placeholder = 'Tanlang...',
   className,
   buttonClassName,
@@ -37,6 +37,8 @@ export function CustomSelect({
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const safeOptions = Array.isArray(options) ? options : [];
 
   // Close on outside click
   useEffect(() => {
@@ -66,19 +68,19 @@ export function CustomSelect({
 
   // Selected item label
   const selectedOption = useMemo(() => {
-    return options.find((opt) => String(opt.value) === String(value));
-  }, [options, value]);
+    return safeOptions.find((opt) => String(opt?.value) === String(value));
+  }, [safeOptions, value]);
 
   // Filtered options by search query
   const filteredOptions = useMemo(() => {
-    if (!searchQuery.trim()) return options;
+    if (!searchQuery.trim()) return safeOptions;
     const q = searchQuery.toLowerCase();
-    return options.filter(
+    return safeOptions.filter(
       (opt) =>
-        opt.label.toLowerCase().includes(q) ||
-        (opt.subLabel && opt.subLabel.toLowerCase().includes(q))
+        opt?.label?.toLowerCase().includes(q) ||
+        (opt?.subLabel && opt.subLabel.toLowerCase().includes(q))
     );
-  }, [options, searchQuery]);
+  }, [safeOptions, searchQuery]);
 
   const handleSelect = (optValue: string | number) => {
     onChange(String(optValue));
