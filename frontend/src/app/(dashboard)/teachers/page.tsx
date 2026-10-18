@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
   GraduationCap, Plus, Search, Phone, Mail, BookOpen,
-  Loader2, X, AlertCircle, CheckCircle, Pencil, Trash2, AlertTriangle, KeyRound
+  Loader2, X, AlertCircle, CheckCircle, Pencil, Trash2, AlertTriangle, KeyRound, RotateCcw
 } from 'lucide-react';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useCurrentUser } from '@/lib/useCurrentUser';
@@ -53,6 +53,11 @@ export default function TeachersPage() {
   // Delete Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingTeacher, setDeletingTeacher] = useState<TeacherItem | null>(null);
+
+  // Force Delete State
+  const [isForceDeleteModalOpen, setIsForceDeleteModalOpen] = useState(false);
+  const [forceDeletingTeacher, setForceDeletingTeacher] = useState<TeacherItem | null>(null);
+  const [forceDeleteError, setForceDeleteError] = useState('');
 
   // Fetch Teachers
   const { data, isLoading } = useQuery({
@@ -126,6 +131,39 @@ export default function TeachersPage() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
       setIsDeleteModalOpen(false);
       setDeletingTeacher(null);
+    },
+  });
+
+  // Restore teacher mutation (Faollashtirish)
+  const restoreMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const resp = await api.post(`/api/teachers/${id}/restore`);
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.message || "O'qituvchini qayta faollashtirishda xatolik yuz berdi");
+    },
+  });
+
+  // Force Delete teacher mutation (Butunlay o'chirish)
+  const forceDeleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const resp = await api.delete(`/api/teachers/${id}/force`);
+      return resp.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+      setIsForceDeleteModalOpen(false);
+      setForceDeletingTeacher(null);
+      setForceDeleteError('');
+    },
+    onError: (err: any) => {
+      setForceDeleteError(err.response?.data?.message || "O'qituvchini butunlay o'chirishda xatolik yuz berdi");
     },
   });
 
@@ -277,24 +315,54 @@ export default function TeachersPage() {
 
                 {canManageTeachers && (
                   <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEdit(teacher)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition cursor-pointer"
-                      title="Tahrirlash"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                      <span>Tahrirlash</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenDelete(teacher)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
-                      title="Arxivlash"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Arxiv</span>
-                    </button>
+                    {teacher.status === 10 ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(teacher)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition cursor-pointer"
+                          title="Tahrirlash"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span>Tahrirlash</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDelete(teacher)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
+                          title="Arxivlash"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Arxiv</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => restoreMutation.mutate(teacher.id)}
+                          disabled={restoreMutation.isPending}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition cursor-pointer"
+                          title="Arxivdan chiqarish (Faollashtirish)"
+                        >
+                          {restoreMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                          <span>Faollashtirish</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForceDeletingTeacher(teacher);
+                            setForceDeleteError('');
+                            setIsForceDeleteModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
+                          title="Butunlay o'chirish"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>O'chirish</span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -547,6 +615,54 @@ export default function TeachersPage() {
               >
                 {deleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>Ha, arxivlash</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: O'qituvchini Butunlay O'chirish Tasdig'i */}
+      {isForceDeleteModalOpen && forceDeletingTeacher && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border dark:border-gray-700 p-6 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                O&apos;qituvchini butunlay o&apos;chirmoqchimisiz?
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                <strong className="text-gray-800 dark:text-gray-200">&quot;{forceDeletingTeacher.name}&quot;</strong> ma&apos;lumotlar bazasidan butunlay o&apos;chiriladi.
+              </p>
+              {forceDeleteError && (
+                <div className="mt-2 p-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-xl text-red-700 dark:text-rose-300 text-xs">
+                  {forceDeleteError}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForceDeleteModalOpen(false);
+                  setForceDeletingTeacher(null);
+                  setForceDeleteError('');
+                }}
+                className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={forceDeleteMutation.isPending}
+                onClick={() => forceDeleteMutation.mutate(forceDeletingTeacher.id)}
+                className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+              >
+                {forceDeleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>Ha, butunlay o&apos;chirish</span>
               </button>
             </div>
           </div>

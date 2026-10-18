@@ -160,8 +160,17 @@ class GroupController extends Controller
         $body = Yii::$app->request->bodyParams;
 
         $group = new Group();
-        $group->name = trim((string)($body['name'] ?? ''));
-        $group->course_id = (int) ($body['course_id'] ?? 0);
+        $courseId = (int) ($body['course_id'] ?? 0);
+        $group->course_id = $courseId;
+
+        $groupName = trim((string)($body['name'] ?? ''));
+        if (empty($groupName)) {
+            $course = \common\models\Course::findOne($courseId);
+            $courseName = $course ? $course->name : 'Guruh';
+            $existingCount = Group::find()->where(['course_id' => $courseId])->count();
+            $groupName = $courseName . ' #' . ($existingCount + 1);
+        }
+        $group->name = $groupName;
 
         // O'qituvchi bo'lsa yoki tanlangan bo'lsa
         $teacherId = (int) ($body['teacher_id'] ?? 0);

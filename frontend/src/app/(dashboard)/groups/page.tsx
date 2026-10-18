@@ -262,11 +262,16 @@ export default function GroupsPage() {
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
-    if (!formData.name || !formData.course_id || !formData.teacher_id) {
-      setFormError("Guruh nomi, kursi va o'qituvchisi tanlanishi shart");
+    if (!formData.course_id || !formData.teacher_id) {
+      setFormError("Kurs va o'qituvchi tanlanishi shart");
       return;
     }
-    createMutation.mutate(formData);
+    const selectedCourse = courses.find((c: any) => String(c.id) === String(formData.course_id));
+    const finalName = formData.name.trim() || (selectedCourse ? `${selectedCourse.name} (${formData.time.split(' - ')[0] || '14:00'})` : 'Yangi Guruh');
+    createMutation.mutate({
+      ...formData,
+      name: finalName,
+    });
   };
 
   const handleEditSubmit = (e: React.FormEvent) => {
@@ -637,7 +642,13 @@ export default function GroupsPage() {
                   </label>
                   <CustomSelect
                     value={formData.course_id}
-                    onChange={(val) => setFormData({ ...formData, course_id: val })}
+                    onChange={(val) => {
+                      const selectedCourse = courses.find((c: any) => String(c.id) === String(val));
+                      const autoName = (!formData.name.trim() || courses.some((c: any) => formData.name.startsWith(c.name))) && selectedCourse
+                        ? `${selectedCourse.name} (${formData.time.split(' - ')[0] || '14:00'})`
+                        : formData.name;
+                      setFormData({ ...formData, course_id: val, name: autoName });
+                    }}
                     placeholder="Kursni tanlang..."
                     searchable
                     options={courses.map((c: any) => ({

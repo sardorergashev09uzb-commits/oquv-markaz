@@ -22,6 +22,11 @@ interface StudentAttendance {
   feedback?: string;
 }
 
+interface GroupItem {
+  id: number;
+  name: string;
+}
+
 interface LessonItem {
   id: number;
   topic: string;
@@ -73,25 +78,28 @@ function AttendanceContent() {
   const [newLessonDate, setNewLessonDate] = useState(new Date().toISOString().split('T')[0]);
 
   // 1. Fetch all groups for dropdown (Teacher/Admin)
-  const { data: groupsData } = useQuery({
+  const { data: groupsData } = useQuery<GroupItem[]>({
     queryKey: ['groups-for-attendance'],
     queryFn: async () => {
       const resp = await api.get('/api/groups');
-      return resp.data?.items || [];
+      const raw = Array.isArray(resp.data) ? resp.data : (resp.data?.items || []);
+      return (Array.isArray(raw) ? raw : []) as GroupItem[];
     },
     enabled: !isUserStudent,
   });
+
+  const groups: GroupItem[] = groupsData || [];
 
   // URL yoki birinchi guruhni tanlash
   useEffect(() => {
     if (!isUserStudent && !selectedGroupId) {
       if (urlGroupId) {
         setSelectedGroupId(urlGroupId);
-      } else if (groupsData && groupsData.length > 0) {
-        setSelectedGroupId(String(groupsData[0].id));
+      } else if (groups.length > 0) {
+        setSelectedGroupId(String(groups[0].id));
       }
     }
-  }, [groupsData, selectedGroupId, isUserStudent, urlGroupId]);
+  }, [groups, selectedGroupId, isUserStudent, urlGroupId]);
 
   // 2. Fetch lessons for selected group (Teacher/Admin)
   const { data: lessonsData, isLoading: isLessonsLoading } = useQuery({
@@ -444,8 +452,8 @@ function AttendanceContent() {
                 setSelectedLessonId(null);
               }}
               placeholder="Guruhni tanlang..."
-              searchable={(groupsData || []).length > 5}
-              options={(groupsData || []).map((g: { id: number; name: string }) => ({
+              searchable={groups.length > 5}
+              options={groups.map((g) => ({
                 value: String(g.id),
                 label: g.name,
               }))}
@@ -523,13 +531,17 @@ function AttendanceContent() {
             <div className="py-10 flex items-center justify-center">
               <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
             </div>
+          ) : !selectedGroupId ? (
+            <div className="py-8 text-center text-xs text-gray-400">
+              Iltimos, yuqoridagi ro&apos;yxatdan guruhni tanlang.
+            </div>
           ) : lessons.length === 0 ? (
             <div className="py-8 text-center text-xs text-gray-400">
               Bu guruhda hali darslar ochilmagan.
               <br />
               <button
                 onClick={() => setIsNewLessonModalOpen(true)}
-                className="mt-2 text-blue-600 font-semibold hover:underline"
+                className="mt-2 text-blue-600 font-semibold hover:underline cursor-pointer"
               >
                 + Dars qo&apos;shish
               </button>

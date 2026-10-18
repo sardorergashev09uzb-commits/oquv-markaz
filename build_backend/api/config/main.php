@@ -93,6 +93,8 @@ return [
                 'DELETE api/students/<id:\d+>' => 'student/delete',
 
                 // Teachers
+                'POST   api/teachers/<id:\d+>/restore' => 'teacher/restore',
+                'DELETE api/teachers/<id:\d+>/force'   => 'teacher/force-delete',
                 'GET    api/teachers'          => 'teacher/index',
                 'POST   api/teachers'          => 'teacher/create',
                 'GET    api/teachers/<id:\d+>' => 'teacher/view',

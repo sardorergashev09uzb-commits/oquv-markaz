@@ -169,4 +169,65 @@ class TeacherController extends Controller
 
         return ['message' => "O'qituvchi arxivlandi"];
     }
+
+    /**
+     * POST /api/teachers/{id}/restore — O'qituvchini arxivdan chiqarish (faollashtirish)
+     */
+    public function actionRestore(int $id): array
+    {
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && !in_array($currentUser->role, [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_MANAGER])) {
+            throw new \yii\web\ForbiddenHttpException("O'qituvchini faollashtirish uchun ruxsat yetarli emas.");
+        }
+
+        $teacher = User::findOne(['id' => $id, 'role' => User::ROLE_TEACHER]);
+        if (!$teacher) {
+            throw new NotFoundHttpException("O'qituvchi topilmadi.");
+        }
+
+        $teacher->status = User::STATUS_ACTIVE;
+        $teacher->save(false);
+
+        return [
+            'message' => "O'qituvchi arxivdan chiqarildi va faollashtirildi",
+            'teacher' => $teacher,
+        ];
+    }
+
+    /**
+     * DELETE /api/teachers/{id}/force — O'qituvchini bazadan butunlay o'chirish
+     */
+    public function actionForceDelete(int $id): array
+    {
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && !in_array($currentUser->role, [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_MANAGER])) {
+            throw new \yii\web\ForbiddenHttpException("Faqat administrator o'qituvchini bazadan butunlay o'chira oladi.");
+        }
+
+        $teacher = User::findOne(['id' => $id, 'role' => User::ROLE_TEACHER]);
+        if (!$teacher) {
+            throw new NotFoundHttpException("O'qituvchi topilmadi.");
+        }
+
+        $db = Yii::$app->db;
+        $transaction = $db->beginTransaction();
+        try {
+            // O'qituvchining oylik maosh yozuvlarini o'chirish
+            $db->createCommand()->delete('{{%teacher_salaries}}', ['teacher_id' => $id])->execute();
+
+            // Guruhlarini boshqa adminga o'tkazish (bo'sh qolmasligi uchun)
+            $adminUser = User::findOne(['role' => [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN]]);
+            $fallbackId = $adminUser ? $adminUser->id : 1;
+            $db->createCommand()->update('{{%groups}}', ['teacher_id' => $fallbackId], ['teacher_id' => $id])->execute();
+
+            $teacher->delete();
+            $transaction->commit();
+
+            return ['message' => "O'qituvchi bazadan butunlay o'chirildi"];
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            Yii::$app->response->statusCode = 500;
+            return ['message' => "O'qituvchini o'chirishda xatolik: " . $e->getMessage()];
+        }
+    }
 }

@@ -55,7 +55,22 @@ function StudentDashboard({ userName }: { userName: string }) {
   const announcements = studentData?.announcements || [];
   const attendanceRate = studentData?.attendance_rate ?? 0;
   const hasUnpaid = studentData?.has_unpaid ?? false;
-  const paymentStatus = hasUnpaid ? "Qarzdorlik mavjud" : "To'langan";
+  const rawStatus = studentData?.payment_status;
+  const paymentStatus = hasUnpaid
+    ? "Qarzdorlik mavjud"
+    : rawStatus === 'none'
+    ? "To'lov belgilanmagan"
+    : "To'langan";
+  const paymentSub = hasUnpaid
+    ? "To'lov muddati yaqinlashmoqda"
+    : rawStatus === 'none'
+    ? "Oylik hisob ochilmagan"
+    : "To'lovlar to'liq amalga oshirilgan";
+  const paymentColor = hasUnpaid
+    ? "bg-rose-500"
+    : rawStatus === 'none'
+    ? "bg-slate-500"
+    : "bg-emerald-500";
 
   return (
     <div className="space-y-6">
@@ -104,8 +119,8 @@ function StudentDashboard({ userName }: { userName: string }) {
               icon={CreditCard}
               label="To'lov holatim"
               value={paymentStatus}
-              sub={hasUnpaid ? "To'lov muddati yaqinlashmoqda" : "To'lovlar to'liq amalga oshirilgan"}
-              color={hasUnpaid ? "bg-rose-500" : "bg-purple-500"}
+              sub={paymentSub}
+              color={paymentColor}
             />
           </Link>
           <Link href="/announcements" className="block hover:scale-[1.01] transition-transform">

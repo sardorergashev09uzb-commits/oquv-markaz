@@ -125,10 +125,20 @@ class DashboardController extends Controller
         // O'quvchining to'lov holati
         $currentMonth = date('Y-m');
         $currentPlan = PaymentPlan::findOne(['student_id' => $studentId, 'month' => $currentMonth]);
-        $unpaidPlans = PaymentPlan::find()
+        $totalPlans = (int) PaymentPlan::find()->where(['student_id' => $studentId])->count();
+        $unpaidPlans = (int) PaymentPlan::find()
             ->where(['student_id' => $studentId])
             ->andWhere(['in', 'status', [PaymentPlan::STATUS_PENDING, PaymentPlan::STATUS_PARTIAL, PaymentPlan::STATUS_OVERDUE]])
             ->count();
+
+        $paymentStatus = 'none';
+        if ($currentPlan) {
+            $paymentStatus = $currentPlan->status;
+        } elseif ($unpaidPlans > 0) {
+            $paymentStatus = 'overdue';
+        } elseif ($totalPlans > 0) {
+            $paymentStatus = 'paid';
+        }
 
         // Markaz e'lonlari
         $announcements = Announcement::find()
@@ -139,8 +149,9 @@ class DashboardController extends Controller
         return [
             'groups_count' => count($groups),
             'attendance_rate' => $attRate,
+            'total_plans' => $totalPlans,
             'has_unpaid' => $unpaidPlans > 0,
-            'payment_status' => $currentPlan ? $currentPlan->status : ($unpaidPlans > 0 ? 'overdue' : 'paid'),
+            'payment_status' => $paymentStatus,
             'announcements_count' => count($announcements),
             'groups' => $groups,
             'announcements' => $announcements,

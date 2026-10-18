@@ -309,6 +309,11 @@ class StudentController extends Controller
      */
     public function actionRestore(int $id): array
     {
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && !in_array($currentUser->role, [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_MANAGER])) {
+            throw new \yii\web\ForbiddenHttpException("O'quvchini faollashtirish uchun ruxsat yetarli emas.");
+        }
+
         $student = User::findOne(['id' => $id, 'role' => User::ROLE_STUDENT]);
         if (!$student) {
             throw new NotFoundHttpException("O'quvchi topilmadi.");
@@ -329,7 +334,7 @@ class StudentController extends Controller
     public function actionForceDelete(int $id): array
     {
         $currentUser = Yii::$app->user->identity;
-        if ($currentUser && $currentUser->role !== User::ROLE_ADMIN) {
+        if ($currentUser && !in_array($currentUser->role, [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             throw new \yii\web\ForbiddenHttpException("Faqat administrator o'quvchini bazadan butunlay o'chira oladi.");
         }
 
@@ -338,13 +343,38 @@ class StudentController extends Controller
             throw new NotFoundHttpException("O'quvchi topilmadi.");
         }
 
-        // Bog'liq ma'lumotlarni tozalash
-        GroupStudent::deleteAll(['student_id' => $id]);
-        PaymentPlan::deleteAll(['student_id' => $id]);
+        $db = Yii::$app->db;
+        $transaction = $db->beginTransaction();
+        try {
+            // Planlar va bog'liq to'lovlarni tozalash
+            $planIds = (new \yii\db\Query())
+                ->select('id')
+                ->from('{{%payment_plans}}')
+                ->where(['student_id' => $id])
+                ->column();
 
-        $student->delete();
+            if (!empty($planIds)) {
+                $db->createCommand()->delete('{{%payments}}', ['plan_id' => $planIds])->execute();
+            }
 
-        return ['message' => "O'quvchi bazadan butunlay o'chirildi"];
+            $db->createCommand()->delete('{{%payment_plans}}', ['student_id' => $id])->execute();
+            $db->createCommand()->delete('{{%attendance}}', ['student_id' => $id])->execute();
+            $db->createCommand()->delete('{{%assessment_scores}}', ['student_id' => $id])->execute();
+            $db->createCommand()->delete('{{%homework_submissions}}', ['student_id' => $id])->execute();
+            $db->createCommand()->delete('{{%certificates}}', ['student_id' => $id])->execute();
+            $db->createCommand()->delete('{{%student_documents}}', ['student_id' => $id])->execute();
+            $db->createCommand()->delete('{{%group_students}}', ['student_id' => $id])->execute();
+            $db->createCommand()->update('{{%leads}}', ['student_id' => null], ['student_id' => $id])->execute();
+
+            $student->delete();
+            $transaction->commit();
+
+            return ['message' => "O'quvchi bazadan butunlay o'chirildi"];
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            Yii::$app->response->statusCode = 500;
+            return ['message' => "O'quvchini o'chirishda xatolik: " . $e->getMessage()];
+        }
     }
 
     /**
