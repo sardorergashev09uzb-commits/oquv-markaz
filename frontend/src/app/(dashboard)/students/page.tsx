@@ -380,9 +380,15 @@ export default function StudentsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300">
-                        {student.groups_count || 0} ta guruh
-                      </span>
+                      {student.groups_count && student.groups_count > 0 ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                          {student.groups_count} ta guruh
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                          Guruhsiz
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       {student.status === 10 ? (
@@ -556,18 +562,19 @@ export default function StudentsPage() {
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Guruhga biriktirish (ixtiyoriy)
                 </label>
-                <select
+                <CustomSelect
                   value={formData.group_id}
-                  onChange={(e) => setFormData({ ...formData, group_id: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                >
-                  <option value="">Guruh tanlanmagan (Keyinroq biriktirish)</option>
-                  {(groupsData || []).map((grp: any) => (
-                    <option key={grp.id} value={grp.id}>
-                      {grp.name} ({grp.course_name || 'Kurs'} • {grp.teacher_name || 'O\'qituvchi'})
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setFormData({ ...formData, group_id: val })}
+                  placeholder="Guruh tanlanmagan (Keyinroq biriktirish)"
+                  searchable
+                  options={[
+                    { value: '', label: 'Guruh tanlanmagan (Keyinroq biriktirish)' },
+                    ...(groupsData || []).map((grp: any) => ({
+                      value: String(grp.id),
+                      label: `${grp.name} (${grp.course_name || 'Kurs'} • ${grp.teacher_name || 'O\'qituvchi'})`,
+                    })),
+                  ]}
+                />
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">

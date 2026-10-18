@@ -449,41 +449,100 @@ export default function CoursesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
                     Darajasi (Level)
                   </label>
-                  <input
-                    type="text"
-                    value={formData.level}
-                    onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                    placeholder="B1-B2"
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  />
+                  <span className="text-[11px] text-gray-400">Tanlang yoki yozing</span>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    Davomiyligi (oy)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.duration_months}
-                    onChange={(e) => setFormData({ ...formData, duration_months: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  />
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {['Boshlang\'ich (A1-A2)', 'O\'rta (B1-B2)', 'Yuqori (C1-C2)', 'Barcha darajalar'].map((lvl) => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, level: lvl })}
+                      className={`text-xs px-2.5 py-1 rounded-xl border transition cursor-pointer font-medium ${
+                        formData.level === lvl
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                          : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100'
+                      }`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
                 </div>
+                <input
+                  type="text"
+                  value={formData.level}
+                  onChange={(e) => setFormData({ ...formData, level: e.target.value })}
+                  placeholder="B1-B2"
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Oylik to&apos;lov (so&apos;m)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Kurs davomiyligi (oy)
+                  </label>
+                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">{formData.duration_months} oy</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[1, 2, 3, 4, 6, 9, 12].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, duration_months: m })}
+                      className={`text-xs px-3 py-1 rounded-xl border transition cursor-pointer font-semibold ${
+                        formData.duration_months === m
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                          : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100'
+                      }`}
+                    >
+                      {m} oy
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number"
+                  min="1"
+                  max="36"
+                  value={formData.duration_months}
+                  onChange={(e) => setFormData({ ...formData, duration_months: Math.max(1, Number(e.target.value)) })}
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Oylik to&apos;lov (so&apos;m)
+                  </label>
+                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                    {formatMoney(formData.price || 0)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[300000, 400000, 500000, 600000, 800000, 1000000].map((pr) => (
+                    <button
+                      key={pr}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, price: pr })}
+                      className={`text-xs px-2.5 py-1 rounded-xl border transition cursor-pointer font-medium ${
+                        formData.price === pr
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                          : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100'
+                      }`}
+                    >
+                      {(pr / 1000).toLocaleString('uz-UZ')} ming
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="number"
                   step="10000"
+                  min="0"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
                   className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
@@ -492,10 +551,10 @@ export default function CoursesPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Tavsif
+                  Tavsif (ixtiyoriy)
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Kurs haqida qisqacha ma'lumot..."
@@ -561,41 +620,84 @@ export default function CoursesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
                     Darajasi (Level)
                   </label>
-                  <input
-                    type="text"
-                    value={editFormData.level}
-                    onChange={(e) => setEditFormData({ ...editFormData, level: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  />
+                  <span className="text-[11px] text-gray-400">Tanlang yoki yozing</span>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    Davomiyligi (oy)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={editFormData.duration_months}
-                    onChange={(e) => setEditFormData({ ...editFormData, duration_months: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                  />
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {['Boshlang\'ich (A1-A2)', 'O\'rta (B1-B2)', 'Yuqori (C1-C2)', 'Barcha darajalar'].map((lvl) => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => setEditFormData({ ...editFormData, level: lvl })}
+                      className={`text-xs px-2.5 py-1 rounded-xl border transition cursor-pointer font-medium ${
+                        editFormData.level === lvl
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                          : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100'
+                      }`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
                 </div>
+                <input
+                  type="text"
+                  value={editFormData.level}
+                  onChange={(e) => setEditFormData({ ...editFormData, level: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    Oylik to&apos;lov (so&apos;m)
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Davomiyligi (oy)
                   </label>
+                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">{editFormData.duration_months} oy</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[1, 2, 3, 4, 6, 9, 12].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setEditFormData({ ...editFormData, duration_months: m })}
+                      className={`text-xs px-3 py-1 rounded-xl border transition cursor-pointer font-semibold ${
+                        editFormData.duration_months === m
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                          : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100'
+                      }`}
+                    >
+                      {m} oy
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number"
+                  min="1"
+                  max="36"
+                  value={editFormData.duration_months}
+                  onChange={(e) => setEditFormData({ ...editFormData, duration_months: Math.max(1, Number(e.target.value)) })}
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Oylik to&apos;lov (so&apos;m)
+                    </label>
+                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                      {formatMoney(editFormData.price || 0)}
+                    </span>
+                  </div>
                   <input
                     type="number"
                     step="10000"
+                    min="0"
                     value={editFormData.price}
                     onChange={(e) => setEditFormData({ ...editFormData, price: Number(e.target.value) })}
                     className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
@@ -619,10 +721,10 @@ export default function CoursesPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Tavsif
+                  Tavsif (ixtiyoriy)
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={editFormData.description}
                   onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
                   className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
