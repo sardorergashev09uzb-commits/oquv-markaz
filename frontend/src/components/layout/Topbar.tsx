@@ -103,8 +103,6 @@ export function Topbar({ title }: { title?: string }) {
     }
   };
 
-  // App Launcher Hub modal (Bento 㗊)
-  const [showAppHub, setShowAppHub] = useState(false);
 
   // Notifications
   const [showNotifications, setShowNotifications] = useState(false);

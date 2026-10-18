@@ -74,7 +74,7 @@ export default async function DashboardLayout({
       {/* Main content */}
       <div className="flex flex-col flex-1 overflow-hidden">
         <Topbar />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 md:pb-6 bg-gray-50 dark:bg-gray-950 transition-colors">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 lg:pb-6 bg-gray-50 dark:bg-gray-950 transition-colors">
           {children}
         </main>
       </div>

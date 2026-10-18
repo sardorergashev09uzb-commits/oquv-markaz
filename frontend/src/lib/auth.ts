@@ -72,37 +72,96 @@ export interface NavItem {
   badge?: string;
 }
 
-export const getNavItems = (role: string): NavItem[] => {
-  const managerNav: NavItem[] = [
-    { label: 'Dashboard',           href: '/dashboard',      icon: 'LayoutDashboard' },
-    { label: 'Guruhlar',            href: '/groups',         icon: 'BookOpen' },
-    { label: 'O\'quvchilar',        href: '/students',       icon: 'Users' },
-    { label: 'Davomat',             href: '/attendance',     icon: 'ClipboardCheck' },
-    { label: 'To\'lovlar & Kassa',  href: '/payments',       icon: 'CreditCard' },
-    { label: 'O\'qituvchilar',      href: '/teachers',       icon: 'GraduationCap' },
-    { label: 'Moliya & Hisobot',    href: '/reports',        icon: 'BarChart3' },
-    { label: 'Kurslar & Sozlamalar', href: '/courses',       icon: 'Settings' },
-    { label: 'Profil',              href: '/profile',        icon: 'User' },
+export interface NavSection {
+  title?: string;
+  items: NavItem[];
+}
+
+export const getNavSections = (role: string): NavSection[] => {
+  const managerSections: NavSection[] = [
+    {
+      title: 'ASOSIY',
+      items: [
+        { label: 'Boshqaruv Paneli', href: '/dashboard', icon: 'LayoutDashboard' },
+      ],
+    },
+    {
+      title: 'O\'QUV JARAYONI',
+      items: [
+        { label: 'Guruhlar',         href: '/groups',     icon: 'BookOpen' },
+        { label: 'O\'quvchilar',     href: '/students',   icon: 'Users' },
+        { label: 'O\'qituvchilar',   href: '/teachers',   icon: 'GraduationCap' },
+        { label: 'Davomat & Jadval', href: '/attendance', icon: 'ClipboardCheck' },
+      ],
+    },
+    {
+      title: 'MOLIYA',
+      items: [
+        { label: 'To\'lovlar & Kassa', href: '/payments', icon: 'CreditCard' },
+        { label: 'Hisobot & Tahlil',   href: '/reports',  icon: 'BarChart3' },
+      ],
+    },
+    {
+      title: 'TIZIM & SOZLAMALAR',
+      items: [
+        { label: 'Kurslar',            href: '/courses',  icon: 'Library' },
+        { label: 'Auditoriyalar',      href: '/rooms',    icon: 'DoorOpen' },
+        { label: 'Tizim Sozlamalari',  href: '/settings', icon: 'Settings' },
+      ],
+    },
   ];
 
-  const teacherNav: NavItem[] = [
-    { label: 'Dashboard',     href: '/dashboard',      icon: 'LayoutDashboard' },
-    { label: 'Guruhlarim',    href: '/groups',         icon: 'BookOpen' },
-    { label: 'O\'quvchilar',  href: '/students',       icon: 'Users' },
-    { label: 'Davomat',       href: '/attendance',     icon: 'ClipboardCheck' },
-    { label: 'Hisobot & Maosh', href: '/reports',      icon: 'BarChart3' },
-    { label: 'Profil',        href: '/profile',        icon: 'User' },
+  const teacherSections: NavSection[] = [
+    {
+      title: 'ASOSIY',
+      items: [
+        { label: 'Boshqaruv Paneli', href: '/dashboard',  icon: 'LayoutDashboard' },
+      ],
+    },
+    {
+      title: 'O\'QUV JARAYONI',
+      items: [
+        { label: 'Guruhlarim',       href: '/groups',     icon: 'BookOpen' },
+        { label: 'O\'quvchilarim',   href: '/students',   icon: 'Users' },
+        { label: 'Davomat',          href: '/attendance', icon: 'ClipboardCheck' },
+      ],
+    },
+    {
+      title: 'NATIJALAR',
+      items: [
+        { label: 'Hisobot & Maosh',  href: '/reports',    icon: 'BarChart3' },
+      ],
+    },
   ];
 
-  const studentNav: NavItem[] = [
-    { label: 'Bosh sahifa',         href: '/dashboard',      icon: 'Home' },
-    { label: 'Mening guruhlarim',   href: '/groups',         icon: 'BookOpen' },
-    { label: 'Davomatim',           href: '/attendance',     icon: 'ClipboardCheck' },
-    { label: 'To\'lovlarim',        href: '/payments',       icon: 'CreditCard' },
-    { label: 'Profil',              href: '/profile',        icon: 'User' },
+  const studentSections: NavSection[] = [
+    {
+      title: 'ASOSIY',
+      items: [
+        { label: 'Bosh sahifa',      href: '/dashboard',  icon: 'Home' },
+      ],
+    },
+    {
+      title: 'O\'QUV JARAYONI',
+      items: [
+        { label: 'Mening guruhlarim', href: '/groups',    icon: 'BookOpen' },
+        { label: 'Davomatim',        href: '/attendance', icon: 'ClipboardCheck' },
+      ],
+    },
+    {
+      title: 'MOLIYA',
+      items: [
+        { label: 'To\'lovlarim',     href: '/payments',   icon: 'CreditCard' },
+      ],
+    },
   ];
 
-  if (isStudent(role)) return studentNav;
-  if (isTeacher(role)) return teacherNav;
-  return managerNav;
+  if (isStudent(role)) return studentSections;
+  if (isTeacher(role)) return teacherSections;
+  return managerSections;
 };
+
+export const getNavItems = (role: string): NavItem[] => {
+  return getNavSections(role).flatMap(section => section.items);
+};
+
