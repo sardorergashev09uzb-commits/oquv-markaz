@@ -299,10 +299,13 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
     count_overdue: 0,
   };
 
-  const handleOpenTransferModal = (fromGroupId: number, fromGroupName: string) => {
+  const handleOpenTransferModal = (fromGroupId?: number, fromGroupName?: string) => {
+    const activeGroups = groups.filter((g) => g.status === 'active');
+    const defaultFrom = fromGroupId || (activeGroups[0]?.group_id ?? 0);
+    const defaultFromName = fromGroupName || (activeGroups.find((g) => g.group_id === defaultFrom)?.group_name ?? '');
     setTransferData({
-      from_group_id: fromGroupId,
-      from_group_name: fromGroupName,
+      from_group_id: defaultFrom,
+      from_group_name: defaultFromName,
       to_group_id: '',
       reason: 'Dars vaqti mos kelmadi',
     });
@@ -470,34 +473,50 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
             <p className="text-xs text-gray-400 dark:text-gray-500">O&apos;quvchi ta&apos;lim olayotgan kurslar</p>
           </div>
 
-          {/* Add to group form */}
-          {canManage && availableGroups.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-              <div className="w-full sm:w-64">
-                <CustomSelect
-                  value={selectedGroupId}
-                  onChange={(val) => setSelectedGroupId(val)}
-                  placeholder="Guruhni tanlang..."
-                  searchable={availableGroups.length > 5}
-                  options={availableGroups.map((g: { id: number; name: string; course_name: string }) => ({
-                    value: String(g.id),
-                    label: g.name,
-                    subLabel: g.course_name,
-                  }))}
-                />
-              </div>
-              <button
-                disabled={!selectedGroupId || assignMutation.isPending}
-                onClick={() => selectedGroupId && assignMutation.mutate(Number(selectedGroupId))}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer"
-              >
-                {assignMutation.isPending ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <PlusCircle className="w-3.5 h-3.5" />
-                )}
-                <span>Biriktirish</span>
-              </button>
+          {/* Add to group form & Transfer action */}
+          {canManage && (
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              {groups.some((g) => g.status === 'active') && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenTransferModal()}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer shadow-xs"
+                  title="O'quvchini boshqa guruhga ko'chirish / almashtirish"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span>Transfer qilish</span>
+                </button>
+              )}
+
+              {availableGroups.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="w-56 sm:w-64">
+                    <CustomSelect
+                      value={selectedGroupId}
+                      onChange={(val) => setSelectedGroupId(val)}
+                      placeholder="Guruhni tanlang..."
+                      searchable={availableGroups.length > 5}
+                      options={availableGroups.map((g: { id: number; name: string; course_name: string }) => ({
+                        value: String(g.id),
+                        label: g.name,
+                        subLabel: g.course_name,
+                      }))}
+                    />
+                  </div>
+                  <button
+                    disabled={!selectedGroupId || assignMutation.isPending}
+                    onClick={() => selectedGroupId && assignMutation.mutate(Number(selectedGroupId))}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer shadow-xs"
+                  >
+                    {assignMutation.isPending ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <PlusCircle className="w-3.5 h-3.5" />
+                    )}
+                    <span>Biriktirish</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1106,11 +1125,41 @@ export default function StudentDetailsPage({ params }: { params: Promise<{ id: s
                 </div>
               )}
 
-              <div className="p-3.5 rounded-xl bg-gray-50 dark:bg-gray-750 border border-gray-200 dark:border-gray-700 text-xs">
-                <span className="text-gray-400 block mb-0.5">Joriy guruh:</span>
-                <span className="font-bold text-gray-800 dark:text-gray-200 text-sm">
-                  {transferData.from_group_name || `Guruh #${transferData.from_group_id}`}
-                </span>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Qaysi guruhdan ko&apos;chiriladi *
+                </label>
+                {groups.filter((g) => g.status === 'active').length > 1 ? (
+                  <select
+                    required
+                    value={transferData.from_group_id}
+                    onChange={(e) => {
+                      const fId = Number(e.target.value);
+                      const gObj = groups.find((g) => g.group_id === fId);
+                      setTransferData({
+                        ...transferData,
+                        from_group_id: fId,
+                        from_group_name: gObj?.group_name || '',
+                      });
+                    }}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  >
+                    {groups
+                      .filter((g) => g.status === 'active')
+                      .map((g) => (
+                        <option key={g.group_id} value={g.group_id}>
+                          {g.group_name} ({g.course_name})
+                        </option>
+                      ))}
+                  </select>
+                ) : (
+                  <div className="p-3.5 rounded-xl bg-gray-50 dark:bg-gray-750 border border-gray-200 dark:border-gray-700 text-xs">
+                    <span className="text-gray-400 block mb-0.5">Joriy guruh:</span>
+                    <span className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                      {transferData.from_group_name || `Guruh #${transferData.from_group_id}`}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div>

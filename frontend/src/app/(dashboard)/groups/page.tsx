@@ -51,6 +51,8 @@ export default function GroupsPage() {
     start_date: new Date().toISOString().split('T')[0],
   });
   const [formError, setFormError] = useState('');
+  const [createSelectedStudentIds, setCreateSelectedStudentIds] = useState<number[]>([]);
+  const [createStudentSearch, setCreateStudentSearch] = useState('');
 
   // ─── Edit State ────────────────────────────────────────────────────────────
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -67,6 +69,8 @@ export default function GroupsPage() {
     status: 'active',
   });
   const [editFormError, setEditFormError] = useState('');
+  const [editSelectedStudentIds, setEditSelectedStudentIds] = useState<number[]>([]);
+  const [editStudentSearch, setEditStudentSearch] = useState('');
 
   // ─── Delete State (Archive) ────────────────────────────────────────────────
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -124,9 +128,20 @@ export default function GroupsPage() {
     },
   });
 
+  // ─── 5. Fetch All Students for Group Enrollment ────────────────────────────
+  const { data: allStudentsData } = useQuery({
+    queryKey: ['all-students-for-group-assign'],
+    queryFn: async () => {
+      const resp = await api.get('/api/students', { params: { per_page: 500, status: 10 } });
+      return resp.data?.items || [];
+    },
+    enabled: isModalOpen || isEditModalOpen,
+  });
+  const allStudents = allStudentsData || [];
+
   // ─── Create Group Mutation ─────────────────────────────────────────────────
   const createMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
+    mutationFn: async (data: typeof formData & { student_ids?: number[] }) => {
       const scheduleArray = data.days.split('-').map((d) => ({
         day: d.trim(),
         time: data.time,
@@ -144,6 +159,7 @@ export default function GroupsPage() {
         start_date: data.start_date || new Date().toISOString().split('T')[0],
         max_students: Number(data.max_students),
         status: 'active',
+        student_ids: data.student_ids || createSelectedStudentIds,
       };
 
       const resp = await api.post('/api/groups', payload);
@@ -165,6 +181,8 @@ export default function GroupsPage() {
         max_students: 16,
         start_date: new Date().toISOString().split('T')[0],
       });
+      setCreateSelectedStudentIds([]);
+      setCreateStudentSearch('');
       setFormError('');
     },
     onError: (err: any) => {
@@ -182,7 +200,7 @@ export default function GroupsPage() {
 
   // ─── Update Group Mutation ─────────────────────────────────────────────────
   const updateMutation = useMutation({
-    mutationFn: async (data: typeof editFormData) => {
+    mutationFn: async (data: typeof editFormData & { student_ids?: number[] }) => {
       if (!editingGroupId) return;
       const scheduleArray = data.days.split('-').map((d) => ({
         day: d.trim(),
@@ -198,6 +216,7 @@ export default function GroupsPage() {
         start_date: data.start_date,
         max_students: Number(data.max_students),
         status: data.status,
+        student_ids: editSelectedStudentIds,
       };
 
       const resp = await api.put(`/api/groups/${editingGroupId}`, payload);
@@ -205,8 +224,12 @@ export default function GroupsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-manager'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-teacher'] });
       setIsEditModalOpen(false);
       setEditingGroupId(null);
+      setEditSelectedStudentIds([]);
+      setEditStudentSearch('');
     },
     onError: (err: { response?: { data?: { errors?: Record<string, string[]> } } }) => {
       const errors = err.response?.data?.errors;
@@ -328,7 +351,7 @@ export default function GroupsPage() {
     updateMutation.mutate(editFormData);
   };
 
-  const handleOpenEdit = (group: GroupItem) => {
+  const handleOpenEdit = async (group: GroupItem) => {
     setEditingGroupId(group.id);
     const firstSchedule = group.schedule && group.schedule.length > 0 ? group.schedule[0] : null;
     const daysStr = group.schedule && group.schedule.length > 0 ? group.schedule.map((s) => s.day).join('-') : 'Dush-Chor-Jum';
@@ -346,6 +369,15 @@ export default function GroupsPage() {
       status: group.status || 'active',
     });
     setEditFormError('');
+    setEditStudentSearch('');
+    try {
+      const resp = await api.get(`/api/groups/${group.id}`);
+      const stList = resp.data?.students || [];
+      const sIds = stList.filter((s: any) => s.status === 'active').map((s: any) => s.student_id);
+      setEditSelectedStudentIds(sIds);
+    } catch {
+      setEditSelectedStudentIds((group as any).student_ids || []);
+    }
     setIsEditModalOpen(true);
   };
 
@@ -947,6 +979,105 @@ export default function GroupsPage() {
                 </div>
               </div>
 
+              {/* 4. O'quvchilarni biriktirish / kiritish */}
+              <div className="bg-gray-50/70 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-200/70 dark:border-gray-700 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-blue-600" />
+                    <span>4. O&apos;quvchilarni guruhga kiritish (ixtiyoriy)</span>
+                  </h4>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
+                    Tanlangan: {createSelectedStudentIds.length} / {formData.max_students}
+                  </span>
+                </div>
+
+                {/* Search input */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="O'quvchini ismi yoki telefonidan qidirish..."
+                    value={createStudentSearch}
+                    onChange={(e) => setCreateStudentSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Selected Students Badges */}
+                {createSelectedStudentIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1.5 bg-white dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-xl">
+                    {createSelectedStudentIds.map((id) => {
+                      const s = allStudents.find((st: any) => st.id === id);
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg"
+                        >
+                          <span>{s ? s.name : `O'quvchi #${id}`}</span>
+                          <button
+                            type="button"
+                            onClick={() => setCreateSelectedStudentIds((prev) => prev.filter((item) => item !== id))}
+                            className="text-blue-500 hover:text-blue-800 dark:hover:text-white cursor-pointer ml-0.5"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Available Students to Pick (scrollable list) */}
+                <div className="max-h-36 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700/50">
+                  {allStudents
+                    .filter((s: any) =>
+                      !createStudentSearch ||
+                      s.name?.toLowerCase().includes(createStudentSearch.toLowerCase()) ||
+                      s.phone?.includes(createStudentSearch)
+                    )
+                    .slice(0, 30)
+                    .map((s: any) => {
+                      const isSelected = createSelectedStudentIds.includes(s.id);
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setCreateSelectedStudentIds((prev) => prev.filter((id) => id !== s.id));
+                            } else {
+                              if (createSelectedStudentIds.length >= formData.max_students) {
+                                return;
+                              }
+                              setCreateSelectedStudentIds((prev) => [...prev, s.id]);
+                            }
+                          }}
+                          className={`px-3 py-1.5 flex items-center justify-between text-xs cursor-pointer transition ${
+                            isSelected
+                              ? 'bg-blue-50 dark:bg-blue-950/40 font-semibold text-blue-700 dark:text-blue-300'
+                              : 'hover:bg-gray-50 dark:hover:bg-gray-700/60 text-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="rounded text-blue-600"
+                            />
+                            <span>{s.name}</span>
+                          </div>
+                          <span className="text-[11px] text-gray-400">{s.phone}</span>
+                        </div>
+                      );
+                    })}
+                  {allStudents.length === 0 && (
+                    <div className="p-3 text-center text-xs text-gray-400">
+                      O&apos;quvchilar topilmadi
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="pt-4 mt-6 border-t border-gray-100 dark:border-gray-700/80 flex items-center justify-end gap-3 sticky bottom-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs -mx-6 -mb-6 px-6 py-4 z-10">
                 <button
                   type="button"
@@ -1113,6 +1244,106 @@ export default function GroupsPage() {
                       { value: 'cancelled', label: 'Bekor qilingan (Cancelled)' },
                     ]}
                   />
+                </div>
+              </div>
+
+              {/* O'quvchilarni boshqarish / kiritish va chiqarish */}
+              <div className="bg-gray-50/70 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-200/70 dark:border-gray-700 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-blue-600" />
+                    <span>O&apos;quvchilar ro&apos;yxati (kiritish / chiqarish)</span>
+                  </h4>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
+                    A&apos;zolar: {editSelectedStudentIds.length} / {editFormData.max_students}
+                  </span>
+                </div>
+
+                {/* Search input */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="O'quvchini ismi yoki telefonidan qidirish..."
+                    value={editStudentSearch}
+                    onChange={(e) => setEditStudentSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Selected Students Badges */}
+                {editSelectedStudentIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1.5 bg-white dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-xl">
+                    {editSelectedStudentIds.map((id) => {
+                      const s = allStudents.find((st: any) => st.id === id);
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg"
+                        >
+                          <span>{s ? s.name : `O'quvchi #${id}`}</span>
+                          <button
+                            type="button"
+                            onClick={() => setEditSelectedStudentIds((prev) => prev.filter((item) => item !== id))}
+                            className="text-blue-500 hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer ml-0.5"
+                            title="Guruhdan chiqarish"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Available Students to Pick */}
+                <div className="max-h-36 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700/50">
+                  {allStudents
+                    .filter((s: any) =>
+                      !editStudentSearch ||
+                      s.name?.toLowerCase().includes(editStudentSearch.toLowerCase()) ||
+                      s.phone?.includes(editStudentSearch)
+                    )
+                    .slice(0, 30)
+                    .map((s: any) => {
+                      const isSelected = editSelectedStudentIds.includes(s.id);
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setEditSelectedStudentIds((prev) => prev.filter((id) => id !== s.id));
+                            } else {
+                              if (editSelectedStudentIds.length >= editFormData.max_students) {
+                                return;
+                              }
+                              setEditSelectedStudentIds((prev) => [...prev, s.id]);
+                            }
+                          }}
+                          className={`px-3 py-1.5 flex items-center justify-between text-xs cursor-pointer transition ${
+                            isSelected
+                              ? 'bg-blue-50 dark:bg-blue-950/40 font-semibold text-blue-700 dark:text-blue-300'
+                              : 'hover:bg-gray-50 dark:hover:bg-gray-700/60 text-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="rounded text-blue-600"
+                            />
+                            <span>{s.name}</span>
+                          </div>
+                          <span className="text-[11px] text-gray-400">{s.phone}</span>
+                        </div>
+                      );
+                    })}
+                  {allStudents.length === 0 && (
+                    <div className="p-3 text-center text-xs text-gray-400">
+                      O&apos;quvchilar topilmadi
+                    </div>
+                  )}
                 </div>
               </div>
 

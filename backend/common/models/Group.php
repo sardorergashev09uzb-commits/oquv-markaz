@@ -135,6 +135,15 @@ class Group extends ActiveRecord
                     ])
                     ->count();
             },
+            'student_ids' => function () {
+                if ($this->isNewRecord || empty($this->id)) {
+                    return [];
+                }
+                return array_map('intval', GroupStudent::find()
+                    ->where(['group_id' => $this->id, 'status' => GroupStudent::STATUS_ACTIVE])
+                    ->select('student_id')
+                    ->column());
+            },
             'lessons_count' => function () {
                 return (int) Lesson::find()
                     ->where(['group_id' => $this->id])

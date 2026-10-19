@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -8,7 +8,8 @@ import {
   Calendar, Plus, Check, X, Clock,
   Loader2, CheckCircle2, AlertCircle,
   Award, Zap, BarChart3, ListFilter,
-  CheckCheck, ChevronLeft, ChevronRight, UserCheck
+  CheckCheck, ChevronLeft, ChevronRight, UserCheck,
+  Send, Download, Copy, Share2, Sparkles, BookOpen, FileText
 } from 'lucide-react';
 import { useCurrentUser } from '@/lib/useCurrentUser';
 import { CustomSelect } from '@/components/ui/CustomSelect';
@@ -33,6 +34,7 @@ interface LessonItem {
   topic: string;
   started_at: string;
   status: string;
+  note?: string | null;
 }
 
 interface MyAttendanceItem {
@@ -57,13 +59,284 @@ interface GroupStudentStat {
   average_score: number | null;
 }
 
+function drawTelegramCard(
+  canvas: HTMLCanvasElement,
+  data: {
+    groupName: string;
+    teacherName: string;
+    date: string;
+    topic: string;
+    lessonType: string;
+    lessonPlan?: string;
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    excusedCount: number;
+    avgScore: number | null;
+    maxScore: number;
+    students: StudentAttendance[];
+  }
+) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const W = 1200;
+  const H = 920;
+  canvas.width = W;
+  canvas.height = H;
+
+  // 1. Luxury Dark Gradient Background
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, '#090d16');
+  bgGrad.addColorStop(0.4, '#0f172a');
+  bgGrad.addColorStop(1, '#1e1b4b');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Decorative ambient circles
+  const amb1 = ctx.createRadialGradient(160, 160, 10, 160, 160, 320);
+  amb1.addColorStop(0, 'rgba(59, 130, 246, 0.22)');
+  amb1.addColorStop(1, 'rgba(59, 130, 246, 0)');
+  ctx.fillStyle = amb1;
+  ctx.beginPath();
+  ctx.arc(160, 160, 320, 0, Math.PI * 2);
+  ctx.fill();
+
+  const amb2 = ctx.createRadialGradient(W - 160, 260, 10, W - 160, 260, 360);
+  amb2.addColorStop(0, 'rgba(168, 85, 247, 0.18)');
+  amb2.addColorStop(1, 'rgba(168, 85, 247, 0)');
+  ctx.fillStyle = amb2;
+  ctx.beginPath();
+  ctx.arc(W - 160, 260, 360, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Top accent bar
+  const topGrad = ctx.createLinearGradient(0, 0, W, 0);
+  topGrad.addColorStop(0, '#38bdf8');
+  topGrad.addColorStop(0.5, '#818cf8');
+  topGrad.addColorStop(1, '#f59e0b');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, 0, W, 8);
+
+  // Outer border
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(20, 20, W - 40, H - 40);
+
+  // 2. Header
+  // Logo Icon
+  ctx.fillStyle = '#2563eb';
+  ctx.beginPath();
+  ctx.roundRect(50, 45, 54, 54, 14);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 24px system-ui, -apple-system, sans-serif';
+  ctx.fillText('GSA', 54, 80);
+
+  // Academy Title
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
+  ctx.fillText('GLOBAL SUCCESS ACADEMY', 120, 70);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '600 13px system-ui, -apple-system, sans-serif';
+  ctx.fillText("DAVOMAT VA O'ZLASHTIRISH NATIJALARI HISOBOTI", 120, 92);
+
+  // Right Date Badge
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.07)';
+  ctx.beginPath();
+  ctx.roundRect(W - 270, 48, 220, 48, 12);
+  ctx.fill();
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = 'bold 15px system-ui, -apple-system, sans-serif';
+  ctx.fillText(`📅 ${data.date}`, W - 250, 78);
+
+  // 3. Lesson Meta Card
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.beginPath();
+  ctx.roundRect(50, 118, W - 100, 115, 16);
+  ctx.fill();
+  ctx.stroke();
+
+  // Guruh
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px system-ui, -apple-system, sans-serif';
+  ctx.fillText('GURUH:', 75, 148);
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+  ctx.fillText(data.groupName || 'Guruh', 75, 172);
+
+  // Ustoz
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px system-ui, -apple-system, sans-serif';
+  ctx.fillText("O'QITUVCHI:", 380, 148);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+  ctx.fillText(data.teacherName || 'Ustoz', 380, 172);
+
+  // Dars turi badge
+  const typeMap: Record<string, { label: string; color: string; bg: string }> = {
+    exam: { label: '📝 IMTIHON / NAZORAT', color: '#f87171', bg: 'rgba(239, 68, 68, 0.2)' },
+    revision: { label: '🔄 TAKRORLASH', color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.2)' },
+    practice: { label: '💻 AMALIYOT', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.2)' },
+    standard: { label: '📖 YANGI MAVZU', color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.2)' },
+  };
+  const tInfo = typeMap[data.lessonType] || typeMap.standard;
+  ctx.fillStyle = tInfo.bg;
+  ctx.beginPath();
+  ctx.roundRect(W - 320, 136, 240, 32, 10);
+  ctx.fill();
+  ctx.fillStyle = tInfo.color;
+  ctx.font = 'bold 12px system-ui, -apple-system, sans-serif';
+  ctx.fillText(tInfo.label, W - 305, 157);
+
+  // Topic & Plan
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px system-ui, -apple-system, sans-serif';
+  ctx.fillText('MAVZU:', 75, 206);
+  ctx.fillStyle = '#f1f5f9';
+  ctx.font = 'bold 15px system-ui, -apple-system, sans-serif';
+  const displayTopic = data.topic.length > 70 ? data.topic.substring(0, 67) + '...' : data.topic;
+  ctx.fillText(displayTopic, 140, 206);
+
+  if (data.lessonPlan) {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px system-ui, -apple-system, sans-serif';
+    ctx.fillText('REJA:', 700, 206);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '13px system-ui, -apple-system, sans-serif';
+    const displayPlan = data.lessonPlan.length > 45 ? data.lessonPlan.substring(0, 42) + '...' : data.lessonPlan;
+    ctx.fillText(displayPlan, 745, 206);
+  }
+
+  // 4. Davomat Statistikasi (4 Cards)
+  const totalStudents = data.presentCount + data.absentCount + data.lateCount + data.excusedCount;
+  const attRate = totalStudents > 0 ? Math.round(((data.presentCount + data.lateCount) / totalStudents) * 100) : 100;
+
+  const statCards = [
+    { title: "JAMI O'QUVCHI", val: `${totalStudents} nafar`, col: '#60a5fa', sub: "Ro'yxatda faol" },
+    { title: 'QATNASHDI', val: `${data.presentCount + data.lateCount} (${attRate}%)`, col: '#4ade80', sub: "Davomat ko'rsatkichi" },
+    { title: 'KELMADI', val: `${data.absentCount} nafar`, col: '#f87171', sub: 'Sababsiz dars qoldirdi' },
+    { title: "O'RTACHA BALL", val: data.avgScore !== null ? `${data.avgScore} / ${data.maxScore}` : '-', col: '#c084fc', sub: "Darsdagi o'zlashtirish" },
+  ];
+
+  const cW = (W - 100 - 3 * 18) / 4;
+  statCards.forEach((c, i) => {
+    const cX = 50 + i * (cW + 18);
+    const cY = 250;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    ctx.beginPath();
+    ctx.roundRect(cX, cY, cW, 82, 14);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '600 11px system-ui, -apple-system, sans-serif';
+    ctx.fillText(c.title, cX + 16, cY + 25);
+
+    ctx.fillStyle = c.col;
+    ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
+    ctx.fillText(c.val, cX + 16, cY + 52);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '10px system-ui, -apple-system, sans-serif';
+    ctx.fillText(c.sub, cX + 16, cY + 70);
+  });
+
+  // 5. O'quvchilar natijalari va baholar jadvali
+  const sorted = [...data.students].sort((a, b) => {
+    const scA = a.score !== null && a.score !== undefined && a.score !== '' ? Number(a.score) : -1;
+    const scB = b.score !== null && b.score !== undefined && b.score !== '' ? Number(b.score) : -1;
+    if (scB !== scA) return scB - scA;
+    if (a.status === 'present' && b.status !== 'present') return -1;
+    if (b.status === 'present' && a.status !== 'present') return 1;
+    return a.student_name.localeCompare(b.student_name);
+  });
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 16px system-ui, -apple-system, sans-serif';
+  ctx.fillText("🏆 O'QUVCHILAR DAVOMATI VA REYTINGI", 55, 368);
+
+  const tableTop = 388;
+  const rowHeight = 37;
+  const colWidth = (W - 100 - 24) / 2;
+
+  const maxPerCol = 10;
+  const leftColStudents = sorted.slice(0, maxPerCol);
+  const rightColStudents = sorted.slice(maxPerCol, maxPerCol * 2);
+
+  const drawCol = (colStudents: StudentAttendance[], startX: number, startRank: number) => {
+    colStudents.forEach((st, idx) => {
+      const rank = startRank + idx;
+      const y = tableTop + idx * rowHeight;
+
+      ctx.fillStyle = idx % 2 === 0 ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.015)';
+      ctx.beginPath();
+      ctx.roundRect(startX, y, colWidth, rowHeight - 4, 8);
+      ctx.fill();
+
+      let rankText = `${rank}.`;
+      if (rank === 1) rankText = '🥇';
+      else if (rank === 2) rankText = '🥈';
+      else if (rank === 3) rankText = '🥉';
+
+      ctx.fillStyle = rank <= 3 ? '#fbbf24' : '#64748b';
+      ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
+      ctx.fillText(rankText, startX + 12, y + 22);
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '600 13px system-ui, -apple-system, sans-serif';
+      const name = st.student_name.length > 24 ? st.student_name.substring(0, 22) + '...' : st.student_name;
+      ctx.fillText(name, startX + 42, y + 22);
+
+      const stColor = st.status === 'present' ? '#4ade80' : st.status === 'late' ? '#fbbf24' : '#f87171';
+      const stLabel = st.status === 'present' ? 'Kelgan' : st.status === 'late' ? 'Kechikdi' : st.status === 'excused' ? 'Sababli' : 'Kelmadi';
+      ctx.fillStyle = stColor;
+      ctx.font = '11px system-ui, -apple-system, sans-serif';
+      ctx.fillText(stLabel, startX + colWidth - 145, y + 22);
+
+      if (st.score !== null && st.score !== undefined && st.score !== '') {
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
+        ctx.fillText(`${st.score} ball`, startX + colWidth - 75, y + 22);
+      } else {
+        ctx.fillStyle = '#475569';
+        ctx.font = '12px system-ui, -apple-system, sans-serif';
+        ctx.fillText('-', startX + colWidth - 50, y + 22);
+      }
+    });
+  };
+
+  drawCol(leftColStudents, 50, 1);
+  if (rightColStudents.length > 0) {
+    drawCol(rightColStudents, 50 + colWidth + 24, maxPerCol + 1);
+  }
+
+  // 6. Footer
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.beginPath();
+  ctx.moveTo(50, H - 55);
+  ctx.lineTo(W - 50, H - 55);
+  ctx.stroke();
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '500 13px system-ui, -apple-system, sans-serif';
+  ctx.fillText("🚀 Global Success Academy — Kelajak kasblari va zamonaviy IT ta'lim maskani", 50, H - 28);
+
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
+  ctx.fillText("Telegram: @globalsuccess_academy • Tel: +998 (90) 123-45-67", W - 490, H - 28);
+}
+
 function AttendanceContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const urlGroupId = searchParams.get('group_id');
   const urlLessonId = searchParams.get('lesson_id');
 
-  const { isStudent: isUserStudent, isTeacher: isUserTeacher, isLoading: isUserLoading } = useCurrentUser();
+  const { isStudent: isUserStudent, isTeacher: isUserTeacher, user, isLoading: isUserLoading } = useCurrentUser();
   const canTakeAttendance = isUserTeacher; // Admin/Manager faqat monitoring qiladi
 
   const [selectedGroupId, setSelectedGroupId] = useState<string>(urlGroupId || '');
@@ -80,6 +353,11 @@ function AttendanceContent() {
 
   // Admin/Manager ko'rinish rejimi: 'lessons' (darslar) | 'overview' (guruh monitoringi)
   const [adminViewMode, setAdminViewMode] = useState<'lessons' | 'overview'>('lessons');
+
+  // Telegram / Canva card modal
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [copiedTelegram, setCopiedTelegram] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Student shaxsiy davomat statistikasi
   const { data: myAttendance, isLoading: isMyAttendanceLoading } = useQuery({
@@ -99,6 +377,9 @@ function AttendanceContent() {
   // Yangi dars modali (faqat teacher uchun)
   const [isNewLessonModalOpen, setIsNewLessonModalOpen] = useState(false);
   const [newLessonTopic, setNewLessonTopic] = useState('');
+  const [newLessonType, setNewLessonType] = useState<'standard' | 'exam' | 'revision' | 'practice'>('standard');
+  const [newLessonNote, setNewLessonNote] = useState('');
+  const [newLessonMaxScore, setNewLessonMaxScore] = useState(100);
   const [newLessonDate, setNewLessonDate] = useState(new Date().toISOString().split('T')[0]);
 
   // 1. Fetch all groups for dropdown (Teacher/Admin)
@@ -206,7 +487,10 @@ function AttendanceContent() {
       const resp = await api.post('/api/attendance/create-lesson', {
         group_id: Number(selectedGroupId),
         topic: newLessonTopic || 'Dars',
+        lesson_type: newLessonType,
+        note: newLessonNote,
         date: newLessonDate,
+        max_score: newLessonMaxScore,
       });
       return resp.data;
     },
@@ -214,6 +498,9 @@ function AttendanceContent() {
       queryClient.invalidateQueries({ queryKey: ['attendance-lessons', selectedGroupId] });
       setIsNewLessonModalOpen(false);
       setNewLessonTopic('');
+      setNewLessonNote('');
+      setNewLessonType('standard');
+      setNewLessonMaxScore(100);
       if (data?.lesson?.id) {
         setSelectedLessonId(data.lesson.id);
       }
@@ -358,6 +645,118 @@ function AttendanceContent() {
     ];
     const mIdx = Number(month) - 1;
     return `${monthNames[mIdx] || month} ${year}`;
+  };
+
+  const detectedLessonType = (() => {
+    const top = currentLesson?.topic?.toLowerCase() || '';
+    if (top.includes('imtihon') || top.includes('exam') || top.includes('midterm') || top.includes('final') || top.includes('nazorat')) {
+      return 'exam';
+    }
+    if (top.includes('takrorlash') || top.includes('mustahkamlash') || top.includes('revision')) {
+      return 'revision';
+    }
+    if (top.includes('amaliy') || top.includes('practice') || top.includes('loyiha')) {
+      return 'practice';
+    }
+    return 'standard';
+  })();
+
+  const currentAssessmentMaxScore = (lessonAttendanceData as any)?.assessment?.max_score || 100;
+
+  // Canvasni yangilash
+  useEffect(() => {
+    if (isShareModalOpen && canvasRef.current && currentLesson) {
+      const currentGroup = groups.find((g) => String(g.id) === String(selectedGroupId));
+      const teacherName = (lessonAttendanceData as any)?.teacher_name || user?.name || "Ustoz";
+      const groupName = currentGroup?.name || "Guruh";
+
+      drawTelegramCard(canvasRef.current, {
+        groupName,
+        teacherName,
+        date: currentLesson.started_at ? currentLesson.started_at.substring(0, 10) : new Date().toISOString().split('T')[0],
+        topic: currentLesson.topic || 'Dars',
+        lessonType: detectedLessonType,
+        lessonPlan: currentLesson.note || undefined,
+        presentCount,
+        absentCount,
+        lateCount,
+        excusedCount,
+        avgScore,
+        maxScore: currentAssessmentMaxScore,
+        students,
+      });
+    }
+  }, [isShareModalOpen, currentLesson, students, selectedGroupId, groups, lessonAttendanceData, user, detectedLessonType, presentCount, absentCount, lateCount, excusedCount, avgScore, currentAssessmentMaxScore]);
+
+  const handleDownloadImage = () => {
+    if (!canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const link = document.createElement('a');
+    const groupName = groups.find((g) => String(g.id) === String(selectedGroupId))?.name || 'Guruh';
+    const dateStr = currentLesson?.started_at ? currentLesson.started_at.substring(0, 10) : 'natijalar';
+    link.download = `GSA_${groupName.replace(/\s+/g, '_')}_${dateStr}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+
+  const copyTelegramReport = () => {
+    const currentGroup = groups.find((g) => String(g.id) === String(selectedGroupId));
+    const dateStr = currentLesson?.started_at ? currentLesson.started_at.substring(0, 10) : new Date().toISOString().split('T')[0];
+    const teacherName = (lessonAttendanceData as any)?.teacher_name || user?.name || "O'qituvchi";
+    const groupName = currentGroup?.name || "Guruh";
+    const topic = currentLesson?.topic || "Dars";
+    const note = currentLesson?.note || "";
+
+    const typeLabels: Record<string, string> = {
+      exam: "📝 Imtihon / Nazorat ishi",
+      revision: "🔄 Takrorlash",
+      practice: "💻 Amaliy mashg'ulot",
+      standard: "📖 Yangi mavzu",
+    };
+    const lessonTypeStr = typeLabels[detectedLessonType] || "📖 Dars";
+
+    const totalStudents = students.length;
+    const pCount = students.filter((s) => s.status === 'present').length;
+    const aCount = students.filter((s) => s.status === 'absent').length;
+    const lCount = students.filter((s) => s.status === 'late').length;
+    const attRate = totalStudents > 0 ? Math.round(((pCount + lCount) / totalStudents) * 100) : 100;
+
+    const sorted = [...students].sort((a, b) => {
+      const scA = a.score !== null && a.score !== undefined && a.score !== '' ? Number(a.score) : -1;
+      const scB = b.score !== null && b.score !== undefined && b.score !== '' ? Number(b.score) : -1;
+      if (scB !== scA) return scB - scA;
+      return a.student_name.localeCompare(b.student_name);
+    });
+
+    const studentsListText = sorted
+      .map((s, idx) => {
+        const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`;
+        const stText = s.status === 'present' ? "✅ Keldi" : s.status === 'late' ? "⏰ Kechikdi" : s.status === 'excused' ? "📋 Sababli" : "❌ Kelmadi";
+        const scText = s.score !== null && s.score !== undefined && s.score !== '' ? ` — ⭐️ ${s.score} ball` : '';
+        return `${medal} ${s.student_name}${scText} (${stText})`;
+      })
+      .join('\n');
+
+    const text = `🎓 GLOBAL SUCCESS ACADEMY
+━━━━━━━━━━━━━━━━━━━━
+👥 Guruh: ${groupName}
+👨‍🏫 Ustoz: ${teacherName}
+📅 Sana: ${dateStr}
+📌 Dars turi: ${lessonTypeStr}
+📖 Mavzu: ${topic}
+${note ? `🎯 Dars rejasi: ${note}\n` : ''}
+📊 DAVOMAT NATIJALARI:
+✅ Qatnashganlar: ${pCount + lCount} ta (${attRate}%)
+❌ Qatnashmaganlar: ${aCount} ta
+${avgScore !== null ? `⭐️ O'rtacha ball: ${avgScore} / ${currentAssessmentMaxScore}\n` : ''}
+🏆 O'QUVCHILAR NATIJALARI:
+${studentsListText}
+━━━━━━━━━━━━━━━━━━━━
+🚀 @globalsuccess_academy • Muvaffaqiyat sari birga!`;
+
+    navigator.clipboard.writeText(text);
+    setCopiedTelegram(true);
+    setTimeout(() => setCopiedTelegram(false), 3000);
   };
 
   // ─── Loading State ────────────────────────────────────────────────────────
@@ -838,53 +1237,99 @@ function AttendanceContent() {
 
                 {/* Lesson Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-5">
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded-md text-xs font-bold uppercase">
                         Dars #{currentLesson.id}
                       </span>
+
+                      {detectedLessonType === 'exam' && (
+                        <span className="px-2.5 py-0.5 bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 rounded-full text-xs font-bold flex items-center gap-1">
+                          📝 Imtihon / Nazorat
+                        </span>
+                      )}
+                      {detectedLessonType === 'revision' && (
+                        <span className="px-2.5 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900 rounded-full text-xs font-bold flex items-center gap-1">
+                          🔄 Takrorlash
+                        </span>
+                      )}
+                      {detectedLessonType === 'practice' && (
+                        <span className="px-2.5 py-0.5 bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-900 rounded-full text-xs font-bold flex items-center gap-1">
+                          💻 Amaliyot
+                        </span>
+                      )}
+                      {detectedLessonType === 'standard' && (
+                        <span className="px-2.5 py-0.5 bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900 rounded-full text-xs font-bold flex items-center gap-1">
+                          📖 Yangi mavzu
+                        </span>
+                      )}
+
                       <h2 className="text-lg font-bold text-gray-900 dark:text-white">{currentLesson.topic}</h2>
                     </div>
+
                     <p className="text-xs text-gray-400 mt-1">
                       Sana: {currentLesson.started_at ? currentLesson.started_at.substring(0, 16) : '-'}
                     </p>
+
+                    {/* Lesson Plan / Note Box */}
+                    {currentLesson.note && (
+                      <div className="mt-2.5 p-2.5 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-xl text-xs text-indigo-950 dark:text-indigo-200 flex items-start gap-2">
+                        <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <span className="font-bold mr-1">Dars rejasi / Maqsadi:</span>
+                          <span>{currentLesson.note}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* O'qituvchi uchun tezkor harakatlar */}
-                  {canTakeAttendance && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleMarkAllPresent}
-                        className="px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold transition cursor-pointer"
-                      >
-                        Hamma keldi
-                      </button>
+                  {/* Harakatlar (Telegram hisoboti + O'qituvchi boshqaruvi) */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsShareModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                      title="Telegram va Canva formatida natijalar hisobotini olish"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Telegram / Canva hisoboti</span>
+                    </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleSetAllScores(100)}
-                        className="px-3.5 py-2 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
-                      >
-                        <Award className="w-3.5 h-3.5" />
-                        <span>Hammaga 100</span>
-                      </button>
+                    {canTakeAttendance && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleMarkAllPresent}
+                          className="px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold transition cursor-pointer"
+                        >
+                          Hamma keldi
+                        </button>
 
-                      <button
-                        type="button"
-                        disabled={saveMutation.isPending}
-                        onClick={() => saveMutation.mutate()}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
-                      >
-                        {saveMutation.isPending ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Check className="w-3.5 h-3.5" />
-                        )}
-                        <span>Saqlash</span>
-                      </button>
-                    </div>
-                  )}
+                        <button
+                          type="button"
+                          onClick={() => handleSetAllScores(100)}
+                          className="px-3.5 py-2 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <Award className="w-3.5 h-3.5" />
+                          <span>Hammaga 100</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={saveMutation.isPending}
+                          onClick={() => saveMutation.mutate()}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                        >
+                          {saveMutation.isPending ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Check className="w-3.5 h-3.5" />
+                          )}
+                          <span>Saqlash</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Attendance & Grading Mini Summary Badges */}
@@ -1142,6 +1587,35 @@ function AttendanceContent() {
               }}
               className="p-6 space-y-4 overflow-y-auto flex-1"
             >
+              {/* Dars turi tanlash */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Dars turi *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'standard', label: '📖 Yangi mavzu', desc: 'Nazariy tushunchalar' },
+                    { id: 'revision', label: '🔄 Takrorlash', desc: 'Mustahkamlash' },
+                    { id: 'exam', label: '📝 Imtihon', desc: 'Nazorat ishi / Test' },
+                    { id: 'practice', label: '💻 Amaliyot', desc: 'Amaliy topshiriqlar' },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setNewLessonType(t.id as any)}
+                      className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                        newLessonType === t.id
+                          ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500'
+                          : 'bg-white dark:bg-gray-750 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <p className="text-xs font-bold">{t.label}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{t.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Dars mavzusi *
@@ -1158,15 +1632,44 @@ function AttendanceContent() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Sana *
+                  O&apos;qituvchi dars rejasi / maqsadi (ixtiyoriy)
                 </label>
-                <input
-                  type="date"
-                  required
-                  value={newLessonDate}
-                  onChange={(e) => setNewLessonDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                <textarea
+                  rows={2}
+                  value={newLessonNote}
+                  onChange={(e) => setNewLessonNote(e.target.value)}
+                  placeholder="Masalan: 1. 20 daqiqa test. 2. Yangi mavzu tahlili. 3. Masalalar yechish..."
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    Sana *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={newLessonDate}
+                    onChange={(e) => setNewLessonDate(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    Maksimal baholash bali
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={newLessonMaxScore}
+                    onChange={(e) => setNewLessonMaxScore(Number(e.target.value))}
+                    className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                </div>
               </div>
 
               <div className="pt-4 mt-6 border-t border-gray-100 dark:border-gray-700/80 flex items-center justify-end gap-3 sticky bottom-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs -mx-6 -mb-6 px-6 py-4 z-10">
@@ -1187,6 +1690,90 @@ function AttendanceContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Telegram / Canva Hisoboti (Rasm va Matn) */}
+      {isShareModalOpen && currentLesson && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 overflow-y-auto backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-4xl my-auto max-h-[95vh] flex flex-col overflow-hidden border border-gray-150 dark:border-gray-700">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 text-white flex items-center justify-center shadow-xs">
+                  <Send className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                    Telegram va Canva Hisoboti
+                  </h3>
+                  <p className="text-xs text-gray-400">
+                    O&apos;quvchilar natijalarini chiroyli grafik karta yoki Telegram matni ko&apos;rinishida ulashing
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsShareModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body: Canvas Preview + Actions */}
+            <div className="p-6 space-y-5 overflow-y-auto flex-1">
+              {/* Canvas Card Display */}
+              <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-md bg-gray-950 flex items-center justify-center p-2">
+                <canvas
+                  ref={canvasRef}
+                  className="w-full h-auto max-h-[58vh] object-contain rounded-xl"
+                  style={{ imageRendering: 'auto' }}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                <div className="text-xs text-gray-400">
+                  <span>O&apos;lcham: </span>
+                  <strong className="text-gray-600 dark:text-gray-300">1200 x 920 px HD</strong>
+                  <span className="mx-2">•</span>
+                  <span>Brend: </span>
+                  <strong className="text-blue-600 dark:text-blue-400">Global Success Academy (GSA)</strong>
+                </div>
+
+                <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={copyTelegramReport}
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-650 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-bold transition cursor-pointer border border-gray-200 dark:border-gray-600"
+                  >
+                    {copiedTelegram ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-emerald-700 dark:text-emerald-300">Matn nusxalandi!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        <span>Telegram matnini nusxalash</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadImage}
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Rasmni yuklab olish (.png)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

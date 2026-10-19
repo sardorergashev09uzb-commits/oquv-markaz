@@ -237,6 +237,21 @@ class GroupController extends Controller
 
         $generatedCount = self::generateLessonsForGroup($group, $daysStr, $timeStr, $durationMonths, $startDate);
 
+        // Guruh yaratilganda o'quvchilarni biriktirish
+        if (!empty($body['student_ids']) && is_array($body['student_ids'])) {
+            foreach ($body['student_ids'] as $sId) {
+                $sId = (int)$sId;
+                if ($sId > 0) {
+                    $gs = new GroupStudent();
+                    $gs->group_id = $group->id;
+                    $gs->student_id = $sId;
+                    $gs->status = GroupStudent::STATUS_ACTIVE;
+                    $gs->enrolled_at = date('Y-m-d');
+                    $gs->save(false);
+                }
+            }
+        }
+
         Yii::$app->response->statusCode = 201;
         return [
             'message' => "Guruh muvaffaqiyatli yaratildi va {$generatedCount} ta dars rejasi avtomatik shakllantirildi",
@@ -292,6 +307,45 @@ class GroupController extends Controller
                 'message' => "Guruh ma'lumotlarida xatolik: " . implode('; ', $allErrors),
                 'errors' => $group->getErrors(),
             ];
+        }
+
+        // Agar tahrirlashda student_ids berilgan bo'lsa, o'quvchilarni yangilash (qo'shish/chiqarish)
+        if (array_key_exists('student_ids', $body) && is_array($body['student_ids'])) {
+            $newStudentIds = array_values(array_filter(array_map('intval', $body['student_ids'])));
+            $currentMemberships = GroupStudent::find()->where(['group_id' => $id])->all();
+            $currentActiveMap = [];
+            foreach ($currentMemberships as $m) {
+                if ($m->status === GroupStudent::STATUS_ACTIVE) {
+                    $currentActiveMap[(int)$m->student_id] = $m;
+                }
+            }
+
+            // Ro'yxatdan olib tashlangan o'quvchilarni STATUS_LEFT qilish
+            foreach ($currentActiveMap as $sId => $m) {
+                if (!in_array($sId, $newStudentIds, true)) {
+                    $m->status = GroupStudent::STATUS_LEFT;
+                    $m->left_at = date('Y-m-d');
+                    $m->save(false);
+                }
+            }
+
+            // Yangi qo'shilgan yoki qayta tiklangan o'quvchilar
+            foreach ($newStudentIds as $sId) {
+                if ($sId <= 0) continue;
+                $m = GroupStudent::findOne(['group_id' => $id, 'student_id' => $sId]);
+                if ($m) {
+                    $m->status = GroupStudent::STATUS_ACTIVE;
+                    $m->left_at = null;
+                    $m->save(false);
+                } else {
+                    $newM = new GroupStudent();
+                    $newM->group_id = $id;
+                    $newM->student_id = $sId;
+                    $newM->enrolled_at = date('Y-m-d');
+                    $newM->status = GroupStudent::STATUS_ACTIVE;
+                    $newM->save(false);
+                }
+            }
         }
 
         return [

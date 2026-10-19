@@ -278,7 +278,7 @@ class AttendanceController extends Controller
             throw new \yii\web\ForbiddenHttpException("O'quvchilarga guruh davomatini ko'rish taqiqlangan.");
         }
 
-        $lesson = Lesson::find()->with('group')->where(['id' => $lid])->one();
+        $lesson = Lesson::find()->with(['group.teacher', 'group.course'])->where(['id' => $lid])->one();
         if (!$lesson) {
             throw new NotFoundHttpException("Dars topilmadi.");
         }
@@ -332,6 +332,8 @@ class AttendanceController extends Controller
 
         return [
             'lesson' => $lesson,
+            'group' => $lesson->group,
+            'teacher_name' => $lesson->group && $lesson->group->teacher ? $lesson->group->teacher->name : null,
             'assessment' => $assessment,
             'students' => $list,
             'total' => count($list),
@@ -340,7 +342,7 @@ class AttendanceController extends Controller
 
     /**
      * POST /api/attendance/create-lesson
-     * Yangi dars yaratish
+     * Yangi dars yaratish (Mavzu, Dars turi va Rejasi bilan)
      */
     public function actionCreateLesson(): array
     {
@@ -362,11 +364,30 @@ class AttendanceController extends Controller
 
         $date = !empty($body['date']) ? $body['date'] : date('Y-m-d');
         $rawTopic = trim((string)($body['topic'] ?? ''));
-        $topic = !empty($rawTopic) ? $rawTopic : "Bugungi dars (" . date('d.m.Y', strtotime($date)) . ")";
+        $lessonType = trim((string)($body['lesson_type'] ?? 'standard'));
+
+        $typePrefixes = [
+            'exam' => '[Imtihon] ',
+            'revision' => '[Takrorlash] ',
+            'practice' => '[Amaliyot] ',
+            'standard' => '',
+        ];
+        $prefix = $typePrefixes[$lessonType] ?? '';
+
+        if (empty($rawTopic)) {
+            $topic = $prefix . "Bugungi dars (" . date('d.m.Y', strtotime($date)) . ")";
+        } else {
+            if ($prefix && !str_starts_with($rawTopic, '[')) {
+                $topic = $prefix . $rawTopic;
+            } else {
+                $topic = $rawTopic;
+            }
+        }
 
         $lesson = new Lesson();
         $lesson->group_id = $groupId;
         $lesson->topic = $topic;
+        $lesson->note = !empty($body['note']) ? trim((string)$body['note']) : null;
         $lesson->started_at = $date . ' ' . date('H:i:s');
         $lesson->status = Lesson::STATUS_ACTIVE;
 
@@ -405,6 +426,13 @@ class AttendanceController extends Controller
             throw new \yii\web\ForbiddenHttpException("Siz faqat o'z guruhingiz davomatini belgilashingiz mumkin.");
         }
 
+        if (!empty($body['topic'])) {
+            $lesson->topic = trim((string)$body['topic']);
+        }
+        if (array_key_exists('note', $body)) {
+            $lesson->note = trim((string)$body['note']);
+        }
+
         $markedBy = $user ? $user->id : null;
 
         // Baholar mavjudligini tekshiramiz
@@ -416,6 +444,7 @@ class AttendanceController extends Controller
             }
         }
 
+        $maxScore = !empty($body['max_score']) ? (int)$body['max_score'] : 100;
         $assessment = null;
         if ($hasAnyScore) {
             $assessment = Assessment::findOne(['lesson_id' => $lessonId]);
@@ -425,10 +454,15 @@ class AttendanceController extends Controller
                 $assessment->lesson_id = $lessonId;
                 $assessment->title = "Dars bahosi: " . ($lesson->topic ?: "Dars #" . $lessonId);
                 $assessment->type = Assessment::TYPE_QUIZ;
-                $assessment->max_score = 100;
+                $assessment->max_score = $maxScore;
                 $assessment->date = $lesson->started_at ? substr($lesson->started_at, 0, 10) : date('Y-m-d');
                 $assessment->created_by = $markedBy ?: 1;
                 $assessment->save(false);
+            } else {
+                if ($maxScore > 0) {
+                    $assessment->max_score = $maxScore;
+                    $assessment->save(false);
+                }
             }
         }
 
