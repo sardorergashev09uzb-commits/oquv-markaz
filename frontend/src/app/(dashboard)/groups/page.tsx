@@ -470,31 +470,6 @@ export default function GroupsPage() {
         </div>
       </div>
 
-      {/* Sinov guruhlarini tozalash banneri (agar banan/test guruhlari bo'lsa) */}
-      {!isUserStudent && (() => {
-        const bananGroups = groups.filter((g) => {
-          const n = g.name.toLowerCase();
-          return n.includes('banan') || n.includes('baban') || n.includes('test') || n.includes('vdbdnnsn');
-        });
-        if (bananGroups.length === 0) return null;
-        return (
-          <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs text-amber-900 dark:text-amber-200 shadow-xs">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>
-                Tizimda <strong>{bananGroups.length} ta</strong> sinov tariqasida yaratilgan guruhlar (&quot;banan&quot; va boshqalar) mavjud.
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelectedGroupIds(bananGroups.map((g) => g.id))}
-              className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold transition cursor-pointer shadow-xs"
-            >
-              Barcha sinov guruhlarini tanlash ({bananGroups.length} ta)
-            </button>
-          </div>
-        );
-      })()}
 
       {/* Groups Grid */}
       {isLoading ? (
@@ -972,21 +947,21 @@ export default function GroupsPage() {
                 </div>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
+              <div className="pt-4 mt-6 border-t border-gray-100 dark:border-gray-700/80 flex items-center justify-end gap-3 sticky bottom-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs -mx-6 -mb-6 px-6 py-4 z-10">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/60 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                 >
                   {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>Ochish</span>
+                  <span>Guruhni ochish</span>
                 </button>
               </div>
             </form>
@@ -1141,18 +1116,18 @@ export default function GroupsPage() {
                 </div>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
+              <div className="pt-4 mt-6 border-t border-gray-100 dark:border-gray-700/80 flex items-center justify-end gap-3 sticky bottom-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs -mx-6 -mb-6 px-6 py-4 z-10">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/60 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                 >
                   {updateMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>Saqlash</span>
@@ -1184,7 +1159,7 @@ export default function GroupsPage() {
               <button
                 type="button"
                 onClick={() => setIsDeleteModalOpen(false)}
-                className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/60 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 transition cursor-pointer"
               >
                 Bekor qilish
               </button>
@@ -1192,7 +1167,7 @@ export default function GroupsPage() {
                 type="button"
                 disabled={deleteMutation.isPending}
                 onClick={() => deleteMutation.mutate(deletingGroup.id)}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2"
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 active:scale-[0.98] disabled:bg-rose-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
               >
                 {deleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>Ha, arxivlash</span>
@@ -1232,7 +1207,7 @@ export default function GroupsPage() {
                   setForceDeletingGroup(null);
                   setForceDeleteError('');
                 }}
-                className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/60 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 transition cursor-pointer"
               >
                 Bekor qilish
               </button>
@@ -1240,7 +1215,7 @@ export default function GroupsPage() {
                 type="button"
                 disabled={forceDeleteMutation.isPending}
                 onClick={() => forceDeleteMutation.mutate(forceDeletingGroup.id)}
-                className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                className="px-5 py-2.5 bg-red-600 hover:bg-red-700 active:scale-[0.98] disabled:bg-red-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
               >
                 {forceDeleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>Ha, butunlay o&apos;chirish</span>
@@ -1303,7 +1278,7 @@ export default function GroupsPage() {
                 type="button"
                 disabled={isBulkDeleting}
                 onClick={() => setIsBulkDeleteModalOpen(false)}
-                className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/60 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 transition cursor-pointer"
               >
                 Bekor qilish
               </button>
@@ -1311,7 +1286,7 @@ export default function GroupsPage() {
                 type="button"
                 disabled={isBulkDeleting}
                 onClick={handleBulkDelete}
-                className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                className="px-5 py-2.5 bg-red-600 hover:bg-red-700 active:scale-[0.98] disabled:bg-red-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
               >
                 {isBulkDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>Ha, butunlay o&apos;chirish</span>

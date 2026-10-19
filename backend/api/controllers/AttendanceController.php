@@ -35,14 +35,13 @@ class AttendanceController extends Controller
 
     /**
      * GET /api/attendance
-     * Guruh bo'yicha darslar ro'yxati
+     * Guruh bo'yicha darslar ro'yxati (Kunlik, Haftalik, Oylik filtrlar bilan)
      */
     public function actionIndex(): array
     {
         $user = Yii::$app->user->identity;
         $groupId = (int) Yii::$app->request->get('group_id');
         if (!$groupId) {
-            // Agar guruh ko'rsatilmagan bo'lsa, birinchi faol guruhni olamiz
             if ($user && $user->role === User::ROLE_TEACHER) {
                 $firstGroup = Group::findOne(['teacher_id' => $user->id, 'status' => Group::STATUS_ACTIVE]);
             } else {
@@ -53,22 +52,168 @@ class AttendanceController extends Controller
 
         $group = Group::findOne($groupId);
         if (!$group) {
-            return ['lessons' => [], 'group' => null];
+            return [
+                'lessons' => [],
+                'group' => null,
+                'available_months' => [],
+                'period' => 'month',
+                'month' => date('Y-m'),
+            ];
         }
 
         if ($user && $user->role === User::ROLE_TEACHER && $group->teacher_id !== $user->id) {
             throw new \yii\web\ForbiddenHttpException("Siz faqat o'z guruhingiz davomatini ko'rishingiz mumkin.");
         }
 
-        $lessons = Lesson::find()
+        $period = trim((string) Yii::$app->request->get('period', 'month')); // 'today' | 'week' | 'month' | 'all'
+        $selectedMonth = trim((string) Yii::$app->request->get('month', date('Y-m')));
+
+        // Guruhdagi barcha darslar oylari ro'yxati (navigatsiya uchun)
+        $allLessonsDates = Lesson::find()
+            ->select('started_at')
             ->where(['group_id' => $groupId])
-            ->orderBy(['started_at' => SORT_DESC])
-            ->limit(50)
+            ->asArray()
             ->all();
+
+        $monthMap = [];
+        foreach ($allLessonsDates as $ld) {
+            if (!empty($ld['started_at'])) {
+                $ym = substr($ld['started_at'], 0, 7);
+                $monthMap[$ym] = true;
+            }
+        }
+        $availableMonths = array_keys($monthMap);
+        sort($availableMonths);
+
+        $today = date('Y-m-d');
+        $query = Lesson::find()->where(['group_id' => $groupId]);
+
+        if ($period === 'today') {
+            $query->andWhere(['like', 'started_at', $today . '%', false]);
+        } elseif ($period === 'week') {
+            $monday = date('Y-m-d 00:00:00', strtotime('monday this week'));
+            $sunday = date('Y-m-d 23:59:59', strtotime('sunday this week'));
+            $query->andWhere(['between', 'started_at', $monday, $sunday]);
+        } elseif ($period === 'month') {
+            $targetMonth = !empty($selectedMonth) ? $selectedMonth : date('Y-m');
+            $startOfMonth = $targetMonth . '-01 00:00:00';
+            $endOfMonth = date('Y-m-t 23:59:59', strtotime($startOfMonth));
+            $query->andWhere(['between', 'started_at', $startOfMonth, $endOfMonth]);
+        }
+
+        // Xronologik tartibda (ASC) saralaymiz
+        $lessons = $query->orderBy(['started_at' => SORT_ASC])->all();
 
         return [
             'group' => $group,
             'lessons' => $lessons,
+            'period' => $period,
+            'month' => $selectedMonth,
+            'available_months' => $availableMonths,
+            'today' => $today,
+            'total_lessons' => count($lessons),
+        ];
+    }
+
+    /**
+     * GET /api/attendance/group-stats
+     * Admin va Manager uchun guruhning umumiy o'quvchilar davomati tahlili
+     */
+    public function actionGroupStats(): array
+    {
+        $groupId = (int) Yii::$app->request->get('group_id');
+        $month = trim((string) Yii::$app->request->get('month', ''));
+
+        $group = Group::findOne($groupId);
+        if (!$group) {
+            throw new NotFoundHttpException("Guruh topilmadi.");
+        }
+
+        // Darslar filtri
+        $lessonQuery = Lesson::find()->where(['group_id' => $groupId]);
+        if (!empty($month)) {
+            $startOfMonth = $month . '-01 00:00:00';
+            $endOfMonth = date('Y-m-t 23:59:59', strtotime($startOfMonth));
+            $lessonQuery->andWhere(['between', 'started_at', $startOfMonth, $endOfMonth]);
+        }
+        $lessons = $lessonQuery->all();
+        $lessonIds = array_column($lessons, 'id');
+        $totalLessons = count($lessons);
+
+        // Faol o'quvchilar
+        $students = User::find()
+            ->innerJoin('{{%group_students}} gs', 'gs.student_id = {{%users}}.id')
+            ->where([
+                'gs.group_id' => $groupId,
+                'gs.status' => GroupStudent::STATUS_ACTIVE,
+                '{{%users}}.status' => User::STATUS_ACTIVE,
+                '{{%users}}.role' => User::ROLE_STUDENT,
+            ])
+            ->orderBy(['name' => SORT_ASC])
+            ->all();
+
+        $stats = [];
+        if (!empty($lessonIds) && !empty($students)) {
+            $attendances = Attendance::find()
+                ->where(['lesson_id' => $lessonIds])
+                ->asArray()
+                ->all();
+
+            $scores = AssessmentScore::find()
+                ->innerJoin('{{%assessments}} a', 'a.id = {{%assessment_scores}}.assessment_id')
+                ->where(['a.lesson_id' => $lessonIds])
+                ->asArray()
+                ->all();
+
+            $studentAttMap = [];
+            foreach ($attendances as $att) {
+                $sid = (int) $att['student_id'];
+                if (!isset($studentAttMap[$sid])) {
+                    $studentAttMap[$sid] = ['present' => 0, 'absent' => 0, 'late' => 0, 'excused' => 0];
+                }
+                $st = $att['status'];
+                if (isset($studentAttMap[$sid][$st])) {
+                    $studentAttMap[$sid][$st]++;
+                }
+            }
+
+            $studentScoreMap = [];
+            foreach ($scores as $sc) {
+                $sid = (int) $sc['student_id'];
+                if ($sc['score'] !== null) {
+                    if (!isset($studentScoreMap[$sid])) {
+                        $studentScoreMap[$sid] = [];
+                    }
+                    $studentScoreMap[$sid][] = (float) $sc['score'];
+                }
+            }
+
+            foreach ($students as $stu) {
+                $counts = $studentAttMap[$stu->id] ?? ['present' => 0, 'absent' => 0, 'late' => 0, 'excused' => 0];
+                $scList = $studentScoreMap[$stu->id] ?? [];
+                $avgSc = !empty($scList) ? round(array_sum($scList) / count($scList), 1) : null;
+                $effectiveAtt = $counts['present'] + $counts['late'];
+                $attRate = $totalLessons > 0 ? round(($effectiveAtt / $totalLessons) * 100) : 100;
+
+                $stats[] = [
+                    'student_id' => $stu->id,
+                    'student_name' => $stu->name,
+                    'phone' => $stu->phone,
+                    'present_count' => $counts['present'],
+                    'absent_count' => $counts['absent'],
+                    'late_count' => $counts['late'],
+                    'excused_count' => $counts['excused'],
+                    'attendance_rate' => $attRate,
+                    'average_score' => $avgSc,
+                ];
+            }
+        }
+
+        return [
+            'group' => $group,
+            'total_lessons' => $totalLessons,
+            'month' => $month,
+            'students' => $stats,
         ];
     }
 

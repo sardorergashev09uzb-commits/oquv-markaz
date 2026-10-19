@@ -562,18 +562,18 @@ export default function CoursesPage() {
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
+              <div className="pt-4 mt-6 border-t border-gray-100 dark:border-gray-700/80 flex items-center justify-end gap-3 sticky bottom-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs -mx-6 -mb-6 px-6 py-4 z-10">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/60 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                 >
                   {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>Saqlash</span>
@@ -731,18 +731,18 @@ export default function CoursesPage() {
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
+              <div className="pt-4 mt-6 border-t border-gray-100 dark:border-gray-700/80 flex items-center justify-end gap-3 sticky bottom-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs -mx-6 -mb-6 px-6 py-4 z-10">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/60 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                 >
                   {updateMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>Yangilash</span>
@@ -774,7 +774,7 @@ export default function CoursesPage() {
               <button
                 type="button"
                 onClick={() => setIsDeleteModalOpen(false)}
-                className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/60 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 transition cursor-pointer"
               >
                 Bekor qilish
               </button>
@@ -782,7 +782,7 @@ export default function CoursesPage() {
                 type="button"
                 disabled={deleteMutation.isPending}
                 onClick={() => deleteMutation.mutate(deletingCourse.id)}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 active:scale-[0.98] disabled:bg-rose-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
               >
                 {deleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>Ha, arxivlash</span>
@@ -822,7 +822,7 @@ export default function CoursesPage() {
                   setForceDeletingCourse(null);
                   setForceDeleteError('');
                 }}
-                className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/60 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 transition cursor-pointer"
               >
                 Bekor qilish
               </button>
@@ -830,7 +830,7 @@ export default function CoursesPage() {
                 type="button"
                 disabled={forceDeleteMutation.isPending}
                 onClick={() => forceDeleteMutation.mutate(forceDeletingCourse.id)}
-                className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                className="px-5 py-2.5 bg-red-600 hover:bg-red-700 active:scale-[0.98] disabled:bg-red-400 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
               >
                 {forceDeleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>Ha, butunlay o&apos;chirish</span>
