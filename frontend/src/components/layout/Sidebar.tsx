@@ -50,18 +50,18 @@ export function Sidebar({ role, userName, userRole }: SidebarProps) {
       )}>
         {!collapsed && (
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-              <GraduationCap className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform flex-shrink-0">
+              <img src="/apple-touch-icon.png" alt="GSA" className="w-full h-full object-cover" />
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-white text-sm leading-tight tracking-tight">O&apos;quv Markaz</span>
-              <span className="text-[10px] text-gray-400 font-medium">Boshqaruv Tizimi</span>
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-white text-sm leading-tight tracking-tight truncate">Global Success</span>
+              <span className="text-[10px] text-blue-400 font-bold">GSA ERP</span>
             </div>
           </Link>
         )}
         {collapsed && (
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-md shadow-blue-500/20">
-            <GraduationCap className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shadow-md shadow-blue-500/20">
+            <img src="/apple-touch-icon.png" alt="GSA" className="w-full h-full object-cover" />
           </div>
         )}
         <button

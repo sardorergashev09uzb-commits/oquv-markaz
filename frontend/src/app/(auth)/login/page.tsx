@@ -66,11 +66,11 @@ function LoginContent() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg">
-            <GraduationCap className="w-9 h-9 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4 shadow-xl overflow-hidden shadow-blue-500/20">
+            <img src="/apple-touch-icon.png" alt="GSA" className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">O&apos;quv Markaz</h1>
-          <p className="text-gray-500 mt-1 text-sm">Boshqaruv tizimiga xush kelibsiz</p>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Global Success Academy</h1>
+          <p className="text-gray-500 mt-1 text-sm font-medium">GSA Boshqaruv Tizimiga xush kelibsiz</p>
         </div>
 
         {/* Card */}
