@@ -1,0 +1,23 @@
+# Composer
+/backend/vendor/
+/backend/runtime/*
+!/backend/runtime/.gitignore
+
+# Node / Next.js
+/frontend/node_modules/
+/frontend/.next/
+/frontend/out/
+/frontend/build/
+
+# Environment files
+*.env
+*.env.local
+*.env.*.local
+!*.env.example
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
