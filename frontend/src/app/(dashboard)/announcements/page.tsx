@@ -86,8 +86,8 @@ export default function AnnouncementsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">E&apos;lonlar Taxtasi</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">E&apos;lonlar Taxtasi</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Markaziy e&apos;lonlar, bayram tabriklari va muhim xabarnomalar
           </p>
         </div>
@@ -105,8 +105,8 @@ export default function AnnouncementsPage() {
 
       {/* Success Alert */}
       {successMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-2xl text-green-800 text-sm flex items-center gap-2 animate-fade-in">
-          <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+        <div className="p-4 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 rounded-2xl text-green-800 dark:text-green-300 text-sm flex items-center gap-2 animate-fade-in">
+          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
           <span className="font-semibold">{successMessage}</span>
         </div>
       )}
@@ -114,36 +114,36 @@ export default function AnnouncementsPage() {
       {/* Announcements List */}
       {isLoading ? (
         <div className="py-20 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
         </div>
       ) : announcements.length === 0 ? (
-        <div className="bg-white rounded-2xl p-16 text-center border border-gray-100 shadow-sm">
-          <Megaphone className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-700 font-semibold">Hozircha e&apos;lonlar mavjud emas</p>
-          <p className="text-xs text-gray-400 mt-1">Yangi e&apos;lon chop eting</p>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-16 text-center border border-gray-100 dark:border-gray-700 shadow-sm transition-colors">
+          <Megaphone className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+          <p className="text-gray-700 dark:text-gray-200 font-semibold">Hozircha e&apos;lonlar mavjud emas</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Yangi e&apos;lon chop eting</p>
         </div>
       ) : (
         <div className="space-y-4">
           {announcements.map((item) => (
             <div
               key={item.id}
-              className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition space-y-3"
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition space-y-3"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
                     <Megaphone className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900 text-base">{item.title}</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base">{item.title}</h3>
+                    <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">
                       Muallif: {item.author_name || 'Admin'} • {new Date(item.published_at * 1000).toLocaleString('uz-UZ')}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                  <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                     Barcha uchun
                   </span>
                   {canCreate && (
@@ -153,7 +153,7 @@ export default function AnnouncementsPage() {
                           deleteMutation.mutate(item.id);
                         }
                       }}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                      className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition"
                       title="O'chirish"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -162,7 +162,7 @@ export default function AnnouncementsPage() {
                 </div>
               </div>
 
-              <div className="text-sm text-gray-700 leading-relaxed pt-2 border-t border-gray-50 whitespace-pre-line">
+              <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pt-2 border-t border-gray-50 dark:border-gray-700/80 whitespace-pre-line">
                 {item.content}
               </div>
             </div>
@@ -172,13 +172,13 @@ export default function AnnouncementsPage() {
 
       {/* Modal: Yangi E'lon */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-              <h3 className="font-bold text-gray-900">Yangi e&apos;lon chop etish</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+              <h3 className="font-bold text-gray-900 dark:text-white">Yangi e&apos;lon chop etish</h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition cursor-pointer"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -192,14 +192,14 @@ export default function AnnouncementsPage() {
               className="p-6 space-y-4 overflow-y-auto flex-1"
             >
               {formError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-start gap-2 break-words">
+                <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl text-red-700 dark:text-red-300 text-xs flex items-start gap-2 break-words">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span className="flex-1 break-words leading-relaxed">{formError}</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   E&apos;lon sarlavhasi *
                 </label>
                 <input
@@ -208,18 +208,18 @@ export default function AnnouncementsPage() {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="Masalan: Navro'z bayrami munosabati bilan..."
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Kimlar uchun *
                 </label>
                 <select
                   value={formData.target_type}
                   onChange={(e) => setFormData({ ...formData, target_type: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 >
                   <option value="all">Barcha o&apos;quvchilar va xodimlar</option>
                   <option value="group">Muayyan guruh uchun</option>
@@ -227,7 +227,7 @@ export default function AnnouncementsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   E&apos;lon matni *
                 </label>
                 <textarea
@@ -236,15 +236,15 @@ export default function AnnouncementsPage() {
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                   placeholder="Batafsil ma'lumot, sana va vaqtlar..."
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white py-3 border-t border-gray-100 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
+              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition cursor-pointer"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>

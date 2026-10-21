@@ -179,15 +179,15 @@ export default function LeadsPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'new':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">Yangi</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">Yangi</span>;
       case 'contacted':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">Bog&apos;lanildi</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Bog&apos;lanildi</span>;
       case 'trial':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">Sinov darsi</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">Sinov darsi</span>;
       case 'enrolled':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">O&apos;quvchi bo&apos;ldi</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">O&apos;quvchi bo&apos;ldi</span>;
       case 'lost':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">Rad etildi</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">Rad etildi</span>;
       default:
         return null;
     }
@@ -196,7 +196,7 @@ export default function LeadsPage() {
   const getSourceBadge = (source: string | null) => {
     if (!source) return null;
     return (
-      <span className="text-[11px] font-semibold uppercase px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+      <span className="text-[11px] font-semibold uppercase px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
         {source}
       </span>
     );
@@ -208,8 +208,8 @@ export default function LeadsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">CRM & Lidlar Quvuri</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">CRM & Lidlar Quvuri</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Yangi arizalar, mijozlar bilan muloqot va o&apos;quvchiga aylantirish
           </p>
         </div>
@@ -225,14 +225,14 @@ export default function LeadsPage() {
 
       {/* Success Alert */}
       {successMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-2xl text-green-800 text-sm flex items-center gap-2 animate-fade-in">
-          <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+        <div className="p-4 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-2xl text-green-800 dark:text-green-300 text-sm flex items-center gap-2 animate-fade-in">
+          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
           <span className="font-semibold">{successMessage}</span>
         </div>
       )}
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-3 items-center justify-between">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row gap-3 items-center justify-between">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -240,7 +240,7 @@ export default function LeadsPage() {
             placeholder="Ism yoki telefon raqam..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+            className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-700 transition"
           />
         </div>
 
@@ -248,7 +248,7 @@ export default function LeadsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           >
             <option value="">Barcha bosqichlar</option>
             <option value="new">Yangi</option>
@@ -261,7 +261,7 @@ export default function LeadsPage() {
           <select
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
-            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           >
             <option value="">Barcha manbalar</option>
             <option value="instagram">Instagram</option>
@@ -274,19 +274,19 @@ export default function LeadsPage() {
       </div>
 
       {/* Leads Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         {isLoading ? (
           <div className="py-20 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
           </div>
         ) : leads.length === 0 ? (
-          <div className="py-16 text-center text-gray-400 text-sm">
+          <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">
             Hech qanday lid topilmadi.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
+              <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
                 <tr>
                   <th className="px-6 py-3.5">Mijoz (Lid)</th>
                   <th className="px-6 py-3.5">Telefon</th>
@@ -297,21 +297,21 @@ export default function LeadsPage() {
                   <th className="px-6 py-3.5 text-right">Tezkor amallar</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {leads.map((lead) => (
-                  <tr key={lead.id} className="hover:bg-gray-50/70 transition">
+                  <tr key={lead.id} className="hover:bg-gray-50/70 dark:hover:bg-gray-700/50 transition">
                     <td className="px-6 py-4">
-                      <p className="font-semibold text-gray-900">{lead.name}</p>
-                      <p className="text-[11px] text-gray-400">
+                      <p className="font-semibold text-gray-900 dark:text-white">{lead.name}</p>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500">
                         {new Date(lead.created_at * 1000).toLocaleDateString('uz-UZ')}
                       </p>
                     </td>
 
-                    <td className="px-6 py-4 text-xs font-medium text-gray-700">
+                    <td className="px-6 py-4 text-xs font-medium text-gray-700 dark:text-gray-300">
                       {lead.phone}
                     </td>
 
-                    <td className="px-6 py-4 text-xs font-semibold text-blue-600">
+                    <td className="px-6 py-4 text-xs font-semibold text-blue-600 dark:text-blue-400">
                       {lead.course_name || 'Tanlanmagan'}
                     </td>
 
@@ -323,7 +323,7 @@ export default function LeadsPage() {
                       {getStatusBadge(lead.status)}
                     </td>
 
-                    <td className="px-6 py-4 text-xs text-gray-500 max-w-xs truncate">
+                    <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 max-w-xs truncate">
                       {lead.notes || '—'}
                     </td>
 
@@ -335,7 +335,7 @@ export default function LeadsPage() {
                             setSelectedLead(lead);
                             setIsConvertModalOpen(true);
                           }}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-semibold transition border border-emerald-200"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-semibold transition border border-emerald-200 dark:border-emerald-800"
                           title="O'quvchiga aylantirish"
                         >
                           <UserCheck className="w-3.5 h-3.5" />
@@ -349,10 +349,10 @@ export default function LeadsPage() {
                           setSelectedLead(lead);
                           setIsActivityModalOpen(true);
                         }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold transition"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-semibold transition"
                         title="Faoliyat / Qo'ng'iroq qayd etish"
                       >
-                        <Phone className="w-3.5 h-3.5 text-gray-500" />
+                        <Phone className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
                         <span>Qo&apos;ng&apos;iroq</span>
                       </button>
 
@@ -360,7 +360,7 @@ export default function LeadsPage() {
                       {lead.status === 'new' && (
                         <button
                           onClick={() => updateStatusMutation.mutate({ id: lead.id, status: 'contacted' })}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold transition border border-amber-200"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 rounded-lg text-xs font-semibold transition border border-amber-200 dark:border-amber-800"
                         >
                           <span>Bog&apos;lanildi &rarr;</span>
                         </button>
@@ -369,7 +369,7 @@ export default function LeadsPage() {
                       {lead.status === 'contacted' && (
                         <button
                           onClick={() => updateStatusMutation.mutate({ id: lead.id, status: 'trial' })}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-lg text-xs font-semibold transition border border-purple-200"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-purple-800 dark:text-purple-300 rounded-lg text-xs font-semibold transition border border-purple-200 dark:border-purple-800"
                         >
                           <span>Sinov darsi &rarr;</span>
                         </button>
@@ -386,12 +386,12 @@ export default function LeadsPage() {
       {/* Modal: Yangi Lid Qo'shish */}
       {isNewLeadModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-              <h3 className="font-bold text-gray-900">Yangi lid (ariza) qo&apos;shish</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+              <h3 className="font-bold text-gray-900 dark:text-white">Yangi lid (ariza) qo&apos;shish</h3>
               <button
                 onClick={() => setIsNewLeadModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition cursor-pointer"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -405,7 +405,7 @@ export default function LeadsPage() {
               className="p-6 space-y-4 overflow-y-auto flex-1"
             >
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Mijoz ismi *
                 </label>
                 <input
@@ -414,12 +414,12 @@ export default function LeadsPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Masalan: Dilshod Rahimov"
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Telefon raqami *
                 </label>
                 <input
@@ -428,19 +428,19 @@ export default function LeadsPage() {
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="+998 90 123 45 67"
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                     Qiziqqan kursi
                   </label>
                   <select
                     value={formData.course_id}
                     onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   >
                     <option value="">Tanlang...</option>
                     {courses.map((c: { id: number; name: string }) => (
@@ -452,13 +452,13 @@ export default function LeadsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                     Kelish manbasi
                   </label>
                   <select
                     value={formData.source}
                     onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   >
                     <option value="instagram">Instagram</option>
                     <option value="telegram">Telegram</option>
@@ -470,7 +470,7 @@ export default function LeadsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Mijoz istagi / Izoh
                 </label>
                 <textarea
@@ -478,15 +478,15 @@ export default function LeadsPage() {
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   placeholder="Kechki guruhga qiziqmoqda, IELTS topshirmoqchi..."
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white py-3 border-t border-gray-100 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
+              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsNewLeadModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition cursor-pointer"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
@@ -507,12 +507,12 @@ export default function LeadsPage() {
       {/* Modal: Lidni O'quvchiga Aylantirish (Conversion) */}
       {isConvertModalOpen && selectedLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-              <h3 className="font-bold text-gray-900">O&apos;quvchiga aylantirish</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+              <h3 className="font-bold text-gray-900 dark:text-white">O&apos;quvchiga aylantirish</h3>
               <button
                 onClick={() => setIsConvertModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition cursor-pointer"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -525,22 +525,22 @@ export default function LeadsPage() {
               }}
               className="p-6 space-y-4 overflow-y-auto flex-1"
             >
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-xs space-y-1">
-                <p className="font-bold text-emerald-900">{selectedLead.name}</p>
-                <p className="text-emerald-700">{selectedLead.phone}</p>
-                <p className="text-emerald-600 mt-1 text-[11px]">
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-100 dark:border-emerald-800 text-xs space-y-1">
+                <p className="font-bold text-emerald-900 dark:text-emerald-200">{selectedLead.name}</p>
+                <p className="text-emerald-700 dark:text-emerald-400">{selectedLead.phone}</p>
+                <p className="text-emerald-600 dark:text-emerald-400 mt-1 text-[11px]">
                   Ushbu lid uchun avtomatik <strong>O&apos;quvchi</strong> akkaunti yaratiladi (parol: Student123!).
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Qaysi guruhga biriktirilsin? (ixtiyoriy)
                 </label>
                 <select
                   value={selectedGroupId}
                   onChange={(e) => setSelectedGroupId(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 >
                   <option value="">Guruhni tanlang...</option>
                   {groups.map((g: { id: number; name: string; course_name: string }) => (
@@ -551,11 +551,11 @@ export default function LeadsPage() {
                 </select>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white py-3 border-t border-gray-100 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
+              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsConvertModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition cursor-pointer"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>
@@ -576,12 +576,12 @@ export default function LeadsPage() {
       {/* Modal: Faoliyat / Qo'ng'iroq Qayd Etish */}
       {isActivityModalOpen && selectedLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-              <h3 className="font-bold text-gray-900">Qo&apos;ng&apos;iroq / Faoliyat qayd etish</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+              <h3 className="font-bold text-gray-900 dark:text-white">Qo&apos;ng&apos;iroq / Faoliyat qayd etish</h3>
               <button
                 onClick={() => setIsActivityModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition cursor-pointer"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -595,18 +595,18 @@ export default function LeadsPage() {
               className="p-6 space-y-4 overflow-y-auto flex-1"
             >
               <div>
-                <p className="text-xs text-gray-500">Mijoz:</p>
-                <p className="font-bold text-sm text-gray-900">{selectedLead.name} ({selectedLead.phone})</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Mijoz:</p>
+                <p className="font-bold text-sm text-gray-900 dark:text-white">{selectedLead.name} ({selectedLead.phone})</p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Muloqot turi *
                 </label>
                 <select
                   value={activityData.action}
                   onChange={(e) => setActivityData({ ...activityData, action: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 >
                   <option value="call">Telefon qo&apos;ng&apos;irog&apos;i</option>
                   <option value="meeting">Ofisda uchrashuv</option>
@@ -616,7 +616,7 @@ export default function LeadsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Natija / Xulosa *
                 </label>
                 <textarea
@@ -625,15 +625,15 @@ export default function LeadsPage() {
                   value={activityData.note}
                   onChange={(e) => setActivityData({ ...activityData, note: e.target.value })}
                   placeholder="Mijoz bilan nima gaplashildi? Masalan: Ertaga soat 15:00 da sinov darsiga keladigan bo'ldi..."
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white py-3 border-t border-gray-100 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
+              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsActivityModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition cursor-pointer"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>

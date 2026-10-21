@@ -142,8 +142,8 @@ export default function CertificatesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Bitiruv Sertifikatlari</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Bitiruv Sertifikatlari</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Rasmiy sertifikatlar generatsiya qilish va QR-kod orqali haqiqiyligini tekshirish
           </p>
         </div>
@@ -154,14 +154,14 @@ export default function CertificatesPage() {
               setVerifyNumber('');
               setVerifyModalOpen(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition shadow-sm cursor-pointer"
           >
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             QR Tekshirish
           </button>
           <button
             onClick={() => setIsGenerateModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Sertifikat berish
@@ -171,42 +171,42 @@ export default function CertificatesPage() {
 
       {/* Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between transition-colors">
           <div>
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Jami Berilgan</span>
-            <div className="text-2xl font-bold text-gray-900 mt-1">{totalCerts} ta</div>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jami Berilgan</span>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{totalCerts} ta</div>
           </div>
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+          <div className="w-12 h-12 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center">
             <Award className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between transition-colors">
           <div>
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">O&apos;rtacha Ball</span>
-            <div className="text-2xl font-bold text-emerald-600 mt-1">{avgScore} / 100</div>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">O&apos;rtacha Ball</span>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{avgScore} / 100</div>
           </div>
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+          <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
             <GraduationCap className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between transition-colors">
           <div>
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">QR Verifikatsiya</span>
-            <div className="text-sm font-semibold text-gray-800 mt-1 flex items-center gap-1.5">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">QR Verifikatsiya</span>
+            <div className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-1 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               Faol va himoyalangan
             </div>
           </div>
-          <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
+          <div className="w-12 h-12 bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center">
             <QrCode className="w-6 h-6" />
           </div>
         </div>
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-colors">
         <div className="relative">
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -214,28 +214,28 @@ export default function CertificatesPage() {
             placeholder="O'quvchi ismi, sertifikat raqami yoki kurs nomi bo'yicha qidirish..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-colors">
         {isLoading ? (
-          <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
+          <div className="p-12 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400 mb-2" />
             Yuklanmoqda...
           </div>
         ) : filteredCerts.length === 0 ? (
-          <div className="p-12 text-center text-gray-400">
-            <Award className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+          <div className="p-12 text-center text-gray-400 dark:text-gray-500">
+            <Award className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
             Sertifikatlar topilmadi
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <tr className="bg-gray-50/80 dark:bg-gray-750/70 border-b border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   <th className="py-3 px-4">Sertifikat №</th>
                   <th className="py-3 px-4">O&apos;quvchi</th>
                   <th className="py-3 px-4">Kurs / Guruh</th>
@@ -244,37 +244,37 @@ export default function CertificatesPage() {
                   <th className="py-3 px-4 text-right">Amallar</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredCerts.map((cert) => (
-                  <tr key={cert.id} className="hover:bg-gray-50/70 transition">
-                    <td className="py-3.5 px-4 font-mono font-semibold text-blue-600">
+                  <tr key={cert.id} className="hover:bg-gray-50/70 dark:hover:bg-gray-750/50 transition">
+                    <td className="py-3.5 px-4 font-mono font-semibold text-blue-600 dark:text-blue-400">
                       {cert.cert_number}
                     </td>
-                    <td className="py-3.5 px-4 font-medium text-gray-900">
+                    <td className="py-3.5 px-4 font-medium text-gray-900 dark:text-white">
                       {cert.student_name || '—'}
                     </td>
-                    <td className="py-3.5 px-4 text-gray-600">
-                      <span className="font-medium text-gray-800">{cert.course_name}</span>
-                      <span className="text-gray-400 block text-xs">{cert.group_name}</span>
+                    <td className="py-3.5 px-4 text-gray-600 dark:text-gray-300">
+                      <span className="font-medium text-gray-800 dark:text-gray-200">{cert.course_name}</span>
+                      <span className="text-gray-400 dark:text-gray-500 block text-xs">{cert.group_name}</span>
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       {cert.final_score != null ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
                           {cert.final_score} ball
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-xs">Belgilanmagan</span>
+                        <span className="text-gray-400 dark:text-gray-500 text-xs">Belgilanmagan</span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-gray-500">
+                    <td className="py-3.5 px-4 text-gray-500 dark:text-gray-400">
                       {cert.issued_at}
                     </td>
                     <td className="py-3.5 px-4 text-right space-x-2">
                       <button
                         onClick={() => setSelectedCert(cert)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium transition"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-200 text-xs font-medium transition cursor-pointer"
                       >
-                        <Printer className="w-3.5 h-3.5 text-blue-600" />
+                        <Printer className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                         Ko&apos;rish & Chop etish
                       </button>
                       <button
@@ -283,7 +283,7 @@ export default function CertificatesPage() {
                           setVerifyModalOpen(true);
                           handleVerify(cert.cert_number);
                         }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium transition"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-medium transition cursor-pointer"
                         title="QR tekshiruvini sinash"
                       >
                         <ShieldCheck className="w-3.5 h-3.5" />
@@ -300,16 +300,16 @@ export default function CertificatesPage() {
 
       {/* Modal 1: Generate Certificate */}
       {isGenerateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl my-auto max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-5 bg-gray-50 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-2 text-gray-900 font-bold">
-                <Award className="w-5 h-5 text-blue-600" />
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl my-auto max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-gray-100 dark:border-gray-700">
+            <div className="p-5 bg-gray-50 dark:bg-gray-800/90 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2 text-gray-900 dark:text-white font-bold">
+                <Award className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 Sertifikat Generatsiya Qilish
               </div>
               <button
                 onClick={() => setIsGenerateModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg cursor-pointer"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -331,21 +331,21 @@ export default function CertificatesPage() {
               className="p-5 space-y-4 overflow-y-auto flex-1"
             >
               {formError && (
-                <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg flex items-start gap-2 break-words">
+                <div className="p-3 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900 text-xs rounded-lg flex items-start gap-2 break-words">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span className="flex-1 break-words leading-relaxed">{formError}</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                   O&apos;quvchini tanlang *
                 </label>
                 <select
                   required
                   value={formData.student_id}
                   onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Tanlang...</option>
                   {students.map((st: any) => (
@@ -357,14 +357,14 @@ export default function CertificatesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                   Tugatgan guruhi *
                 </label>
                 <select
                   required
                   value={formData.group_id}
                   onChange={(e) => setFormData({ ...formData, group_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Tanlang...</option>
                   {groups.map((g: any) => (
@@ -376,7 +376,7 @@ export default function CertificatesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                   Yakuniy Imtihon Bali (100 ballik tizimda)
                 </label>
                 <input
@@ -387,15 +387,15 @@ export default function CertificatesPage() {
                   placeholder="Masalan: 94.5"
                   value={formData.final_score}
                   onChange={(e) => setFormData({ ...formData, final_score: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 sticky bottom-0 bg-white py-3 border-t border-gray-100 -mx-5 -mb-5 px-5 flex-shrink-0 z-10">
+              <div className="pt-3 flex items-center justify-end gap-2 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-5 -mb-5 px-5 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsGenerateModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
                 >
                   Bekor qilish
                 </button>
@@ -422,10 +422,10 @@ export default function CertificatesPage() {
       {/* Modal 2: Certificate Preview & Print */}
       {selectedCert && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full shadow-2xl my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal header */}
-            <div className="p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between print:hidden">
-              <div className="flex items-center gap-2 font-bold text-gray-800">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between print:hidden">
+              <div className="flex items-center gap-2 font-bold text-gray-800 dark:text-white">
                 <Award className="w-5 h-5 text-amber-500" />
                 Sertifikat Ko&apos;rinishi & Chop Etish
               </div>
@@ -439,7 +439,7 @@ export default function CertificatesPage() {
                 </button>
                 <button
                   onClick={() => setSelectedCert(null)}
-                  className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1.5 rounded-lg"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -520,15 +520,15 @@ export default function CertificatesPage() {
       {/* Modal 3: Public QR Verifier Dialog */}
       {verifyModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl my-auto max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-5 bg-gray-50 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-2 font-bold text-gray-900">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl my-auto max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-5 bg-gray-50 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
                 <ShieldCheck className="w-5 h-5 text-emerald-600" />
                 Sertifikatni Haqiqiyligini Tekshirish
               </div>
               <button
                 onClick={() => setVerifyModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg cursor-pointer"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -536,7 +536,7 @@ export default function CertificatesPage() {
 
             <div className="p-5 space-y-4 overflow-y-auto flex-1">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                   Sertifikat Raqami (CERT-YYYY-XXXXXX)
                 </label>
                 <div className="flex gap-2">
@@ -545,7 +545,7 @@ export default function CertificatesPage() {
                     placeholder="Masalan: CERT-2026-8941"
                     value={verifyNumber}
                     onChange={(e) => setVerifyNumber(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500"
                   />
                   <button
                     onClick={() => handleVerify(verifyNumber)}
@@ -561,8 +561,8 @@ export default function CertificatesPage() {
               {verificationResult && (
                 <div className={`p-4 rounded-xl border ${
                   verificationResult.valid
-                    ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
-                    : 'bg-red-50/70 border-red-200 text-red-900'
+                    ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                    : 'bg-red-50/70 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-900 dark:text-red-200'
                 }`}>
                   <div className="flex items-start gap-3">
                     {verificationResult.valid ? (
@@ -581,23 +581,23 @@ export default function CertificatesPage() {
                       </p>
 
                       {verificationResult.valid && verificationResult.certificate && (
-                        <div className="mt-3 space-y-1.5 text-xs border-t border-emerald-200/60 pt-2.5">
+                        <div className="mt-3 space-y-1.5 text-xs border-t border-emerald-200/60 dark:border-emerald-800/60 pt-2.5">
                           <div>
-                            <span className="text-emerald-700 font-medium">O&apos;quvchi: </span>
-                            <span className="font-bold text-gray-900">{verificationResult.certificate.student_name}</span>
+                            <span className="text-emerald-700 dark:text-emerald-400 font-medium">O&apos;quvchi: </span>
+                            <span className="font-bold text-gray-900 dark:text-white">{verificationResult.certificate.student_name}</span>
                           </div>
                           <div>
-                            <span className="text-emerald-700 font-medium">Kurs: </span>
-                            <span className="font-bold text-gray-900">{verificationResult.certificate.course_name}</span>
+                            <span className="text-emerald-700 dark:text-emerald-400 font-medium">Kurs: </span>
+                            <span className="font-bold text-gray-900 dark:text-white">{verificationResult.certificate.course_name}</span>
                           </div>
                           <div>
-                            <span className="text-emerald-700 font-medium">Berilgan sana: </span>
-                            <span className="text-gray-800">{verificationResult.certificate.issued_at}</span>
+                            <span className="text-emerald-700 dark:text-emerald-400 font-medium">Berilgan sana: </span>
+                            <span className="text-gray-800 dark:text-gray-200">{verificationResult.certificate.issued_at}</span>
                           </div>
                           {verificationResult.certificate.final_score && (
                             <div>
-                              <span className="text-emerald-700 font-medium">Natija: </span>
-                              <span className="font-bold text-emerald-700">{verificationResult.certificate.final_score} ball</span>
+                              <span className="text-emerald-700 dark:text-emerald-400 font-medium">Natija: </span>
+                              <span className="font-bold text-emerald-700 dark:text-emerald-400">{verificationResult.certificate.final_score} ball</span>
                             </div>
                           )}
                         </div>

@@ -103,8 +103,8 @@ export default function FinancePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Moliya va Xarajatlar</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Moliya va Xarajatlar</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Markaz daromadlari, xarajatlari, oylik to&apos;lovlar va sof foyda hisoboti
           </p>
         </div>
@@ -120,65 +120,65 @@ export default function FinancePage() {
 
       {/* Success Alert */}
       {successMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-2xl text-green-800 text-sm flex items-center gap-2 animate-fade-in">
-          <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+        <div className="p-4 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 rounded-2xl text-green-800 dark:text-green-300 text-sm flex items-center gap-2 animate-fade-in">
+          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
           <span className="font-semibold">{successMessage}</span>
         </div>
       )}
 
       {/* Top 4 Financial Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-start gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700/80 flex items-start gap-4 transition-colors">
           <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center text-white flex-shrink-0">
             <ArrowUpRight className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Oylik tushum</p>
-            <p className="text-2xl font-bold text-gray-900 mt-0.5">
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Oylik tushum</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">
               {formatMoney(summary.month_income)}
             </p>
-            <p className="text-xs text-emerald-600 font-semibold mt-1">To&apos;langan summalar</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1">To&apos;langan summalar</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-start gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700/80 flex items-start gap-4 transition-colors">
           <div className="w-12 h-12 rounded-xl bg-rose-500 flex items-center justify-center text-white flex-shrink-0">
             <ArrowDownRight className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Oylik xarajatlar</p>
-            <p className="text-2xl font-bold text-gray-900 mt-0.5">
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Oylik xarajatlar</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">
               {formatMoney(summary.month_expense)}
             </p>
-            <p className="text-xs text-rose-600 font-semibold mt-1">Operatsion chiqimlar</p>
+            <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold mt-1">Operatsion chiqimlar</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-start gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700/80 flex items-start gap-4 transition-colors">
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white flex-shrink-0 ${
             summary.net_profit >= 0 ? 'bg-blue-600' : 'bg-amber-500'
           }`}>
             <Wallet className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Sof natija</p>
-            <p className={`text-2xl font-bold mt-0.5 ${summary.net_profit >= 0 ? 'text-gray-900' : 'text-amber-700'}`}>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Sof natija</p>
+            <p className={`text-2xl font-bold mt-0.5 ${summary.net_profit >= 0 ? 'text-gray-900 dark:text-white' : 'text-amber-700 dark:text-amber-400'}`}>
               {formatMoney(summary.net_profit)}
             </p>
-            <p className="text-xs text-gray-400 mt-1">Tushum - Xarajat</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Tushum - Xarajat</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-start gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700/80 flex items-start gap-4 transition-colors">
           <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center text-white flex-shrink-0">
             <AlertCircle className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Qoldiq qarzdorlik</p>
-            <p className="text-2xl font-bold text-rose-600 mt-0.5">
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Qoldiq qarzdorlik</p>
+            <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-0.5">
               {formatMoney(summary.overdue_debt)}
             </p>
-            <p className="text-xs text-gray-400 mt-1">Kutilayotgan to&apos;lovlar</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Kutilayotgan to&apos;lovlar</p>
           </div>
         </div>
       </div>
@@ -187,35 +187,35 @@ export default function FinancePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Expenses List */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-            <h2 className="font-bold text-gray-900 text-base">Xarajatlar ro&apos;yxati</h2>
-            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-semibold">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 space-y-4 transition-colors">
+          <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+            <h2 className="font-bold text-gray-900 dark:text-white text-base">Xarajatlar ro&apos;yxati</h2>
+            <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">
               {expenses.length} ta
             </span>
           </div>
 
           {isExpensesLoading ? (
             <div className="py-12 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+              <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400" />
             </div>
           ) : expenses.length === 0 ? (
-            <div className="py-10 text-center text-gray-400 text-sm">
+            <div className="py-10 text-center text-gray-400 dark:text-gray-500 text-sm">
               Xarajatlar mavjud emas.
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
               {expenses.map((item) => (
                 <div key={item.id} className="py-3 flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-gray-900 text-sm">{item.description || 'Xarajat'}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                      <span className="capitalize font-medium text-gray-600">{item.category}</span>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{item.description || 'Xarajat'}</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-400 mt-0.5">
+                      <span className="capitalize font-medium text-gray-600 dark:text-gray-300">{item.category}</span>
                       <span>•</span>
                       <span>{item.date}</span>
                     </div>
                   </div>
-                  <strong className="text-rose-600 font-bold text-sm">
+                  <strong className="text-rose-600 dark:text-rose-400 font-bold text-sm">
                     -{formatMoney(item.amount)}
                   </strong>
                 </div>
@@ -225,35 +225,35 @@ export default function FinancePage() {
         </div>
 
         {/* Teacher Salaries */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-            <h2 className="font-bold text-gray-900 text-base">O&apos;qituvchilar ish haqi</h2>
-            <span className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full font-semibold">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 space-y-4 transition-colors">
+          <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+            <h2 className="font-bold text-gray-900 dark:text-white text-base">O&apos;qituvchilar ish haqi</h2>
+            <span className="text-xs bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-2.5 py-0.5 rounded-full font-semibold border border-emerald-200 dark:border-emerald-800/60">
               Joriy oy
             </span>
           </div>
 
           {isLoading ? (
             <div className="py-12 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+              <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400" />
             </div>
           ) : salaries.length === 0 ? (
-            <div className="py-10 text-center text-gray-400 text-sm">
+            <div className="py-10 text-center text-gray-400 dark:text-gray-500 text-sm">
               Ish haqi hisoblanmagan.
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
               {salaries.map((s) => (
                 <div key={s.id} className="py-3 flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-gray-900 text-sm">{s.teacher_name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{s.teacher_name}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">
                       Turi: <span className="capitalize">{s.type}</span> • {s.month}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-gray-900">{formatMoney(s.amount)}</p>
-                    <span className="text-[11px] font-semibold text-emerald-600">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{formatMoney(s.amount)}</p>
+                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                       {s.status === 'paid' ? 'To\'langan' : s.status}
                     </span>
                   </div>
@@ -267,13 +267,13 @@ export default function FinancePage() {
 
       {/* Modal: Yangi Xarajat */}
       {isExpenseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-              <h3 className="font-bold text-gray-900">Yangi xarajat kiritish</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md my-auto max-h-[92vh] flex flex-col overflow-hidden animate-fade-in border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+              <h3 className="font-bold text-gray-900 dark:text-white">Yangi xarajat kiritish</h3>
               <button
                 onClick={() => setIsExpenseModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition cursor-pointer"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -287,20 +287,20 @@ export default function FinancePage() {
               className="p-6 space-y-4 overflow-y-auto flex-1"
             >
               {expenseError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-start gap-2 break-words">
+                <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl text-red-700 dark:text-red-300 text-xs flex items-start gap-2 break-words">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span className="flex-1 break-words leading-relaxed">{expenseError}</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Kategoriya *
                 </label>
                 <select
                   value={expenseData.category}
                   onChange={(e) => setExpenseData({ ...expenseData, category: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 >
                   <option value="rent">Ijara haqi (Bino)</option>
                   <option value="ads">Marketing va Reklama</option>
@@ -311,7 +311,7 @@ export default function FinancePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Xarajat summasi (so&apos;m) *
                 </label>
                 <input
@@ -321,12 +321,12 @@ export default function FinancePage() {
                   step="10000"
                   value={expenseData.amount}
                   onChange={(e) => setExpenseData({ ...expenseData, amount: Number(e.target.value) })}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Xarajat sanasi *
                 </label>
                 <input
@@ -334,12 +334,12 @@ export default function FinancePage() {
                   required
                   value={expenseData.date}
                   onChange={(e) => setExpenseData({ ...expenseData, date: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Xarajat tavsifi / Izoh
                 </label>
                 <textarea
@@ -347,15 +347,15 @@ export default function FinancePage() {
                   value={expenseData.description}
                   onChange={(e) => setExpenseData({ ...expenseData, description: e.target.value })}
                   placeholder="Xarajat nima maqsadda qilinganligi..."
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3.5 py-2 bg-white dark:bg-gray-750 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white py-3 border-t border-gray-100 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
+              <div className="pt-3 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-gray-800 py-3 border-t border-gray-100 dark:border-gray-700 -mx-6 -mb-6 px-6 flex-shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setIsExpenseModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition cursor-pointer"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
                 >
                   Bekor qilish
                 </button>

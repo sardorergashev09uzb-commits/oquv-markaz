@@ -27,14 +27,14 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-start gap-4">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700/80 flex items-start gap-4 transition-colors">
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
         <Icon className="w-6 h-6 text-white" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-500 font-medium">{label}</p>
-        <p className="text-2xl font-bold text-gray-900 mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{label}</p>
+        <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{value}</p>
+        {sub && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{sub}</p>}
       </div>
     </div>
   );
@@ -94,7 +94,7 @@ function StudentDashboard({ userName }: { userName: string }) {
 
       {/* Asosiy metrikalar */}
       <div>
-        <h2 className="text-base font-semibold text-gray-700 mb-3">🎯 Shaxsiy ko&apos;rsatkichlar</h2>
+        <h2 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">🎯 Shaxsiy ko&apos;rsatkichlar</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link href="/groups" className="block hover:scale-[1.01] transition-transform">
             <StatCard
@@ -139,23 +139,23 @@ function StudentDashboard({ userName }: { userName: string }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Guruhlar va Dars jadvali (2 ustun) */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-blue-600" />
-              <h3 className="font-bold text-gray-900">Mening guruhlarim va Dars jadvali</h3>
+              <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <h3 className="font-bold text-gray-900 dark:text-white">Mening guruhlarim va Dars jadvali</h3>
             </div>
-            <Link href="/groups" className="text-xs text-blue-600 hover:underline font-semibold flex items-center gap-1">
+            <Link href="/groups" className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold flex items-center gap-1">
               Barchasi <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
           {isStudentLoading ? (
             <div className="py-12 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+              <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400" />
             </div>
           ) : groups.length === 0 ? (
-            <div className="py-10 text-center text-gray-400 text-sm">
+            <div className="py-10 text-center text-gray-400 dark:text-gray-500 text-sm">
               Siz hali hech qaysi guruhga biriktirilmadingiz. Markaz ma&apos;muriyatiga murojaat qiling.
             </div>
           ) : (
@@ -163,24 +163,24 @@ function StudentDashboard({ userName }: { userName: string }) {
               {groups.map((g: any) => (
                 <div
                   key={g.id}
-                  className="p-4 rounded-xl border border-gray-100 bg-gray-50/70 hover:bg-blue-50/50 hover:border-blue-200 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  className="p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-750/50 hover:bg-blue-50/50 dark:hover:bg-gray-700 hover:border-blue-200 dark:hover:border-blue-800 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-gray-900 text-base">{g.name}</span>
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-100 text-blue-700">
+                      <span className="font-bold text-gray-900 dark:text-white text-base">{g.name}</span>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
                         {g.course_name || 'Kurs'}
                       </span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                       <span className="flex items-center gap-1">
                         <GraduationCap className="w-3.5 h-3.5 text-gray-400" />
-                        Ustoz: <strong className="text-gray-700 font-medium">{g.teacher_name || 'Biriktirilmagan'}</strong>
+                        Ustoz: <strong className="text-gray-700 dark:text-gray-200 font-medium">{g.teacher_name || 'Biriktirilmagan'}</strong>
                       </span>
                       {g.room_name && (
                         <span className="flex items-center gap-1">
                           <DoorOpen className="w-3.5 h-3.5 text-gray-400" />
-                          Xona: <strong className="text-gray-700 font-medium">{g.room_name}</strong>
+                          Xona: <strong className="text-gray-700 dark:text-gray-200 font-medium">{g.room_name}</strong>
                         </span>
                       )}
                     </div>
@@ -188,14 +188,14 @@ function StudentDashboard({ userName }: { userName: string }) {
 
                   <div className="flex items-center gap-3">
                     <div className="text-left sm:text-right">
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-lg">
-                        <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold rounded-lg">
+                        <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                         {g.schedule?.[0]?.day ? `${g.schedule[0].day}: ${g.schedule[0].time}` : 'Dars jadvali mavjud'}
                       </span>
                     </div>
                     <Link
                       href={`/attendance`}
-                      className="px-3 py-1.5 bg-white border border-gray-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 rounded-lg text-xs font-medium text-gray-700 transition"
+                      className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 hover:border-blue-600 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-200 transition"
                     >
                       Davomat
                     </Link>
@@ -210,25 +210,25 @@ function StudentDashboard({ userName }: { userName: string }) {
         <div className="space-y-6">
 
           {/* So'nggi e'lonlar */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Megaphone className="w-5 h-5 text-amber-500" />
-                <h3 className="font-bold text-gray-900">Markaz e&apos;lonlari</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white">Markaz e&apos;lonlari</h3>
               </div>
-              <Link href="/announcements" className="text-xs text-blue-600 hover:underline font-semibold">
+              <Link href="/announcements" className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold">
                 Barchasi &rarr;
               </Link>
             </div>
 
             {announcements.length === 0 ? (
-              <p className="text-xs text-gray-400 py-4 text-center">Hozircha yangi e&apos;lonlar yo&apos;q.</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 py-4 text-center">Hozircha yangi e&apos;lonlar yo&apos;q.</p>
             ) : (
               <div className="space-y-3">
                 {announcements.map((a: any) => (
-                  <div key={a.id} className="p-3 rounded-xl bg-gray-50 border border-gray-100 hover:border-amber-200 transition">
-                    <p className="text-sm font-semibold text-gray-800 line-clamp-1">{a.title}</p>
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{a.content}</p>
+                  <div key={a.id} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-750/70 border border-gray-100 dark:border-gray-700 hover:border-amber-200 dark:hover:border-amber-600/50 transition">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 line-clamp-1">{a.title}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{a.content}</p>
                   </div>
                 ))}
               </div>
@@ -236,17 +236,17 @@ function StudentDashboard({ userName }: { userName: string }) {
           </div>
 
           {/* To'lov eslatmasi */}
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-5 border border-emerald-100">
-            <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm mb-1">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 rounded-2xl p-5 border border-emerald-100 dark:border-emerald-800/60 transition-colors">
+            <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-sm mb-1">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>To&apos;lov holati a&apos;lo</span>
             </div>
-            <p className="text-xs text-emerald-700 leading-relaxed">
+            <p className="text-xs text-emerald-700 dark:text-emerald-300/90 leading-relaxed">
               Joriy oy uchun barcha o&apos;quv to&apos;lovlari muvaffaqiyatli qabul qilingan. Qarzdorlik mavjud emas!
             </p>
             <Link
               href="/payments"
-              className="inline-block mt-3 text-xs font-semibold text-emerald-800 hover:text-emerald-900 underline"
+              className="inline-block mt-3 text-xs font-semibold text-emerald-800 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-200 underline"
             >
               To&apos;lovlar tarixini ko&apos;rish &rarr;
             </Link>
@@ -290,7 +290,7 @@ function TeacherDashboard({ userName }: { userName: string }) {
 
       {/* Metrikalar */}
       <div>
-        <h2 className="text-base font-semibold text-gray-700 mb-3">📊 Asosiy ko&apos;rsatkichlar</h2>
+        <h2 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">📊 Asosiy ko&apos;rsatkichlar</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link href="/groups" className="block hover:scale-[1.01] transition-transform">
             <StatCard
@@ -332,35 +332,35 @@ function TeacherDashboard({ userName }: { userName: string }) {
       </div>
 
       {/* Guruhlar ro'yxati */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-gray-900">📚 Mening guruhlarim</h3>
-          <Link href="/groups" className="text-xs text-blue-600 hover:underline font-semibold">
+          <h3 className="font-bold text-gray-900 dark:text-white">📚 Mening guruhlarim</h3>
+          <Link href="/groups" className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold">
             Barchasi &rarr;
           </Link>
         </div>
 
         {isLoading ? (
           <div className="py-10 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
+            <Loader2 className="w-6 h-6 animate-spin text-purple-600 dark:text-purple-400" />
           </div>
         ) : groups.length === 0 ? (
-          <p className="text-xs text-gray-400 py-6 text-center">Sizga hali guruhlar biriktirilmagan.</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 py-6 text-center">Sizga hali guruhlar biriktirilmagan.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {groups.map((g: any) => (
-              <div key={g.id} className="p-4 rounded-xl border border-gray-100 bg-gray-50/70 space-y-3">
+              <div key={g.id} className="p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-750/50 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h4 className="font-bold text-gray-900 text-sm">{g.name}</h4>
-                    <p className="text-xs text-gray-500">{g.course_name}</p>
+                    <h4 className="font-bold text-gray-900 dark:text-white text-sm">{g.name}</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{g.course_name}</p>
                   </div>
-                  <span className="text-xs bg-purple-100 text-purple-700 font-semibold px-2 py-0.5 rounded-full">
+                  <span className="text-xs bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 font-semibold px-2 py-0.5 rounded-full">
                     {g.students_count || 0} o&apos;quvchi
                   </span>
                 </div>
-                <div className="flex items-center justify-between pt-2 border-t border-gray-200 text-xs">
-                  <span className="text-gray-500">{g.room_name || 'Xona yo\'q'}</span>
+                <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700 text-xs">
+                  <span className="text-gray-500 dark:text-gray-400">{g.room_name || 'Xona yo\'q'}</span>
                   <Link
                     href={`/attendance`}
                     className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition"
@@ -409,28 +409,28 @@ function ManagerDashboard() {
       {/* Header with refresh */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Markaz Ko&apos;rsatkichlari</h1>
-          <p className="text-sm text-gray-500">Bugungi umumiy holat va statistika</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Markaz Ko&apos;rsatkichlari</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Bugungi umumiy holat va statistika</p>
         </div>
         <button
           onClick={() => refetch()}
           disabled={isFetching}
-          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition shadow-sm"
+          className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-750 transition shadow-sm"
         >
-          <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-blue-600' : 'text-gray-500'}`} />
+          <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
           <span>Yangilash</span>
         </button>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
         </div>
       ) : (
         <>
           {/* Bugungi holat */}
           <div>
-            <h2 className="text-base font-semibold text-gray-700 mb-3">📊 Asosiy metrikalar</h2>
+            <h2 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">📊 Asosiy metrikalar</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Link href="/students" className="block hover:scale-[1.01] transition-transform">
                 <StatCard
@@ -500,28 +500,28 @@ function ManagerDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
             {/* So'nggi o'quvchilar */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-800">👥 So&apos;nggi o&apos;quvchilar</h3>
-                <Link href="/students" className="text-xs text-blue-600 hover:underline font-medium">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-100">👥 So&apos;nggi o&apos;quvchilar</h3>
+                <Link href="/students" className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
                   Barchasi &rarr;
                 </Link>
               </div>
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 dark:divide-gray-700">
                 {recentStudents.map((s: { id: number; name: string; phone: string; email: string }) => (
                   <div key={s.id} className="py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                      <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 flex items-center justify-center font-bold text-xs">
                         {s.name.charAt(0)}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-800">{s.name}</p>
-                        <p className="text-xs text-gray-500">{s.phone}</p>
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-100">{s.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{s.phone}</p>
                       </div>
                     </div>
                     <Link
                       href={`/students/${s.id}`}
-                      className="text-xs bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 px-3 py-1 rounded-lg transition font-medium border border-gray-200"
+                      className="text-xs bg-gray-50 dark:bg-gray-700/60 hover:bg-blue-50 dark:hover:bg-blue-900/50 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-300 px-3 py-1 rounded-lg transition font-medium border border-gray-200 dark:border-gray-600"
                     >
                       Profil
                     </Link>
@@ -531,24 +531,24 @@ function ManagerDashboard() {
             </div>
 
             {/* Faol guruhlar */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-800">📚 Faol guruhlar</h3>
-                <Link href="/groups" className="text-xs text-blue-600 hover:underline font-medium">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-100">📚 Faol guruhlar</h3>
+                <Link href="/groups" className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
                   Barchasi &rarr;
                 </Link>
               </div>
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 dark:divide-gray-700">
                 {activeGroups.map((g: { id: number; name: string; course_name: string; teacher_name: string; students_count: number; max_students: number }) => (
                   <div key={g.id} className="py-3 flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-800">{g.name}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm font-medium text-gray-800 dark:text-gray-100">{g.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         {g.course_name} • {g.teacher_name}
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-medium">
+                      <span className="text-xs bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full font-medium border border-emerald-200 dark:border-emerald-800/60">
                         {g.students_count || 0}/{g.max_students} o&apos;quvchi
                       </span>
                     </div>
